@@ -1,11 +1,12 @@
 # Crystal Command
 
 A tiny real-time strategy game in the spirit of Command & Conquer / StarCraft.
-Runs entirely in your browser — no install, no internet needed.
+Runs entirely in your browser — no install needed.
 
 ## Play
 
-Double-click `index.html` (or drag it onto Safari/Chrome).
+**▶ [Play it right now](https://bronsongannon.github.io/crystal-command/)** — or
+double-click `index.html` locally (works offline).
 
 ## Goal
 
