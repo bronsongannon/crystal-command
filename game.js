@@ -1,0 +1,1355 @@
+'use strict';
+/* ============================================================
+   CRYSTAL COMMAND — a tiny real-time strategy game
+   Harvest crystals · train an army · destroy the enemy HQ
+   ============================================================ */
+
+// ---------------- DOM ----------------
+const cv = document.getElementById('game');
+const cx = cv.getContext('2d');
+const mini = document.getElementById('minimap');
+const mcx = mini.getContext('2d');
+const elCrystals = document.getElementById('res-crystals');
+const elSupply = document.getElementById('res-supply');
+const elWave = document.getElementById('wave-timer');
+const elCard = document.getElementById('card');
+const elToast = document.getElementById('toast');
+const elOverlay = document.getElementById('overlay');
+const elOvTitle = document.getElementById('ov-title');
+const elOvSub = document.getElementById('ov-sub');
+const elHelp = document.getElementById('help');
+const btnHelp = document.getElementById('btn-help');
+const btnMute = document.getElementById('btn-mute');
+const btnFog = document.getElementById('btn-fog');
+
+// ---------------- World ----------------
+const TILE = 32, MAP_W = 64, MAP_H = 48;
+const W = MAP_W * TILE, H = MAP_H * TILE;      // 2048 x 1536 world px
+const view = { w: window.innerWidth, h: window.innerHeight };
+let dpr = window.devicePixelRatio || 1;
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  view.w = window.innerWidth; view.h = window.innerHeight;
+  cv.width = view.w * dpr; cv.height = view.h * dpr;
+  cv.style.width = view.w + 'px'; cv.style.height = view.h + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+const cam = { x: 0, y: 0 };
+function clampCam() {
+  cam.x = Math.max(0, Math.min(Math.max(0, W - view.w), cam.x));
+  cam.y = Math.max(0, Math.min(Math.max(0, H - view.h), cam.y));
+}
+
+// ---------------- Data ----------------
+const UNIT = {
+  harvester: { label: 'Harvester', cost: 60,  supply: 1, hp: 90,  speed: 1.7,  r: 11, dmg: 2,  range: 26,  cooldown: 50,  buildTime: 6 * 60,  sight: 170, carry: 12 },
+  engineer:  { label: 'Engineer',  cost: 90,  supply: 1, hp: 60,  speed: 1.9,  r: 9,  dmg: 2,  range: 22,  cooldown: 55,  buildTime: 6 * 60,  sight: 190, repair: 0.55 },
+  marine:    { label: 'Marine',    cost: 80,  supply: 1, hp: 70,  speed: 1.9,  r: 9,  dmg: 9,  range: 125, cooldown: 36,  buildTime: 5 * 60,  sight: 200 },
+  sniper:    { label: 'Sniper',    cost: 130, supply: 1, hp: 45,  speed: 1.7,  r: 8,  dmg: 30, range: 190, cooldown: 110, buildTime: 7 * 60,  sight: 270 },
+  raider:    { label: 'Raider',    cost: 150, supply: 1, hp: 110, speed: 3.0,  r: 11, dmg: 7,  range: 100, cooldown: 20,  buildTime: 6 * 60,  sight: 240 },
+  tank:      { label: 'Tank',      cost: 220, supply: 2, hp: 280, speed: 1.25, r: 14, dmg: 34, range: 155, cooldown: 95,  buildTime: 10 * 60, sight: 210 },
+};
+const BLD = {
+  hq:       { label: 'Headquarters', hp: 2200, w: 96, h: 96, supply: 20, sight: 300, trains: ['harvester', 'engineer'] },
+  barracks: { label: 'Barracks',     hp: 1100, w: 78, h: 78, supply: 4,  sight: 250, trains: ['marine', 'sniper', 'raider', 'tank'] },
+  turret:   { label: 'Turret',       hp: 450,  w: 40, h: 40, supply: 0,  sight: 260, dmg: 15, range: 200, cooldown: 42, cost: 140, buildTime: 8 * 60 },
+};
+const TURRET_PLACE_RADIUS = 300;   // must build near an existing friendly building
+const COLORS = {
+  1: { main: '#3fb9c9', dark: '#1e6570', light: '#9fe8ef' },
+  2: { main: '#e0564a', dark: '#7c2a24', light: '#f5a89a' },
+};
+const CRYSTAL_COLOR = '#6fe3d0';
+
+// ---------------- State ----------------
+let nextId = 1;
+let units = [], buildings = [], crystals = [], bullets = [], fxs = [];
+const teams = { 1: { crystals: 180 }, 2: { crystals: 180 } };
+let tick = 0;
+let gameOver = null;                 // null | 'win' | 'lose'
+let waveAt = 100 * 60, waveNum = 0;  // first enemy assault at 100s
+let muted = false;
+let fogMemory = true;   // true = explored ground stays dimly visible; false = re-fogs to black
+
+// ---------------- Utils ----------------
+const dist2 = (x1, y1, x2, y2) => { const dx = x2 - x1, dy = y2 - y1; return dx * dx + dy * dy; };
+const dist = (x1, y1, x2, y2) => Math.sqrt(dist2(x1, y1, x2, y2));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const isCombat = (u) => u.type !== 'harvester' && u.type !== 'engineer';
+
+function rr(ctx, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// ---------------- Fog of war ----------------
+// One cell per map tile. `explored` is permanent; `visible` is what your
+// units/buildings can currently see (recomputed every few ticks).
+const fogW = MAP_W, fogH = MAP_H;
+const explored = new Uint8Array(fogW * fogH);
+const visible = new Uint8Array(fogW * fogH);
+const fogCv = document.createElement('canvas');
+fogCv.width = fogW; fogCv.height = fogH;
+const fogCx = fogCv.getContext('2d');
+const fogImg = fogCx.createImageData(fogW, fogH);
+
+function fogCell(wx, wy) {
+  const gx = Math.max(0, Math.min(fogW - 1, Math.floor(wx / TILE)));
+  const gy = Math.max(0, Math.min(fogH - 1, Math.floor(wy / TILE)));
+  return gy * fogW + gx;
+}
+const isVisibleAt = (wx, wy) => visible[fogCell(wx, wy)] === 1;
+const isExploredAt = (wx, wy) => explored[fogCell(wx, wy)] === 1;
+// what the player can currently make out on screen (depends on the fog-memory toggle)
+const isShownAt = (wx, wy) => {
+  const i = fogCell(wx, wy);
+  return visible[i] === 1 || (fogMemory && explored[i] === 1);
+};
+
+function stampVision(x, y, r) {
+  const cx0 = Math.floor(x / TILE), cy0 = Math.floor(y / TILE);
+  const cr = Math.ceil(r / TILE), r2 = r * r;
+  for (let gy = Math.max(0, cy0 - cr); gy <= Math.min(fogH - 1, cy0 + cr); gy++) {
+    for (let gx = Math.max(0, cx0 - cr); gx <= Math.min(fogW - 1, cx0 + cr); gx++) {
+      const dx = (gx + 0.5) * TILE - x, dy = (gy + 0.5) * TILE - y;
+      if (dx * dx + dy * dy <= r2) { const i = gy * fogW + gx; visible[i] = 1; explored[i] = 1; }
+    }
+  }
+}
+function updateFog() {
+  visible.fill(0);
+  for (const u of units) if (u.team === 1) stampVision(u.x, u.y, UNIT[u.type].sight);
+  for (const b of buildings) if (b.team === 1) stampVision(b.x, b.y, BLD[b.type].sight);
+  const d = fogImg.data;
+  for (let i = 0; i < visible.length; i++) {
+    d[i * 4 + 3] = visible[i] ? 0 : (fogMemory && explored[i]) ? 150 : 255;   // rgb stays black
+  }
+  fogCx.putImageData(fogImg, 0, 0);
+}
+
+// ---------------- Audio ----------------
+let actx = null;
+let lastShotSound = 0;
+function audioInit() {
+  if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { /* no audio */ } }
+  if (actx && actx.state === 'suspended') actx.resume();
+}
+function beep(freq, dur, type, vol, slideTo) {
+  if (muted || !actx) return;
+  try {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || 'square';
+    o.frequency.setValueAtTime(freq, actx.currentTime);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(1, slideTo), actx.currentTime + dur);
+    g.gain.setValueAtTime(vol || 0.04, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime + dur);
+  } catch (e) { /* ignore */ }
+}
+const snd = {
+  shot()    { if (tick - lastShotSound < 4) return; lastShotSound = tick; beep(880, 0.05, 'square', 0.018); },
+  shell()   { if (tick - lastShotSound < 4) return; lastShotSound = tick; beep(170, 0.16, 'sawtooth', 0.05, 60); },
+  snipe()   { if (tick - lastShotSound < 4) return; lastShotSound = tick; beep(1600, 0.09, 'square', 0.03, 220); },
+  boom()    { beep(95, 0.32, 'sawtooth', 0.07, 28); },
+  deposit() { beep(1240, 0.07, 'sine', 0.035); },
+  repair()  { beep(760, 0.05, 'triangle', 0.03, 980); },
+  ready()   { beep(620, 0.07, 'sine', 0.045); setTimeout(() => beep(880, 0.09, 'sine', 0.045), 80); },
+  error()   { beep(170, 0.11, 'square', 0.045); },
+  alarm()   { beep(520, 0.14, 'square', 0.06, 320); setTimeout(() => beep(520, 0.14, 'square', 0.06, 320), 200); },
+};
+
+// ---------------- Factories ----------------
+function makeUnit(type, team, x, y) {
+  const d = UNIT[type];
+  const u = {
+    id: nextId++, kind: 'unit', type, team,
+    x, y, r: d.r, hp: d.hp, maxHp: d.hp,
+    speed: d.speed, dmg: d.dmg, range: d.range, cooldown: d.cooldown,
+    cool: 0, faceA: team === 1 ? -Math.PI / 4 : Math.PI * 0.75,
+    carry: 0, mineT: 0, lastCrystal: null,
+    order: { type: 'idle' },
+  };
+  units.push(u);
+  return u;
+}
+function makeBuilding(type, team, x, y, constructing) {
+  const d = BLD[type];
+  const b = {
+    id: nextId++, kind: 'building', type, team,
+    x, y, w: d.w, h: d.h, r: Math.max(d.w, d.h) / 2,
+    hp: constructing ? 60 : d.hp, maxHp: d.hp,
+    dmg: d.dmg || 0, range: d.range || 0, cooldown: d.cooldown || 0, cool: 0, faceA: 0,
+    queue: [], prog: 0,
+    built: constructing ? 0 : 1,
+    rally: null,
+  };
+  if (d.trains) {
+    const dir = team === 1 ? -1 : 1;
+    b.rally = { x: clamp(x + 120 * -dir, 40, W - 40), y: clamp(y + 90 * dir, 40, H - 40) };
+  }
+  buildings.push(b);
+  return b;
+}
+function makeCrystal(x, y, amount) {
+  const c = { id: nextId++, kind: 'crystal', x, y, r: 13, amount, maxAmount: amount };
+  crystals.push(c);
+  return c;
+}
+
+// ---------------- Map setup ----------------
+function addPatch(px, py, n, amount) {
+  const made = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + 0.4;
+    const rad = i === 0 ? 0 : 26 + (i % 3) * 16;
+    made.push(makeCrystal(px + Math.cos(a) * rad, py + Math.sin(a) * rad, amount));
+  }
+  return made;
+}
+
+function setup() {
+  // --- player base (bottom-left) ---
+  const pHQ = makeBuilding('hq', 1, 210, H - 210);
+  makeBuilding('barracks', 1, 400, H - 140);
+  const pPatch = addPatch(260, H - 440, 7, 1400);
+  pHQ.rally = { x: pPatch[0].x, y: pPatch[0].y };            // fresh harvesters auto-mine
+  for (let i = 0; i < 3; i++) {
+    const u = makeUnit('harvester', 1, 300 + i * 30, H - 330);
+    u.order = { type: 'harvest', target: pPatch[i % pPatch.length] };
+  }
+  makeUnit('marine', 1, 340, H - 250);
+  makeUnit('marine', 1, 375, H - 275);
+
+  // --- enemy base (top-right) ---
+  const eHQ = makeBuilding('hq', 2, W - 210, 210);
+  makeBuilding('barracks', 2, W - 400, 140);
+  makeBuilding('turret', 2, W - 350, 330);
+  makeBuilding('turret', 2, W - 480, 220);
+  const ePatch = addPatch(W - 260, 440, 7, 1400);
+  eHQ.rally = { x: ePatch[0].x, y: ePatch[0].y };
+  for (let i = 0; i < 3; i++) {
+    const u = makeUnit('harvester', 2, W - 300 - i * 30, 330);
+    u.order = { type: 'harvest', target: ePatch[i % ePatch.length] };
+  }
+  makeUnit('marine', 2, W - 340, 250);
+  makeUnit('marine', 2, W - 375, 275);
+
+  // --- rich neutral patches mid-map ---
+  addPatch(W / 2, H / 2 - 200, 8, 2200);
+  addPatch(W / 2, H / 2 + 200, 8, 2200);
+
+  // camera on player base
+  cam.x = pHQ.x - view.w / 2 + 150;
+  cam.y = pHQ.y - view.h / 2 - 60;
+  clampCam();
+  updateFog();
+}
+
+// ---------------- Queries ----------------
+function supplyUsed(team) {
+  let s = 0;
+  for (const u of units) if (u.team === team) s += UNIT[u.type].supply;
+  return s;
+}
+function supplyMax(team) {
+  let s = 0;
+  for (const b of buildings) if (b.team === team && b.built >= 1) s += BLD[b.type].supply;
+  return Math.min(60, s);
+}
+function nearestCrystalTo(x, y, maxDist) {
+  let best = null, bd = (maxDist || 1e9) ** 2;
+  for (const c of crystals) {
+    if (c.amount <= 0) continue;
+    const d = dist2(x, y, c.x, c.y);
+    if (d < bd) { bd = d; best = c; }
+  }
+  return best;
+}
+function nearestFriendlyHQ(team, x, y) {
+  let best = null, bd = 1e18;
+  for (const b of buildings) {
+    if (b.team !== team || b.type !== 'hq') continue;
+    const d = dist2(x, y, b.x, b.y);
+    if (d < bd) { bd = d; best = b; }
+  }
+  return best;
+}
+function nearestDamagedBuilding(team, x, y, range) {
+  let best = null, bd = 1e18;
+  for (const b of buildings) {
+    if (b.team !== team || b.built < 1 || b.hp >= b.maxHp) continue;
+    const d = dist(x, y, b.x, b.y) - b.r;
+    if (d <= range && d * d < bd) { bd = d * d; best = b; }
+  }
+  return best;
+}
+function nearestEnemyUnit(x, y, team, range) {
+  let best = null, bd = 1e18;
+  for (const u of units) {
+    if (u.team === team) continue;
+    if (team === 1 && !isVisibleAt(u.x, u.y)) continue;   // player can't target into the fog
+    const d = dist(x, y, u.x, u.y) - u.r;
+    if (d <= range && d * d < bd) { bd = d * d; best = u; }
+  }
+  return best;
+}
+function nearestEnemyBuilding(x, y, team, range) {
+  let best = null, bd = 1e18;
+  for (const b of buildings) {
+    if (b.team === team) continue;
+    if (team === 1 && !isVisibleAt(b.x, b.y)) continue;
+    const d = dist(x, y, b.x, b.y) - b.r;
+    if (d <= range && d * d < bd) { bd = d * d; best = b; }
+  }
+  return best;
+}
+function acquireTarget(x, y, team, range) {
+  return nearestEnemyUnit(x, y, team, range) || nearestEnemyBuilding(x, y, team, range);
+}
+function thingAtPoint(wx, wy) {
+  for (const u of units) {
+    if (u.team === 2 && !isVisibleAt(u.x, u.y)) continue;   // hidden by fog
+    if (dist2(wx, wy, u.x, u.y) <= (u.r + 4) ** 2) return u;
+  }
+  for (const b of buildings) {
+    if (b.team === 2 && !isShownAt(b.x, b.y)) continue;
+    if (Math.abs(wx - b.x) <= b.w / 2 + 3 && Math.abs(wy - b.y) <= b.h / 2 + 3) return b;
+  }
+  for (const c of crystals) if (c.amount > 0 && dist2(wx, wy, c.x, c.y) <= (c.r + 8) ** 2) return c;
+  return null;
+}
+
+// ---------------- Orders ----------------
+function spreadPoint(x, y, i) {
+  if (i === 0) return { x, y };
+  const a = i * 2.39996, rad = 22 * Math.sqrt(i);
+  return { x: clamp(x + Math.cos(a) * rad, 20, W - 20), y: clamp(y + Math.sin(a) * rad, 20, H - 20) };
+}
+function commandMove(sel, wx, wy, attackMove) {
+  let i = 0;
+  for (const e of sel) {
+    if (e.kind !== 'unit') continue;
+    const p = spreadPoint(wx, wy, i++);
+    e.order = { type: attackMove && isCombat(e) ? 'attackmove' : 'move', x: p.x, y: p.y };
+  }
+}
+function commandAttack(sel, target) {
+  for (const e of sel) {
+    if (e.kind !== 'unit') continue;
+    e.order = { type: 'attack', target, resume: null };
+  }
+}
+function commandHarvest(sel, c) {
+  let i = 0;
+  for (const e of sel) {
+    if (e.kind !== 'unit') continue;
+    if (e.type === 'harvester') e.order = { type: 'harvest', target: c };
+    else { const p = spreadPoint(c.x, c.y + 50, i++); e.order = { type: 'move', x: p.x, y: p.y }; }
+  }
+}
+function commandRepair(sel, b) {
+  let i = 0;
+  for (const e of sel) {
+    if (e.kind !== 'unit') continue;
+    if (e.type === 'engineer') e.order = { type: 'repair', target: b };
+    else { const p = spreadPoint(b.x, b.y + b.h / 2 + 30, i++); e.order = { type: 'move', x: p.x, y: p.y }; }
+  }
+}
+
+// ---------------- Production ----------------
+function trainUnit(b, type) {
+  const d = UNIT[type];
+  const t = teams[b.team];
+  if (b.queue.length >= 5) { if (b.team === 1) { toast('Queue is full'); snd.error(); } return false; }
+  if (t.crystals < d.cost) { if (b.team === 1) { toast('Not enough crystals'); snd.error(); } return false; }
+  t.crystals -= d.cost;
+  b.queue.push(type);
+  return true;
+}
+function spawnFromBuilding(b, type) {
+  const rally = b.rally || { x: b.x, y: b.y + b.h };
+  const a = Math.atan2(rally.y - b.y, rally.x - b.x);
+  const sx = b.x + Math.cos(a) * (b.r + 16) + (Math.random() - 0.5) * 10;
+  const sy = b.y + Math.sin(a) * (b.r + 16) + (Math.random() - 0.5) * 10;
+  const u = makeUnit(type, b.team, clamp(sx, 20, W - 20), clamp(sy, 20, H - 20));
+  const c = nearestCrystalTo(rally.x, rally.y, 60);
+  if (type === 'harvester' && c) u.order = { type: 'harvest', target: c };
+  else u.order = { type: 'move', x: rally.x, y: rally.y };
+  if (b.team === 1) snd.ready();
+}
+function updateProduction(b) {
+  if (!b.queue.length) return;
+  const type = b.queue[0], d = UNIT[type];
+  if (b.prog < d.buildTime) { b.prog++; return; }
+  if (supplyUsed(b.team) + d.supply > supplyMax(b.team)) {
+    if (b.team === 1 && tick % 300 === 0) toast('Supply limit reached — unit on hold');
+    return;
+  }
+  b.queue.shift(); b.prog = 0;
+  spawnFromBuilding(b, type);
+}
+
+// ---------------- Combat ----------------
+function fire(src, target) {
+  src.cool = src.cooldown;
+  src.faceA = Math.atan2(target.y - src.y, target.x - src.x);
+  const kind = src.type === 'tank' ? 'shell' : src.type === 'sniper' ? 'snipe' : 'bolt';
+  bullets.push({
+    x: src.x + Math.cos(src.faceA) * (src.r * 0.8),
+    y: src.y + Math.sin(src.faceA) * (src.r * 0.8),
+    tx: target.x, ty: target.y,
+    target, dmg: src.dmg, team: src.team,
+    speed: kind === 'shell' ? 6.5 : kind === 'snipe' ? 13 : 9,
+    kind,
+  });
+  if (src.team === 1 || Math.random() < 0.4) {
+    if (kind === 'shell') snd.shell(); else if (kind === 'snipe') snd.snipe(); else snd.shot();
+  }
+}
+function damage(e, d, src) {
+  e.hp -= d;
+  // fight back if idle
+  if (e.kind === 'unit' && isCombat(e) && e.order.type === 'idle' && src && src.hp > 0) {
+    e.order = { type: 'attack', target: src, resume: null };
+  }
+  if (e.hp <= 0) kill(e);
+}
+function kill(e) {
+  e.hp = 0;
+  fxs.push({ kind: 'boom', x: e.x, y: e.y, t: 0, max: 26, size: (e.r || 16) * 1.6 });
+  snd.boom();
+}
+
+// ---------------- Unit update ----------------
+function moveToward(u, tx, ty) {
+  const d = dist(u.x, u.y, tx, ty);
+  if (d < 5) return true;
+  u.faceA = Math.atan2(ty - u.y, tx - u.x);
+  const step = Math.min(u.speed, d);
+  u.x += Math.cos(u.faceA) * step;
+  u.y += Math.sin(u.faceA) * step;
+  return d - step < 5;
+}
+
+function updateUnit(u) {
+  if (u.cool > 0) u.cool--;
+  const o = u.order;
+
+  switch (o.type) {
+    case 'idle': {
+      if (u.type === 'engineer') {
+        const nb = nearestDamagedBuilding(u.team, u.x, u.y, 240);
+        if (nb) u.order = { type: 'repair', target: nb };
+      } else if (isCombat(u)) {
+        const t = acquireTarget(u.x, u.y, u.team, u.range + 70);
+        if (t) u.order = { type: 'attack', target: t, resume: null };
+      }
+      break;
+    }
+    case 'move': {
+      if (moveToward(u, o.x, o.y)) u.order = { type: 'idle' };
+      break;
+    }
+    case 'attackmove': {
+      const t = acquireTarget(u.x, u.y, u.team, u.range + 90);
+      if (t) { u.order = { type: 'attack', target: t, resume: { x: o.x, y: o.y } }; break; }
+      if (moveToward(u, o.x, o.y)) u.order = { type: 'idle' };
+      break;
+    }
+    case 'attack': {
+      const t = o.target;
+      if (!t || t.hp <= 0) {
+        u.order = o.resume ? { type: 'attackmove', x: o.resume.x, y: o.resume.y } : { type: 'idle' };
+        break;
+      }
+      const d = dist(u.x, u.y, t.x, t.y) - (t.r || 0);
+      if (d > u.range) moveToward(u, t.x, t.y);
+      else {
+        u.faceA = Math.atan2(t.y - u.y, t.x - u.x);
+        if (u.cool <= 0) fire(u, t);
+      }
+      break;
+    }
+    case 'harvest': {
+      let c = o.target;
+      if (!c || c.amount <= 0) {
+        c = nearestCrystalTo(u.x, u.y, 600);
+        if (!c) { u.order = { type: 'idle' }; break; }
+        o.target = c;
+      }
+      if (u.carry >= UNIT.harvester.carry) { u.lastCrystal = c; u.order = { type: 'return' }; break; }
+      const d = dist(u.x, u.y, c.x, c.y);
+      if (d > c.r + u.r + 4) moveToward(u, c.x, c.y);
+      else {
+        u.faceA = Math.atan2(c.y - u.y, c.x - u.x);
+        u.mineT++;
+        if (u.mineT >= 9) {
+          u.mineT = 0;
+          u.carry++;
+          c.amount--;
+        }
+      }
+      break;
+    }
+    case 'repair': {
+      const b = o.target;
+      if (!b || b.hp <= 0 || b.hp >= b.maxHp) {
+        const nb = nearestDamagedBuilding(u.team, u.x, u.y, 280);
+        if (nb) { o.target = nb; break; }
+        u.order = { type: 'idle' };
+        break;
+      }
+      const d = dist(u.x, u.y, b.x, b.y);
+      if (d > b.r + u.r + 10) moveToward(u, b.x, b.y);
+      else {
+        u.faceA = Math.atan2(b.y - u.y, b.x - u.x);
+        b.hp = Math.min(b.maxHp, b.hp + UNIT.engineer.repair);
+        if (tick % 10 === 0) {
+          fxs.push({ kind: 'spark', x: b.x + (Math.random() - 0.5) * b.w * 0.7, y: b.y + (Math.random() - 0.5) * b.h * 0.7, t: 0, max: 18 });
+        }
+        if (tick % 40 === 0 && u.team === 1) snd.repair();
+      }
+      break;
+    }
+    case 'return': {
+      const hq = nearestFriendlyHQ(u.team, u.x, u.y);
+      if (!hq) { u.order = { type: 'idle' }; break; }
+      const d = dist(u.x, u.y, hq.x, hq.y);
+      if (d > hq.r + u.r + 8) moveToward(u, hq.x, hq.y);
+      else {
+        teams[u.team].crystals += u.carry;
+        if (u.team === 1) {
+          fxs.push({ kind: 'text', x: u.x, y: u.y - 14, t: 0, max: 50, msg: '+' + u.carry });
+          snd.deposit();
+        }
+        u.carry = 0;
+        const c = (u.lastCrystal && u.lastCrystal.amount > 0) ? u.lastCrystal : nearestCrystalTo(u.x, u.y, 700);
+        u.order = c ? { type: 'harvest', target: c } : { type: 'idle' };
+      }
+      break;
+    }
+  }
+}
+
+// keep units from stacking, and out of buildings
+function separation() {
+  for (let i = 0; i < units.length; i++) {
+    const a = units[i];
+    for (let j = i + 1; j < units.length; j++) {
+      const b = units[j];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const min = a.r + b.r;
+      if (Math.abs(dx) > min || Math.abs(dy) > min) continue;
+      const d2 = dx * dx + dy * dy;
+      if (d2 >= min * min || d2 === 0) continue;
+      const d = Math.sqrt(d2), push = (min - d) / 2;
+      const nx = dx / d, ny = dy / d;
+      a.x -= nx * push; a.y -= ny * push;
+      b.x += nx * push; b.y += ny * push;
+    }
+    for (const bl of buildings) {
+      const cxp = clamp(a.x, bl.x - bl.w / 2, bl.x + bl.w / 2);
+      const cyp = clamp(a.y, bl.y - bl.h / 2, bl.y + bl.h / 2);
+      const dx = a.x - cxp, dy = a.y - cyp;
+      const d2 = dx * dx + dy * dy;
+      if (d2 >= a.r * a.r) continue;
+      if (d2 === 0) { a.x = bl.x + (bl.w / 2 + a.r + 2) * (a.x >= bl.x ? 1 : -1); continue; }
+      const d = Math.sqrt(d2), push = a.r - d;
+      a.x += (dx / d) * push; a.y += (dy / d) * push;
+    }
+    a.x = clamp(a.x, a.r, W - a.r);
+    a.y = clamp(a.y, a.r, H - a.r);
+  }
+}
+
+// ---------------- Buildings ----------------
+function updateBuilding(b) {
+  if (b.built < 1) {
+    b.built = Math.min(1, b.built + 1 / BLD.turret.buildTime);
+    b.hp = Math.min(b.maxHp, Math.max(b.hp, b.maxHp * b.built));
+    return;
+  }
+  if (b.cool > 0) b.cool--;
+  if (b.dmg > 0) {
+    const t = acquireTarget(b.x, b.y, b.team, b.range);
+    if (t) {
+      b.faceA = Math.atan2(t.y - b.y, t.x - b.x);
+      if (b.cool <= 0) fire(b, t);
+    }
+  }
+  updateProduction(b);
+}
+
+// ---------------- Bullets & FX ----------------
+function updateBullets() {
+  for (const p of bullets) {
+    if (p.target && p.target.hp > 0) { p.tx = p.target.x; p.ty = p.target.y; }
+    const d = dist(p.x, p.y, p.tx, p.ty);
+    if (d <= p.speed + 2) {
+      p.dead = true;
+      if (p.target && p.target.hp > 0 && dist(p.tx, p.ty, p.target.x, p.target.y) < (p.target.r || 12) + 14) {
+        damage(p.target, p.dmg, null);
+      }
+      if (p.kind === 'shell') fxs.push({ kind: 'boom', x: p.tx, y: p.ty, t: 0, max: 14, size: 14 });
+      continue;
+    }
+    const a = Math.atan2(p.ty - p.y, p.tx - p.x);
+    p.a = a;
+    p.x += Math.cos(a) * p.speed;
+    p.y += Math.sin(a) * p.speed;
+  }
+  bullets = bullets.filter(p => !p.dead);
+}
+function updateFx() {
+  for (const f of fxs) f.t++;
+  fxs = fxs.filter(f => f.t < f.max);
+}
+
+// ---------------- Enemy AI ----------------
+function aiUpdate() {
+  if (tick % 30 !== 0 || gameOver) return;
+  const t = teams[2];
+  // small passive trickle that grows over time, so the AI never fully stalls
+  t.crystals += 1.2 + Math.min(3, tick / 21600);
+
+  const hq = buildings.find(b => b.team === 2 && b.type === 'hq');
+  const rax = buildings.find(b => b.team === 2 && b.type === 'barracks');
+  const harvesters = units.filter(u => u.team === 2 && u.type === 'harvester');
+
+  if (hq && harvesters.length < 3 && hq.queue.length === 0 && t.crystals >= UNIT.harvester.cost) {
+    trainUnit(hq, 'harvester');
+  }
+  // keep one engineer on staff for base repairs (after the opening)
+  const engineers = units.filter(u => u.team === 2 && u.type === 'engineer');
+  if (hq && engineers.length < 1 && tick > 120 * 60 && hq.queue.length === 0 && t.crystals >= UNIT.engineer.cost) {
+    trainUnit(hq, 'engineer');
+  }
+  // army size ramps over time so the first assaults are survivable while learning
+  const queued = rax ? rax.queue.reduce((s, ty) => s + UNIT[ty].supply, 0) : 0;
+  const armySupply = units.reduce((s, u) => (u.team === 2 && isCombat(u) ? s + UNIT[u.type].supply : s), 0) + queued;
+  const armyCap = 3 + Math.floor(tick / 3600) * 2;   // +2 supply per minute
+  if (rax && rax.queue.length < 2 && armySupply < armyCap) {
+    const roll = Math.random();
+    if (t.crystals >= UNIT.tank.cost && roll < 0.3) trainUnit(rax, 'tank');
+    else if (t.crystals >= UNIT.raider.cost && roll < 0.5) trainUnit(rax, 'raider');
+    else if (t.crystals >= UNIT.sniper.cost && roll < 0.65) trainUnit(rax, 'sniper');
+    else if (t.crystals >= UNIT.marine.cost) trainUnit(rax, 'marine');
+  }
+}
+function waveUpdate() {
+  if (gameOver) return;
+  if (tick < waveAt) return;
+  waveNum++;
+  waveAt = tick + Math.max(45, 75 - waveNum * 4) * 60;
+  const targ = buildings.find(b => b.team === 1 && b.type === 'hq')
+            || buildings.find(b => b.team === 1)
+            || units.find(u => u.team === 1);
+  if (!targ) return;
+  let sent = 0;
+  for (const u of units) {
+    if (u.team === 2 && isCombat(u)) {
+      const p = spreadPoint(targ.x, targ.y, sent++);
+      u.order = { type: 'attackmove', x: p.x, y: p.y };
+    }
+  }
+  if (sent > 0) { toast('⚔ Enemy assault incoming!'); snd.alarm(); }
+}
+
+// ---------------- End condition ----------------
+function checkEnd() {
+  if (gameOver) return;
+  const pAlive = buildings.some(b => b.team === 1 && b.type === 'hq');
+  const eAlive = buildings.some(b => b.team === 2 && b.type === 'hq');
+  if (!pAlive || !eAlive) {
+    gameOver = pAlive ? 'win' : 'lose';
+    elOvTitle.textContent = pAlive ? 'VICTORY' : 'DEFEAT';
+    elOvTitle.className = pAlive ? 'win' : 'lose';
+    elOvSub.textContent = pAlive
+      ? 'The enemy headquarters is rubble. The crystal fields are yours, Commander.'
+      : 'Your headquarters has fallen. The crystals belong to the enemy… for now.';
+    elOverlay.classList.remove('hidden');
+    beep(pAlive ? 520 : 220, 0.5, 'sine', 0.06, pAlive ? 1040 : 80);
+  }
+}
+
+// ---------------- Input ----------------
+const mouse = { sx: 0, sy: 0, wx: 0, wy: 0, overCanvas: false, inWindow: false };
+let dragging = false, dragStart = null;
+let selection = [];
+let attackMoveMode = false;
+let placing = null;                  // 'turret' while placing
+const groups = {};
+const keys = {};
+
+function setCursor() {
+  cv.style.cursor = (attackMoveMode || placing) ? 'crosshair' : 'default';
+}
+function pruneSelection() {
+  selection = selection.filter(e => e.hp > 0);
+}
+
+cv.addEventListener('mousemove', (e) => {
+  mouse.sx = e.clientX; mouse.sy = e.clientY;
+  mouse.overCanvas = true;
+});
+window.addEventListener('mousemove', (e) => {
+  mouse.sx = e.clientX; mouse.sy = e.clientY;
+  mouse.inWindow = true;
+});
+document.addEventListener('mouseleave', () => { mouse.inWindow = false; });
+
+cv.addEventListener('mousedown', (e) => {
+  audioInit();
+  if (e.button !== 0) return;
+  const wx = mouse.sx + cam.x, wy = mouse.sy + cam.y;
+  if (placing === 'turret') { tryPlaceTurret(wx, wy); return; }
+  if (attackMoveMode) {
+    commandMove(selection, wx, wy, true);
+    attackMoveMode = false; setCursor();
+    fxs.push({ kind: 'ping', x: wx, y: wy, t: 0, max: 22, color: '#e0564a' });
+    return;
+  }
+  dragging = true;
+  dragStart = { x: wx, y: wy };
+});
+window.addEventListener('mouseup', (e) => {
+  if (e.button !== 0 || !dragging) return;
+  dragging = false;
+  const wx = mouse.sx + cam.x, wy = mouse.sy + cam.y;
+  const x0 = Math.min(dragStart.x, wx), x1 = Math.max(dragStart.x, wx);
+  const y0 = Math.min(dragStart.y, wy), y1 = Math.max(dragStart.y, wy);
+  if (x1 - x0 < 6 && y1 - y0 < 6) {
+    // point select (own things only)
+    const t = thingAtPoint(wx, wy);
+    selection = (t && t.team === 1 && t.hp > 0) ? [t] : [];
+  } else {
+    const picked = units.filter(u => u.team === 1 && u.x >= x0 && u.x <= x1 && u.y >= y0 && u.y <= y1);
+    if (picked.length) selection = picked;
+    else {
+      const b = buildings.find(b => b.team === 1 && b.x >= x0 && b.x <= x1 && b.y >= y0 && b.y <= y1);
+      selection = b ? [b] : [];
+    }
+  }
+});
+cv.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  audioInit();
+  const wx = mouse.sx + cam.x, wy = mouse.sy + cam.y;
+  if (placing || attackMoveMode) { placing = null; attackMoveMode = false; setCursor(); return; }
+  pruneSelection();
+  if (!selection.length) return;
+
+  const hasUnits = selection.some(s => s.kind === 'unit');
+  if (!hasUnits) {
+    // building(s) selected → set rally
+    for (const b of selection) if (b.rally) b.rally = { x: wx, y: wy };
+    fxs.push({ kind: 'ping', x: wx, y: wy, t: 0, max: 22, color: '#8fd8cf' });
+    return;
+  }
+  const t = thingAtPoint(wx, wy);
+  if (t && t.kind === 'crystal') commandHarvest(selection, t);
+  else if (t && t.kind === 'building' && t.team === 1 && selection.some(s => s.kind === 'unit' && s.type === 'engineer')) {
+    commandRepair(selection, t);
+    fxs.push({ kind: 'ping', x: t.x, y: t.y, t: 0, max: 22, color: '#8ce6a0' });
+  }
+  else if (t && t.team === 2) { commandAttack(selection, t); fxs.push({ kind: 'ping', x: t.x, y: t.y, t: 0, max: 22, color: '#e0564a' }); }
+  else { commandMove(selection, wx, wy, false); fxs.push({ kind: 'ping', x: wx, y: wy, t: 0, max: 22, color: '#8fd8cf' }); }
+});
+document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// minimap
+let miniDown = false;
+function miniToCam(e) {
+  const r = mini.getBoundingClientRect();
+  const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
+  cam.x = fx * W - view.w / 2;
+  cam.y = fy * H - view.h / 2;
+  clampCam();
+}
+mini.addEventListener('mousedown', (e) => { audioInit(); if (e.button === 0) { miniDown = true; miniToCam(e); } });
+window.addEventListener('mousemove', (e) => { if (miniDown) miniToCam(e); });
+window.addEventListener('mouseup', () => { miniDown = false; });
+mini.addEventListener('contextmenu', (e) => e.preventDefault());
+
+// keyboard
+window.addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+  if (e.code.startsWith('Arrow')) e.preventDefault();
+  audioInit();
+
+  if (e.code === 'Escape') { attackMoveMode = false; placing = null; selection = []; setCursor(); return; }
+  if (e.code === 'KeyM') { muted = !muted; btnMute.textContent = muted ? '🔇' : '🔊'; return; }
+  if (e.code === 'KeyF') { toggleFogMemory(); return; }
+  if (gameOver) return;
+
+  pruneSelection();
+  if (e.code === 'KeyA' && selection.some(s => s.kind === 'unit' && isCombat(s))) { attackMoveMode = true; placing = null; setCursor(); return; }
+  if (e.code === 'KeyS') { for (const s of selection) if (s.kind === 'unit') s.order = { type: 'idle' }; return; }
+  if (e.code === 'KeyT') { placing = 'turret'; attackMoveMode = false; setCursor(); return; }
+
+  // production hotkeys on a selected building
+  const prodKeys = { KeyQ: 0, KeyW: 1, KeyE: 2, KeyR: 3 };
+  if (prodKeys[e.code] !== undefined) {
+    const b = selection.find(s => s.kind === 'building' && BLD[s.type].trains);
+    if (b) {
+      const type = BLD[b.type].trains[prodKeys[e.code]];
+      if (type) trainUnit(b, type);
+      return;
+    }
+  }
+  // control groups 1-5
+  const m = e.code.match(/^Digit([1-5])$/);
+  if (m) {
+    if (e.ctrlKey || e.metaKey) { groups[m[1]] = [...selection]; toast('Group ' + m[1] + ' saved'); e.preventDefault(); }
+    else if (groups[m[1]]) { selection = groups[m[1]].filter(u => u.hp > 0); }
+  }
+});
+window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+
+btnHelp.addEventListener('click', () => elHelp.classList.toggle('hidden'));
+btnMute.addEventListener('click', () => { audioInit(); muted = !muted; btnMute.textContent = muted ? '🔇' : '🔊'; });
+function toggleFogMemory() {
+  fogMemory = !fogMemory;
+  btnFog.textContent = fogMemory ? '🌫 map: remembered' : '🌫 map: re-fogs';
+  updateFog();
+  toast(fogMemory ? 'Explored ground stays visible' : 'Ground re-fogs when unwatched');
+}
+btnFog.addEventListener('click', () => { audioInit(); toggleFogMemory(); });
+
+// turret placement
+function canPlaceTurret(wx, wy) {
+  const d = BLD.turret;
+  if (teams[1].crystals < d.cost) return false;
+  if (wx < 40 || wy < 40 || wx > W - 40 || wy > H - 40) return false;
+  for (const b of buildings) {
+    if (Math.abs(wx - b.x) < (b.w + d.w) / 2 + 10 && Math.abs(wy - b.y) < (b.h + d.h) / 2 + 10) return false;
+  }
+  for (const c of crystals) if (c.amount > 0 && dist2(wx, wy, c.x, c.y) < 40 * 40) return false;
+  return buildings.some(b => b.team === 1 && dist2(wx, wy, b.x, b.y) < TURRET_PLACE_RADIUS ** 2);
+}
+function tryPlaceTurret(wx, wy) {
+  if (!canPlaceTurret(wx, wy)) {
+    if (teams[1].crystals < BLD.turret.cost) toast('Not enough crystals (140 ⬡)');
+    else toast('Build closer to your base, on open ground');
+    snd.error();
+    return;
+  }
+  teams[1].crystals -= BLD.turret.cost;
+  makeBuilding('turret', 1, wx, wy, true);
+  placing = null; setCursor();
+  beep(440, 0.09, 'sine', 0.05);
+}
+
+// camera pan (arrows + screen edge)
+function updateCamera() {
+  const sp = 16;
+  if (keys['ArrowLeft']) cam.x -= sp;
+  if (keys['ArrowRight']) cam.x += sp;
+  if (keys['ArrowUp']) cam.y -= sp;
+  if (keys['ArrowDown']) cam.y += sp;
+  if (mouse.inWindow && !miniDown) {
+    const edge = 14;
+    if (mouse.sx < edge) cam.x -= sp;
+    if (mouse.sx > view.w - edge) cam.x += sp;
+    if (mouse.sy < edge) cam.y -= sp;
+    if (mouse.sy > view.h - edge) cam.y += sp;
+  }
+  clampCam();
+  mouse.wx = mouse.sx + cam.x;
+  mouse.wy = mouse.sy + cam.y;
+}
+
+// ---------------- UI ----------------
+let toastTimer = null;
+function toast(msg) {
+  elToast.textContent = msg;
+  elToast.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { elToast.style.opacity = '0'; }, 2400);
+}
+
+let lastCardSig = '';
+function cardSig() {
+  pruneSelection();
+  return selection.map(e => e.id).join(',') + '|' +
+    selection.filter(e => e.queue).map(e => e.queue.join('.')).join(';') + '|' +
+    (placing || '') + (attackMoveMode ? 'A' : '') + '|' + (teams[1].crystals >= 140 ? 'y' : 'n');
+}
+function refreshCard() {
+  const sig = cardSig();
+  if (sig === lastCardSig) return;
+  lastCardSig = sig;
+
+  let html = '';
+  const b = selection.length === 1 && selection[0].kind === 'building' ? selection[0] : null;
+
+  if (placing === 'turret') {
+    html = '<h3>Placing turret</h3><div class="sub">Click open ground near your base. Right-click or Esc to cancel.</div>';
+  } else if (attackMoveMode) {
+    html = '<h3>Attack-move</h3><div class="sub">Click a location — your troops will fight anything on the way.</div>';
+  } else if (b && BLD[b.type].trains) {
+    const d = BLD[b.type];
+    html = `<h3>${d.label}</h3><div class="sub">Right-click the map to set the rally point.</div><div class="row">`;
+    d.trains.forEach((t, i) => {
+      const ud = UNIT[t];
+      const key = ['Q', 'W', 'E', 'R'][i];
+      const dim = teams[1].crystals < ud.cost ? ' class="dim"' : '';
+      html += `<button data-act="train:${t}"${dim}>${ud.label} · ${ud.cost} ⬡ <small>[${key}]</small></button>`;
+    });
+    html += '</div>';
+    if (b.queue.length) {
+      html += `<div class="queue">Building: ${b.queue.map(q => UNIT[q].label).join(' → ')}</div>`;
+      html += '<div class="prog-wrap"><div class="prog" id="prog"></div></div>';
+    }
+  } else if (b) {
+    html = `<h3>${BLD[b.type].label}</h3><div class="sub">Defensive structure. It shoots on its own.</div>`;
+  } else if (selection.length) {
+    const counts = {};
+    for (const u of selection) counts[u.type] = (counts[u.type] || 0) + 1;
+    const label = Object.entries(counts).map(([t, n]) => `${n}× ${UNIT[t].label}`).join(', ');
+    const engHint = selection.some(u => u.type === 'engineer') ? 'Right-click a damaged building to repair it. ' : '';
+    html = `<h3>${label}</h3><div class="sub">${engHint}Right-click: move · attack · harvest</div><div class="row">`;
+    if (selection.some(u => isCombat(u))) html += '<button data-act="amove">Attack-move [A]</button>';
+    html += '<button data-act="stop">Stop [S]</button></div>';
+  } else {
+    html = '<h3>Crystal Command</h3><div class="sub">Drag to select units. Right-click to give orders. Select a building to train units.</div>';
+  }
+  if (!placing && !attackMoveMode) {
+    const dim = teams[1].crystals < BLD.turret.cost ? ' class="dim"' : '';
+    html += `<div class="row"><button data-act="turret"${dim}>🛡 Build turret · 140 ⬡ <small>[T]</small></button></div>`;
+  }
+  elCard.innerHTML = html;
+}
+elCard.addEventListener('click', (e) => {
+  audioInit();
+  const btn = e.target.closest('[data-act]');
+  if (!btn || gameOver) return;
+  const act = btn.getAttribute('data-act');
+  if (act.startsWith('train:')) {
+    const b = selection.find(s => s.kind === 'building' && BLD[s.type].trains);
+    if (b) trainUnit(b, act.slice(6));
+    lastCardSig = '';
+  } else if (act === 'turret') { placing = 'turret'; attackMoveMode = false; setCursor(); lastCardSig = ''; }
+  else if (act === 'stop') { for (const s of selection) if (s.kind === 'unit') s.order = { type: 'idle' }; }
+  else if (act === 'amove') { attackMoveMode = true; setCursor(); lastCardSig = ''; }
+});
+
+function refreshTopbar() {
+  elCrystals.textContent = '⬡ ' + Math.floor(teams[1].crystals);
+  elSupply.textContent = '☰ ' + supplyUsed(1) + ' / ' + supplyMax(1);
+  const s = Math.max(0, Math.ceil((waveAt - tick) / 60));
+  elWave.textContent = waveNum === 0 ? `⚔ first assault: ${s}s` : `⚔ next assault: ${s}s`;
+}
+function refreshProgressBar() {
+  const el = document.getElementById('prog');
+  if (!el) return;
+  const b = selection.length === 1 && selection[0].queue && selection[0].queue.length ? selection[0] : null;
+  if (b) el.style.width = Math.min(100, (b.prog / UNIT[b.queue[0]].buildTime) * 100) + '%';
+}
+
+// ---------------- Ground texture (pre-rendered) ----------------
+const groundCv = document.createElement('canvas');
+groundCv.width = W; groundCv.height = H;
+(function paintGround() {
+  const g = groundCv.getContext('2d');
+  g.fillStyle = '#171c16';
+  g.fillRect(0, 0, W, H);
+  // mottled soil
+  for (let i = 0; i < 1400; i++) {
+    const x = Math.random() * W, y = Math.random() * H;
+    const r = 8 + Math.random() * 42;
+    g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.05)';
+    g.beginPath(); g.ellipse(x, y, r, r * 0.6, Math.random() * 3, 0, Math.PI * 2); g.fill();
+  }
+  // faint grid
+  g.strokeStyle = 'rgba(160,220,200,0.028)';
+  g.lineWidth = 1;
+  for (let x = 0; x <= W; x += TILE) { g.beginPath(); g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, H); g.stroke(); }
+  for (let y = 0; y <= H; y += TILE) { g.beginPath(); g.moveTo(0, y + 0.5); g.lineTo(W, y + 0.5); g.stroke(); }
+  // scattered pebbles
+  for (let i = 0; i < 240; i++) {
+    const x = Math.random() * W, y = Math.random() * H;
+    g.fillStyle = 'rgba(190,200,190,0.06)';
+    g.beginPath(); g.arc(x, y, 1 + Math.random() * 2.5, 0, Math.PI * 2); g.fill();
+  }
+})();
+
+// ---------------- Drawing ----------------
+function drawHpBar(x, y, w, hp, maxHp) {
+  const f = clamp(hp / maxHp, 0, 1);
+  cx.fillStyle = 'rgba(0,0,0,0.6)';
+  cx.fillRect(x - w / 2, y, w, 4);
+  cx.fillStyle = f > 0.55 ? '#7fd8a8' : f > 0.25 ? '#e8c46a' : '#e0564a';
+  cx.fillRect(x - w / 2, y, w * f, 4);
+}
+
+function drawCrystal(c) {
+  const f = 0.45 + 0.55 * (c.amount / c.maxAmount);
+  const r = c.r * f + 3;
+  if (c.amount <= 0) {
+    cx.fillStyle = 'rgba(110,140,135,0.25)';
+    cx.beginPath(); cx.arc(c.x, c.y, 5, 0, Math.PI * 2); cx.fill();
+    return;
+  }
+  cx.save();
+  cx.translate(c.x, c.y);
+  cx.fillStyle = 'rgba(111,227,208,0.14)';
+  cx.beginPath(); cx.arc(0, 0, r + 6, 0, Math.PI * 2); cx.fill();
+  cx.fillStyle = CRYSTAL_COLOR;
+  cx.beginPath();
+  cx.moveTo(0, -r); cx.lineTo(r * 0.7, 0); cx.lineTo(0, r); cx.lineTo(-r * 0.7, 0);
+  cx.closePath(); cx.fill();
+  cx.fillStyle = 'rgba(255,255,255,0.55)';
+  cx.beginPath();
+  cx.moveTo(0, -r); cx.lineTo(r * 0.28, -r * 0.2); cx.lineTo(-r * 0.28, -r * 0.2);
+  cx.closePath(); cx.fill();
+  cx.restore();
+}
+
+function drawBuilding(b) {
+  const C = COLORS[b.team];
+  const x = b.x - b.w / 2, y = b.y - b.h / 2;
+  const sel = selection.includes(b);
+
+  cx.fillStyle = '#232a25';
+  rr(cx, x, y, b.w, b.h, 8); cx.fill();
+  cx.strokeStyle = b.built < 1 ? 'rgba(200,220,210,0.5)' : C.main;
+  cx.lineWidth = 2;
+  if (b.built < 1) cx.setLineDash([6, 5]);
+  rr(cx, x, y, b.w, b.h, 8); cx.stroke();
+  cx.setLineDash([]);
+
+  if (b.type === 'hq') {
+    cx.fillStyle = '#1a201c';
+    rr(cx, x + 13, y + 13, b.w - 26, b.h - 26, 6); cx.fill();
+    cx.strokeStyle = C.dark; rr(cx, x + 13, y + 13, b.w - 26, b.h - 26, 6); cx.stroke();
+    const pulse = 8 + Math.sin(tick * 0.08) * 2;
+    cx.fillStyle = C.main;
+    cx.save(); cx.translate(b.x, b.y); cx.rotate(Math.PI / 4);
+    cx.fillRect(-pulse / 2, -pulse / 2, pulse, pulse);
+    cx.restore();
+    cx.fillStyle = C.light;
+    cx.beginPath(); cx.arc(x + b.w - 16, y + 14, 3, 0, Math.PI * 2); cx.fill();
+  } else if (b.type === 'barracks') {
+    cx.fillStyle = C.dark;
+    cx.fillRect(b.x - 12, y + b.h - 26, 24, 26);
+    cx.fillStyle = C.main;
+    for (let i = 0; i < 3; i++) cx.fillRect(x + 10, y + 12 + i * 10, b.w - 20, 3);
+  } else if (b.type === 'turret') {
+    cx.fillStyle = '#1a201c';
+    cx.beginPath(); cx.arc(b.x, b.y, 13, 0, Math.PI * 2); cx.fill();
+    cx.strokeStyle = C.main; cx.lineWidth = 4;
+    cx.beginPath();
+    cx.moveTo(b.x, b.y);
+    cx.lineTo(b.x + Math.cos(b.faceA) * 22, b.y + Math.sin(b.faceA) * 22);
+    cx.stroke();
+    cx.fillStyle = C.main;
+    cx.beginPath(); cx.arc(b.x, b.y, 6, 0, Math.PI * 2); cx.fill();
+    if (b.built < 1) {
+      cx.fillStyle = 'rgba(255,255,255,0.8)';
+      cx.font = '11px -apple-system, sans-serif';
+      cx.textAlign = 'center';
+      cx.fillText(Math.floor(b.built * 100) + '%', b.x, b.y - b.h / 2 - 8);
+    }
+  }
+
+  if (sel) {
+    cx.strokeStyle = 'rgba(255,255,255,0.85)';
+    cx.lineWidth = 2;
+    const m = 6, L = 12;
+    const x0 = x - m, y0 = y - m, x1 = x + b.w + m, y1 = y + b.h + m;
+    cx.beginPath();
+    cx.moveTo(x0, y0 + L); cx.lineTo(x0, y0); cx.lineTo(x0 + L, y0);
+    cx.moveTo(x1 - L, y0); cx.lineTo(x1, y0); cx.lineTo(x1, y0 + L);
+    cx.moveTo(x1, y1 - L); cx.lineTo(x1, y1); cx.lineTo(x1 - L, y1);
+    cx.moveTo(x0 + L, y1); cx.lineTo(x0, y1); cx.lineTo(x0, y1 - L);
+    cx.stroke();
+    // rally line
+    if (b.rally && BLD[b.type].trains) {
+      cx.strokeStyle = 'rgba(143,216,207,0.5)';
+      cx.setLineDash([5, 6]);
+      cx.beginPath(); cx.moveTo(b.x, b.y); cx.lineTo(b.rally.x, b.rally.y); cx.stroke();
+      cx.setLineDash([]);
+      cx.fillStyle = '#8fd8cf';
+      cx.beginPath(); cx.arc(b.rally.x, b.rally.y, 4, 0, Math.PI * 2); cx.fill();
+    }
+  }
+  if (sel || b.hp < b.maxHp) drawHpBar(b.x, y - 12, b.w * 0.8, b.hp, b.maxHp);
+  if (b.queue && b.queue.length) {
+    const f = clamp(b.prog / UNIT[b.queue[0]].buildTime, 0, 1);
+    cx.fillStyle = 'rgba(0,0,0,0.6)'; cx.fillRect(b.x - 20, y - 6, 40, 3);
+    cx.fillStyle = '#3fb9c9'; cx.fillRect(b.x - 20, y - 6, 40 * f, 3);
+  }
+}
+
+function drawUnit(u) {
+  const C = COLORS[u.team];
+  const sel = selection.includes(u);
+  if (sel) {
+    cx.strokeStyle = 'rgba(143,216,207,0.9)';
+    cx.lineWidth = 1.5;
+    cx.beginPath(); cx.arc(u.x, u.y, u.r + 5, 0, Math.PI * 2); cx.stroke();
+  }
+  cx.save();
+  cx.translate(u.x, u.y);
+  cx.rotate(u.faceA);
+  if (u.type === 'marine') {
+    cx.fillStyle = C.dark;
+    cx.beginPath(); cx.arc(0, 0, u.r, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = C.main;
+    cx.beginPath(); cx.arc(0, 0, u.r - 3, 0, Math.PI * 2); cx.fill();
+    cx.strokeStyle = '#0e1210'; cx.lineWidth = 3;
+    cx.beginPath(); cx.moveTo(2, 0); cx.lineTo(u.r + 6, 0); cx.stroke();
+    cx.fillStyle = '#0e1210';
+    cx.beginPath(); cx.arc(2, 0, 2.5, 0, Math.PI * 2); cx.fill();
+  } else if (u.type === 'sniper') {
+    // prone marksman: slim low body, hood at the back, long rifle with bipod
+    cx.fillStyle = C.dark;
+    rr(cx, -11, -4, 17, 8, 4); cx.fill();
+    cx.strokeStyle = C.light; cx.lineWidth = 1.5;
+    rr(cx, -11, -4, 17, 8, 4); cx.stroke();
+    cx.fillStyle = C.light;
+    cx.beginPath(); cx.arc(-6, 0, 3.2, 0, Math.PI * 2); cx.fill();          // hood
+    cx.strokeStyle = '#0e1210'; cx.lineWidth = 2;
+    cx.beginPath(); cx.moveTo(4, 0); cx.lineTo(u.r + 15, 0); cx.stroke();   // long rifle
+    cx.fillStyle = '#0e1210';
+    cx.beginPath(); cx.arc(5, -3.5, 1.8, 0, Math.PI * 2); cx.fill();        // scope
+    cx.strokeStyle = '#0e1210'; cx.lineWidth = 1;
+    cx.beginPath();
+    cx.moveTo(u.r + 10, 0); cx.lineTo(u.r + 14, -4);                        // bipod legs
+    cx.moveTo(u.r + 10, 0); cx.lineTo(u.r + 14, 4);
+    cx.stroke();
+  } else if (u.type === 'engineer') {
+    cx.fillStyle = C.dark;
+    cx.beginPath(); cx.arc(0, 0, u.r, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = '#f0c86a';                                               // hard hat ring
+    cx.beginPath(); cx.arc(0, 0, u.r - 2.5, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = C.main;
+    cx.beginPath(); cx.arc(0, 0, u.r - 5.5, 0, Math.PI * 2); cx.fill();
+    cx.strokeStyle = '#c8d4cc'; cx.lineWidth = 2.5;                         // wrench arm
+    cx.beginPath(); cx.moveTo(2, 0); cx.lineTo(u.r + 5, 0); cx.stroke();
+    cx.strokeStyle = '#c8d4cc'; cx.lineWidth = 2;
+    cx.beginPath(); cx.arc(u.r + 6, 0, 2.6, Math.PI * 0.6, Math.PI * 1.4, true); cx.stroke();
+  } else if (u.type === 'raider') {
+    cx.fillStyle = 'rgba(18,23,19,0.7)';
+    cx.fillRect(-10, -11, 13, 4); cx.fillRect(-10, 7, 13, 4);                // wheels
+    cx.fillStyle = C.dark;
+    cx.beginPath(); cx.moveTo(15, 0); cx.lineTo(-11, -8); cx.lineTo(-11, 8); cx.closePath(); cx.fill();
+    cx.strokeStyle = C.main; cx.lineWidth = 1.5;
+    cx.beginPath(); cx.moveTo(15, 0); cx.lineTo(-11, -8); cx.lineTo(-11, 8); cx.closePath(); cx.stroke();
+    cx.fillStyle = C.main;
+    cx.beginPath(); cx.arc(-2, 0, 3.5, 0, Math.PI * 2); cx.fill();           // cockpit
+    cx.strokeStyle = '#0e1210'; cx.lineWidth = 2;
+    cx.beginPath(); cx.moveTo(3, 0); cx.lineTo(17, 0); cx.stroke();          // gun
+  } else if (u.type === 'tank') {
+    cx.fillStyle = C.dark;
+    rr(cx, -15, -11, 30, 22, 5); cx.fill();
+    cx.fillStyle = '#12171380';
+    cx.fillRect(-15, -11, 30, 5); cx.fillRect(-15, 6, 30, 5);
+    cx.fillStyle = C.main;
+    cx.beginPath(); cx.arc(0, 0, 8, 0, Math.PI * 2); cx.fill();
+    cx.strokeStyle = C.main; cx.lineWidth = 4;
+    cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(22, 0); cx.stroke();
+  } else { // harvester
+    cx.fillStyle = C.dark;
+    rr(cx, -12, -9, 24, 18, 5); cx.fill();
+    cx.fillStyle = C.main;
+    rr(cx, -12, -9, 24, 18, 5); cx.strokeStyle = C.main; cx.lineWidth = 1.5; cx.stroke();
+    cx.fillStyle = '#c8d4cc';
+    cx.fillRect(10, -7, 4, 14); // front scoop
+    cx.fillStyle = u.carry > 0 ? CRYSTAL_COLOR : '#26302a';
+    rr(cx, -8, -5, 10, 10, 2); cx.fill();
+  }
+  cx.restore();
+  if (sel || u.hp < u.maxHp) drawHpBar(u.x, u.y - u.r - 10, u.r * 2.4, u.hp, u.maxHp);
+}
+
+function drawBullet(p) {
+  if (p.kind === 'shell') {
+    cx.fillStyle = '#f0c86a';
+    cx.beginPath(); cx.arc(p.x, p.y, 3.4, 0, Math.PI * 2); cx.fill();
+  } else if (p.kind === 'snipe') {
+    cx.strokeStyle = 'rgba(255,255,255,0.9)';
+    cx.lineWidth = 1.5;
+    cx.beginPath();
+    cx.moveTo(p.x, p.y);
+    cx.lineTo(p.x - Math.cos(p.a || 0) * 18, p.y - Math.sin(p.a || 0) * 18);
+    cx.stroke();
+  } else {
+    const C = COLORS[p.team];
+    cx.strokeStyle = C.light;
+    cx.lineWidth = 2;
+    cx.beginPath();
+    cx.moveTo(p.x, p.y);
+    cx.lineTo(p.x - Math.cos(p.a || 0) * 8, p.y - Math.sin(p.a || 0) * 8);
+    cx.stroke();
+  }
+}
+
+function drawFx(f) {
+  const k = f.t / f.max;
+  if (f.kind === 'boom') {
+    cx.strokeStyle = `rgba(240,180,100,${1 - k})`;
+    cx.lineWidth = 3;
+    cx.beginPath(); cx.arc(f.x, f.y, f.size * k + 4, 0, Math.PI * 2); cx.stroke();
+    cx.fillStyle = `rgba(240,140,80,${0.5 * (1 - k)})`;
+    cx.beginPath(); cx.arc(f.x, f.y, f.size * k * 0.7, 0, Math.PI * 2); cx.fill();
+  } else if (f.kind === 'text') {
+    cx.fillStyle = `rgba(111,227,208,${1 - k})`;
+    cx.font = 'bold 13px -apple-system, sans-serif';
+    cx.textAlign = 'center';
+    cx.fillText(f.msg, f.x, f.y - 22 * k);
+  } else if (f.kind === 'spark') {
+    cx.strokeStyle = `rgba(140,230,160,${1 - k})`;
+    cx.lineWidth = 2;
+    const s = 4 * (1 - k) + 1;
+    cx.beginPath();
+    cx.moveTo(f.x - s, f.y); cx.lineTo(f.x + s, f.y);
+    cx.moveTo(f.x, f.y - s); cx.lineTo(f.x, f.y + s);
+    cx.stroke();
+  } else if (f.kind === 'ping') {
+    cx.strokeStyle = f.color;
+    cx.globalAlpha = 1 - k;
+    cx.lineWidth = 2;
+    cx.beginPath(); cx.arc(f.x, f.y, 16 * (1 - k) + 3, 0, Math.PI * 2); cx.stroke();
+    cx.globalAlpha = 1;
+  }
+}
+
+function render() {
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cx.clearRect(0, 0, view.w, view.h);
+  cx.save();
+  cx.translate(-cam.x, -cam.y);
+
+  cx.drawImage(groundCv, 0, 0);
+  for (const c of crystals) if (isShownAt(c.x, c.y)) drawCrystal(c);
+  for (const b of buildings) if (b.team === 1 || isShownAt(b.x, b.y)) drawBuilding(b);
+  for (const u of units) if (u.team === 1 || isVisibleAt(u.x, u.y)) drawUnit(u);
+  for (const p of bullets) if (p.team === 1 || isVisibleAt(p.x, p.y)) drawBullet(p);
+  for (const f of fxs) if (f.kind !== 'boom' || isVisibleAt(f.x, f.y)) drawFx(f);
+
+  // fog of war (small canvas scaled up = soft edges)
+  cx.drawImage(fogCv, 0, 0, fogW, fogH, 0, 0, W, H);
+
+  // drag select rect
+  if (dragging && dragStart) {
+    const wx = mouse.wx, wy = mouse.wy;
+    cx.strokeStyle = 'rgba(143,216,207,0.9)';
+    cx.fillStyle = 'rgba(143,216,207,0.08)';
+    cx.lineWidth = 1;
+    const x = Math.min(dragStart.x, wx), y = Math.min(dragStart.y, wy);
+    cx.fillRect(x, y, Math.abs(wx - dragStart.x), Math.abs(wy - dragStart.y));
+    cx.strokeRect(x, y, Math.abs(wx - dragStart.x), Math.abs(wy - dragStart.y));
+  }
+  // turret ghost
+  if (placing === 'turret' && mouse.overCanvas) {
+    const ok = canPlaceTurret(mouse.wx, mouse.wy);
+    cx.globalAlpha = 0.55;
+    cx.fillStyle = ok ? '#3fb9c9' : '#e0564a';
+    rr(cx, mouse.wx - 20, mouse.wy - 20, 40, 40, 6); cx.fill();
+    cx.globalAlpha = 1;
+    cx.strokeStyle = ok ? 'rgba(63,185,201,0.35)' : 'rgba(224,86,74,0.35)';
+    cx.setLineDash([4, 6]);
+    cx.beginPath(); cx.arc(mouse.wx, mouse.wy, BLD.turret.range, 0, Math.PI * 2); cx.stroke();
+    cx.setLineDash([]);
+  }
+  cx.restore();
+  renderMinimap();
+}
+
+function renderMinimap() {
+  const sx = mini.width / W, sy = mini.height / H;
+  mcx.fillStyle = '#0c100c';
+  mcx.fillRect(0, 0, mini.width, mini.height);
+  for (const c of crystals) {
+    if (c.amount <= 0 || !isShownAt(c.x, c.y)) continue;
+    mcx.fillStyle = CRYSTAL_COLOR;
+    mcx.fillRect(c.x * sx - 1, c.y * sy - 1, 2, 2);
+  }
+  for (const b of buildings) {
+    if (b.team === 2 && !isShownAt(b.x, b.y)) continue;
+    mcx.fillStyle = COLORS[b.team].main;
+    mcx.fillRect(b.x * sx - 2, b.y * sy - 2, 4, 4);
+  }
+  for (const u of units) {
+    if (u.team === 2 && !isVisibleAt(u.x, u.y)) continue;
+    mcx.fillStyle = COLORS[u.team].main;
+    mcx.fillRect(u.x * sx - 1, u.y * sy - 1, 2, 2);
+  }
+  mcx.drawImage(fogCv, 0, 0, mini.width, mini.height);
+  mcx.strokeStyle = 'rgba(255,255,255,0.7)';
+  mcx.lineWidth = 1;
+  mcx.strokeRect(cam.x * sx, cam.y * sy, view.w * sx, view.h * sy);
+}
+
+// ---------------- Main loop ----------------
+function update() {
+  tick++;
+  updateCamera();
+  if (tick % 8 === 1) updateFog();
+
+  for (const u of units) updateUnit(u);
+  separation();
+  for (const b of buildings) updateBuilding(b);
+  updateBullets();
+  updateFx();
+  aiUpdate();
+  waveUpdate();
+
+  const anyDead = units.some(u => u.hp <= 0) || buildings.some(b => b.hp <= 0);
+  if (anyDead) {
+    units = units.filter(u => u.hp > 0);
+    buildings = buildings.filter(b => b.hp > 0);
+    pruneSelection();
+    checkEnd();
+  }
+
+  if (tick % 8 === 0) { refreshTopbar(); refreshCard(); }
+  refreshProgressBar();
+}
+
+let last = performance.now(), acc = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  acc += Math.min(100, now - last);
+  last = now;
+  while (acc >= 1000 / 60) {
+    if (!gameOver) update();
+    acc -= 1000 / 60;
+  }
+  render();
+}
+
+setup();
+refreshTopbar();
+refreshCard();
+toast('Your harvesters are mining. Select the Barracks and press Q to train Marines!');
+requestAnimationFrame(frame);
+
+// debug handle (used for automated testing; harmless to leave in)
+window.CC = {
+  get units() { return units; },
+  get buildings() { return buildings; },
+  get crystals() { return crystals; },
+  get teams() { return teams; },
+  get tick() { return tick; },
+  get selection() { return selection; },
+  set selection(s) { selection = s; },
+  get waveAt() { return waveAt; },
+  set waveAt(v) { waveAt = v; },
+  get gameOver() { return gameOver; },
+  get fog() { return { visible, explored }; },
+  get fogMemory() { return fogMemory; },
+  isVisibleAt, isExploredAt, isShownAt, updateFog, toggleFogMemory,
+  damage, trainUnit, commandMove,
+};

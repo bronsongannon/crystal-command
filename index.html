@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Crystal Command</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0d100d; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #d8e0d8; }
+  #game { position: fixed; inset: 0; display: block; }
+
+  .panel {
+    background: rgba(14, 18, 15, 0.88);
+    border: 1px solid rgba(120, 200, 190, 0.25);
+    border-radius: 10px;
+    backdrop-filter: blur(6px);
+  }
+
+  #topbar {
+    position: fixed; top: 10px; left: 10px; right: 10px;
+    display: flex; gap: 8px; align-items: center;
+    pointer-events: none;
+  }
+  .chip {
+    pointer-events: auto;
+    background: rgba(14, 18, 15, 0.88);
+    border: 1px solid rgba(120, 200, 190, 0.25);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 14px; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.3px;
+  }
+  .chip.warn { border-color: rgba(230, 120, 100, 0.45); color: #f0a898; }
+  .chip.btn { cursor: pointer; }
+  .chip.btn:hover { border-color: rgba(120, 200, 190, 0.7); }
+  .spacer { flex: 1; }
+
+  #minimap {
+    position: fixed; left: 10px; bottom: 10px;
+    border: 1px solid rgba(120, 200, 190, 0.35);
+    border-radius: 8px;
+    background: #0a0d0a;
+    cursor: pointer;
+  }
+
+  #card {
+    position: fixed; right: 10px; bottom: 10px; width: 300px;
+    background: rgba(14, 18, 15, 0.9);
+    border: 1px solid rgba(120, 200, 190, 0.25);
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 13px;
+  }
+  #card h3 { font-size: 14px; margin-bottom: 6px; color: #8fd8cf; font-weight: 700; }
+  #card .sub { color: #9aa89e; font-size: 12px; margin-bottom: 8px; line-height: 1.45; }
+  #card .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  #card button {
+    background: #17251f;
+    border: 1px solid rgba(120, 200, 190, 0.35);
+    color: #d8e0d8;
+    border-radius: 7px;
+    padding: 7px 10px;
+    font-size: 12.5px; font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  #card button:hover { border-color: #8fd8cf; background: #1c2f27; }
+  #card button.dim { opacity: 0.45; }
+  #card .queue { margin-top: 8px; font-size: 12px; color: #9aa89e; }
+  #card .prog-wrap { margin-top: 6px; height: 6px; background: #10160f; border-radius: 3px; overflow: hidden; }
+  #card .prog { height: 100%; width: 0%; background: #3fb9c9; border-radius: 3px; }
+
+  #help {
+    position: fixed; top: 52px; right: 10px; width: 320px;
+    padding: 14px;
+    font-size: 13px; line-height: 1.8;
+    z-index: 5;
+  }
+  #help h3 { color: #8fd8cf; margin-bottom: 6px; }
+  #help b { color: #8fd8cf; font-weight: 700; }
+  #help .goal { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(120,200,190,0.2); color: #f0c898; }
+
+  #toast {
+    position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+    background: rgba(20, 26, 21, 0.92);
+    border: 1px solid rgba(120, 200, 190, 0.4);
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-size: 14px; font-weight: 600;
+    opacity: 0; transition: opacity 0.35s;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  #overlay {
+    position: fixed; inset: 0;
+    background: rgba(8, 10, 8, 0.82);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; z-index: 20;
+  }
+  #overlay h1 { font-size: 52px; letter-spacing: 2px; }
+  #overlay h1.win { color: #7fd8a8; }
+  #overlay h1.lose { color: #e0564a; }
+  #overlay p { color: #9aa89e; font-size: 16px; }
+  #overlay button {
+    margin-top: 10px;
+    background: #17251f; border: 1px solid #8fd8cf; color: #d8e0d8;
+    font-size: 16px; font-weight: 700; border-radius: 8px;
+    padding: 12px 28px; cursor: pointer; font-family: inherit;
+  }
+  #overlay button:hover { background: #1c2f27; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="topbar">
+    <div class="chip" id="res-crystals">⬡ 0</div>
+    <div class="chip" id="res-supply">☰ 0 / 0</div>
+    <div class="chip warn" id="wave-timer">⚔ first assault: —</div>
+    <div class="spacer"></div>
+    <div class="chip btn" id="btn-fog" title="Toggle whether explored ground stays visible or re-fogs">🌫 map: remembered</div>
+    <div class="chip btn" id="btn-help">?&nbsp; controls</div>
+    <div class="chip btn" id="btn-mute">🔊</div>
+  </div>
+
+  <div id="help" class="panel">
+    <h3>Controls</h3>
+    <b>Left-drag</b> — select your units<br>
+    <b>Right-click</b> (two-finger tap) — move / attack / harvest<br>
+    <b>A</b> then click — attack-move &nbsp;·&nbsp; <b>S</b> — stop<br>
+    <b>Q / W / E / R</b> — train units (select a building first)<br>
+    <b>T</b> then click — build a turret (140 ⬡)<br>
+    <b>Arrow keys / screen edge / minimap</b> — camera<br>
+    <b>⌃1–5</b> — save control group · <b>1–5</b> — recall<br>
+    <b>F</b> — fog memory: explored ground stays visible, or re-fogs<br>
+    <b>M</b> — mute · <b>?</b> button — toggle this panel
+    <div class="goal">🎯 Mine crystals, build an army, and <b>destroy the enemy HQ</b> (top-right corner) before their assaults overwhelm you.</div>
+  </div>
+
+  <canvas id="minimap" width="200" height="150"></canvas>
+  <div id="card"></div>
+  <div id="toast"></div>
+
+  <div id="overlay" class="hidden">
+    <h1 id="ov-title"></h1>
+    <p id="ov-sub"></p>
+    <button onclick="location.reload()">Play again</button>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
