@@ -188,6 +188,18 @@
   }
   #btn-start:hover { background: #1d4536; }
 
+  #pause-banner {
+    position: fixed; top: 42%; left: 50%; transform: translate(-50%, -50%);
+    z-index: 15; text-align: center;
+    background: rgba(14, 18, 15, 0.92);
+    border: 1px solid rgba(120, 200, 190, 0.45);
+    border-radius: 14px;
+    padding: 22px 44px;
+    font-size: 34px; font-weight: 800; letter-spacing: 3px; color: #8fd8cf;
+    pointer-events: none;
+  }
+  #pause-banner span { display: block; margin-top: 6px; font-size: 13px; font-weight: 600; letter-spacing: 0.5px; color: #9aa89e; }
+
   .hidden { display: none !important; }
 </style>
 </head>
@@ -200,6 +212,8 @@
     <div class="chip" id="res-eggs" style="display:none">🥚 0</div>
     <div class="chip warn" id="wave-timer">⚔ first assault: —</div>
     <div class="spacer"></div>
+    <div class="chip btn" id="btn-pause" title="Pause / resume (P)">⏸ pause</div>
+    <div class="chip btn" id="btn-quit" title="Quit to the main menu">⏹ menu</div>
     <div class="chip btn" id="btn-fog" title="Toggle whether explored ground stays visible or re-fogs">🌫 map: remembered</div>
     <div class="chip btn" id="btn-help">?&nbsp; controls</div>
     <div class="chip btn" id="btn-mute">🔊</div>
@@ -217,12 +231,14 @@
       <b>Arrow keys / screen edge / minimap</b> — camera<br>
       <b>⌃1–5</b> — save control group · <b>1–5</b> — recall<br>
       <b>F</b> — fog memory: explored ground stays visible, or re-fogs<br>
-      <b>M</b> — mute · <b>?</b> button — reopen this panel · <b>`</b> — dev: reveal map
+      <b>P</b> — pause · <b>M</b> — mute · <b>?</b> button — reopen this panel · <b>`</b> — dev: reveal map
       <div class="goal">🎯 Mine crystals, build an army, and <b>destroy the enemy HQ</b> before their assaults overwhelm you. Rich fields are guarded by dino nests — clear them or mine poor, and haul their eggs home to hatch your own spitters.</div>
       <button id="btn-help-close">▶ To battle</button>
       <div class="paused-note">the game is paused while this is open</div>
     </div>
   </div>
+
+  <div id="pause-banner" class="hidden">⏸ PAUSED<span>press P or the pause button to resume</span></div>
 
   <canvas id="minimap" width="200" height="150"></canvas>
   <div id="dock">

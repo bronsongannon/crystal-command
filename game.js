@@ -24,6 +24,9 @@ const elHelp = document.getElementById('help');
 const btnHelp = document.getElementById('btn-help');
 const btnMute = document.getElementById('btn-mute');
 const btnFog = document.getElementById('btn-fog');
+const btnPause = document.getElementById('btn-pause');
+const btnQuit = document.getElementById('btn-quit');
+const elPauseBanner = document.getElementById('pause-banner');
 
 // ---------------- World ----------------
 const TILE = 32, MAP_W = 96, MAP_H = 72;
@@ -2005,6 +2008,7 @@ window.addEventListener('keydown', (e) => {
     attackMoveMode = false; placing = null; nukeTargeting = null; selection = []; setCursor(); return;
   }
   if (e.code === 'KeyM') { muted = !muted; btnMute.textContent = muted ? '🔇' : '🔊'; return; }
+  if (e.code === 'KeyP') { togglePause(); return; }
   if (e.code === 'KeyF') { toggleFogMemory(); return; }
   if (e.code === 'Backquote') {   // dev mode: reveal the whole map
     devReveal = !devReveal;
@@ -2063,7 +2067,37 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
 // controls modal: pauses the sim while open; shows automatically at game start
-let paused = false;
+let paused = false;       // help modal open
+let userPaused = false;   // the pause button / P key
+let quitArm = 0;          // quit needs two clicks within 3s
+function togglePause() {
+  if (!started || gameOver) return;
+  userPaused = !userPaused;
+  elPauseBanner.classList.toggle('hidden', !userPaused);
+  btnPause.textContent = userPaused ? '▶ resume' : '⏸ pause';
+}
+function quitToMenu() {
+  started = false;
+  userPaused = false;
+  quitArm = 0;
+  elPauseBanner.classList.add('hidden');
+  btnPause.textContent = '⏸ pause';
+  btnQuit.textContent = '⏹ menu';
+  setHelp(false);
+  resetWorld();
+  renderMenu();
+  elMenu.classList.remove('hidden');
+}
+btnPause.addEventListener('click', () => { audioInit(); togglePause(); });
+btnQuit.addEventListener('click', () => {
+  audioInit();
+  if (!started) return;
+  if (Date.now() - quitArm < 3000) { quitToMenu(); return; }
+  quitArm = Date.now();
+  btnQuit.textContent = '⏹ sure?';
+  toast('Click again to abandon the match');
+  setTimeout(() => { if (Date.now() - quitArm >= 2900) btnQuit.textContent = '⏹ menu'; }, 3100);
+});
 function setHelp(open) {
   elHelp.classList.toggle('hidden', !open);
   paused = open;
@@ -3338,7 +3372,7 @@ function frame(now) {
   acc += Math.min(100, now - last);
   last = now;
   while (acc >= 1000 / 60) {
-    if (!started || paused) { /* menu or controls modal is up — world waits */ }
+    if (!started || paused || userPaused) { /* menu, controls, or pause — world waits */ }
     else if (!gameOver) update();
     else { tick++; updateFx(); updateCamera(); }   // aftermath keeps burning behind the overlay
     acc -= 1000 / 60;
@@ -3392,6 +3426,9 @@ function startGame(mapKey, diffKey) {
   waveAt = diff.firstWave * 60;
   setup(mapKey);
   started = true;
+  userPaused = false;
+  elPauseBanner.classList.add('hidden');
+  btnPause.textContent = '⏸ pause';
   elMenu.classList.add('hidden');
   refreshTopbar();
   refreshCard();

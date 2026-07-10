@@ -74,7 +74,11 @@ fight) · **Hard** (early pressure, relentless waves, a rich enemy, nukes) ·
 | Right-click the minimap | Send selected units there |
 | Ctrl+1–5 / 1–5 | Save / recall control groups |
 | F | Toggle fog memory (explored ground stays visible vs. re-fogs) |
+| P | Pause / resume (or the ⏸ button) |
 | M | Mute |
+
+To abandon a match, hit **⏹ menu** in the top bar twice — you'll be back at
+map/difficulty select.
 
 ## Units
 
