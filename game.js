@@ -160,12 +160,14 @@ const MAPS = {
 // ---------------- Difficulty ----------------
 // All knobs the AI cares about; 'normal' is the pre-difficulty baseline.
 const DIFFS = {
-  easy:   { label: 'Easy',   desc: 'Slower assaults, lazier enemy economy. Learn the ropes.',
+  easy:   { label: 'Easy',    desc: 'Slower assaults, lazier enemy economy. Learn the ropes.',
             firstWave: 150, waveEvery: 1.4, capRate: 1.2, trickle: 0.55, aiUpgrades: false },
-  normal: { label: 'Normal', desc: 'The intended fight.',
-            firstWave: 100, waveEvery: 1.0, capRate: 2.0, trickle: 1.0, aiUpgrades: true },
-  hard:   { label: 'Hard',   desc: 'Early pressure, relentless waves, a rich enemy. Good luck.',
-            firstWave: 75,  waveEvery: 0.75, capRate: 3.0, trickle: 1.7, aiUpgrades: true },
+  normal: { label: 'Normal',  desc: 'The intended fight.',
+            firstWave: 95,  waveEvery: 0.95, capRate: 2.4, trickle: 1.2, aiUpgrades: true },
+  hard:   { label: 'Hard',    desc: 'Early pressure, relentless waves, a rich enemy. Good luck.',
+            firstWave: 75,  waveEvery: 0.75, capRate: 3.2, trickle: 1.8, aiUpgrades: true },
+  specops: { label: 'Spec Ops', desc: 'The enemy cheats. Openly. Bring everything you have.',
+            firstWave: 60,  waveEvery: 0.55, capRate: 4.5, trickle: 2.6, aiUpgrades: true },
 };
 let diff = DIFFS.normal;
 // Research, StarCraft-style: bought at the producing building, occupies its queue.
@@ -1966,17 +1968,17 @@ function refreshCard() {
         html += `<button data-act="train:${a.t}"${dim}>${ud.label} · ${ud.cost} ⬡ <small>[${key}]</small></button>`;
       } else if (a.kind === 'hatch') {
         const pack = units.filter(u => u.team === 1 && u.type === 'spitter').length;
-        const dim = (teams[1].eggs < 1 || pack >= SPITTER_CAP) ? ' class="dim"' : '';
-        html += `<button data-act="hatch"${dim}>🦖 Hatch Spitter · 1 🥚 (${teams[1].eggs} 🥚 · pack ${pack}/${SPITTER_CAP}) <small>[${key}]</small></button>`;
+        const cls = ' class="wide' + ((teams[1].eggs < 1 || pack >= SPITTER_CAP) ? ' dim' : '') + '"';
+        html += `<button data-act="hatch"${cls}>🦖 Hatch Spitter · 1 🥚 (${teams[1].eggs} 🥚 · pack ${pack}/${SPITTER_CAP}) <small>[${key}]</small></button>`;
       } else {
         const g = UPG[a.k];
         const pending = buildings.reduce((s, x) =>
           s + (x.team === 1 ? x.queue.filter(q => q === 'up:' + a.k).length : 0), 0);
         const lvl = teams[1].up[a.k] + pending;
-        if (lvl >= g.max) html += `<button class="dim">⬆ ${g.label} MAX</button>`;
+        if (lvl >= g.max) html += `<button class="wide dim">⬆ ${g.label} MAX</button>`;
         else {
-          const dim = teams[1].crystals < g.cost[lvl] ? ' class="dim"' : '';
-          html += `<button data-act="research:${a.k}"${dim}>⬆ ${g.label} ${lvl + 1} · ${g.cost[lvl]} ⬡ <small>[${key}]</small></button>`;
+          const cls = ' class="wide' + (teams[1].crystals < g.cost[lvl] ? ' dim' : '') + '"';
+          html += `<button data-act="research:${a.k}"${cls}>⬆ ${g.label} ${lvl + 1} · ${g.cost[lvl]} ⬡ <small>[${key}]</small></button>`;
         }
       }
     });
