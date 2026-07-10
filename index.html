@@ -124,6 +124,15 @@
   #overlay h1.win { color: #7fd8a8; }
   #overlay h1.lose { color: #e0564a; }
   #overlay p { color: #9aa89e; font-size: 16px; }
+  #ov-stats {
+    display: flex; gap: 26px; margin-top: 10px;
+    background: rgba(16, 22, 18, 0.85);
+    border: 1px solid rgba(120, 200, 190, 0.3);
+    border-radius: 12px; padding: 14px 26px;
+  }
+  #ov-stats div { text-align: center; }
+  #ov-stats b { display: block; font-size: 24px; color: #8fd8cf; font-variant-numeric: tabular-nums; }
+  #ov-stats span { font-size: 11px; color: #9aa89e; text-transform: uppercase; letter-spacing: 1px; }
   #overlay button {
     margin-top: 10px;
     background: #17251f; border: 1px solid #8fd8cf; color: #d8e0d8;
@@ -218,6 +227,7 @@
   <div id="overlay" class="hidden">
     <h1 id="ov-title"></h1>
     <p id="ov-sub"></p>
+    <div id="ov-stats"></div>
     <button onclick="location.reload()">Play again</button>
   </div>
 

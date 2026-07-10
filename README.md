@@ -64,8 +64,9 @@ fight) · **Hard** (early pressure, relentless waves, a rich enemy).
 | S | Stop |
 | H | Marines & artillery hunker down — half damage, hold position (press again to release) |
 | Q / W / E / R / D | Train units & research upgrades (select a production building first) |
-| T / B / V / C / G / X, then click | Place a Turret / Barracks / Factory / Supply Depot / Refinery / Airpad |
+| T / B / V / C / G / X / Y, then click | Place a Turret / Barracks / Factory / Supply Depot / Refinery / Airpad / Flak Turret |
 | Arrow keys / screen edge / minimap | Move the camera |
+| Right-click the minimap | Send selected units there |
 | Ctrl+1–5 / 1–5 | Save / recall control groups |
 | F | Toggle fog memory (explored ground stays visible vs. re-fogs) |
 | M | Mute |
@@ -95,6 +96,7 @@ fight) · **Hard** (early pressure, relentless waves, a rich enemy).
 - **Refinery** (175) — crystal drop-off point; build next to far-away patches to
   expand your economy. Comes online with a free harvester.
 - **Airpad** (175) — builds Gunships and adds +2 supply
+- **Flak Turret** (160) — anti-air battery; shreds gunships, ignores the ground war
 - **Turret** (140) — stationary base defense; must anchor to a main building
   (HQ, Barracks, Factory…), so no turret-chaining across the map
 
@@ -114,6 +116,13 @@ working on — units and research alike.
 Buildings go near your existing base — except the Refinery, which must go next
 to a crystal patch. Expanding is how you out-mine the enemy; expansions are
 also juicy targets, so defend them.
+
+## Alerts
+
+When your buildings or workers take fire somewhere off-screen, you'll hear an
+alarm and see a red ping pulsing on the minimap. When the dust settles at the
+end of a match, a scoreboard shows your time, units fielded and lost, kills,
+and crystals mined.
 
 ## Pausing
 

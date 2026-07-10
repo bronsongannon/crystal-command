@@ -68,7 +68,7 @@ const UNIT = {
   spitter:   { label: 'Spitter',   cost: 0,   supply: 1, hp: 95,  speed: 2.1,  r: 10, dmg: 11, range: 115, cooldown: 44,  buildTime: 0, sight: 200 },
 };
 const BLD = {
-  hq:       { label: 'Headquarters', hp: 2200, w: 96, h: 96, supply: 20, sight: 300, trains: ['harvester', 'engineer'] },
+  hq:       { label: 'Headquarters', hp: 3000, w: 96, h: 96, supply: 20, sight: 300, trains: ['harvester', 'engineer'] },
   barracks: { label: 'Barracks',     hp: 1100, w: 78, h: 78, supply: 4,  sight: 250, trains: ['marine', 'sniper'],  cost: 150, buildTime: 13 * 60 },
   factory:  { label: 'Factory',      hp: 1000, w: 88, h: 72, supply: 4,  sight: 220, trains: ['raider', 'tank', 'artillery'], cost: 200, buildTime: 15 * 60 },
   supply:   { label: 'Supply Depot', hp: 500,  w: 56, h: 56, supply: 8,  sight: 180, cost: 100, buildTime: 10 * 60 },
@@ -77,6 +77,8 @@ const BLD = {
   turret:   { label: 'Turret',       hp: 450,  w: 40, h: 40, supply: 0,  sight: 260, dmg: 15, range: 200, cooldown: 42, cost: 140, buildTime: 8 * 60 },
   // Dino nest (team 3): guards a rich crystal patch and respawns spitters
   // until it's destroyed. Clear it or mine poor — the expansion gatekeeper.
+  // airOnly: this defense only engages flyers
+  flak:     { label: 'Flak Turret',  hp: 420,  w: 40, h: 40, supply: 0,  sight: 280, dmg: 14, range: 240, cooldown: 16, cost: 160, buildTime: 8 * 60, airOnly: 1 },
   nest:     { label: 'Dino Nest',    hp: 850,  w: 64, h: 64, supply: 0,  sight: 200 },
 };
 const NEST_BROOD = 3;          // spitters alive per nest
@@ -98,8 +100,8 @@ const MAPS = {
     eAir: [W - 660, 300],
     ePatch: [W - 260, 440],
     patches: [
-      { p: [W / 2, H / 2 - 200], n: 8, a: 2200, nests: [[W / 2 + 110, H / 2 - 290]] },
-      { p: [W / 2, H / 2 + 200], n: 8, a: 2200, nests: [[W / 2 - 110, H / 2 + 290]] },
+      { p: [W / 2, H / 2 - 200], n: 8, a: 2600, nests: [[W / 2 + 110, H / 2 - 290]] },
+      { p: [W / 2, H / 2 + 200], n: 8, a: 2600, nests: [[W / 2 - 110, H / 2 + 290]] },
     ],
   },
   gauntlet: {
@@ -111,9 +113,9 @@ const MAPS = {
     eAir: [W - 620, H / 2 + 170],
     ePatch: [W - 270, H / 2 + 240],
     patches: [
-      { p: [W / 2, 260], n: 8, a: 2200, nests: [[W / 2 + 100, 170]] },
-      { p: [W / 2, H / 2], n: 9, a: 2600, nests: [[W / 2 - 120, H / 2 - 90]] },
-      { p: [W / 2, H - 260], n: 8, a: 2200, nests: [[W / 2 + 100, H - 170]] },
+      { p: [W / 2, 260], n: 8, a: 2600, nests: [[W / 2 + 100, 170]] },
+      { p: [W / 2, H / 2], n: 9, a: 3000, nests: [[W / 2 - 120, H / 2 - 90]] },
+      { p: [W / 2, H - 260], n: 8, a: 2600, nests: [[W / 2 + 100, H - 170]] },
     ],
   },
   valley: {
@@ -125,9 +127,9 @@ const MAPS = {
     eAir: [660, 300],
     ePatch: [260, 440],
     patches: [
-      { p: [W - 320, 320], n: 6, a: 1800, nests: [[W - 440, 250]] },
-      { p: [320, H - 320], n: 6, a: 1800, nests: [[440, H - 250]] },
-      { p: [W / 2, H / 2], n: 10, a: 3000, nests: [[W / 2 - 130, H / 2 - 110], [W / 2 + 130, H / 2 + 110]] },
+      { p: [W - 320, 320], n: 6, a: 2100, nests: [[W - 440, 250]] },
+      { p: [320, H - 320], n: 6, a: 2100, nests: [[440, H - 250]] },
+      { p: [W / 2, H / 2], n: 10, a: 3400, nests: [[W / 2 - 130, H / 2 - 110], [W / 2 + 130, H / 2 + 110]] },
     ],
   },
 };
@@ -169,7 +171,7 @@ const PLACE_NEAR_BASE = 300;       // most buildings must go near an existing fr
 const REFINERY_NEAR_CRYSTAL = 240; // refineries instead must go near a live crystal patch
 const SUPPLY_HARD_CAP = 100;
 // player-placeable buildings and their hotkeys (shown on the command card)
-const BUILD_MENU = [['turret', 'T'], ['barracks', 'B'], ['factory', 'V'], ['supply', 'C'], ['refinery', 'G'], ['airpad', 'X']];
+const BUILD_MENU = [['turret', 'T'], ['barracks', 'B'], ['factory', 'V'], ['supply', 'C'], ['refinery', 'G'], ['airpad', 'X'], ['flak', 'Y']];
 const COLORS = {
   1: { main: '#3fb9c9', dark: '#1e6570', light: '#9fe8ef' },
   2: { main: '#e0564a', dark: '#7c2a24', light: '#f5a89a' },
@@ -236,6 +238,21 @@ let bodiesReady = false;
   }
 })();
 
+// Optional art slots — no files exist for these yet. Drop a PNG with the
+// right name into assets/sprites/ and it's used automatically next reload;
+// until then the procedural drawing stays. See assets/sprites/ART-WANTED.md.
+const OPT = {};
+(function loadOptional() {
+  const names = ['dino_spitter', 'dino_nest', 'gunship', 'artillery', 'egg'];
+  for (const n of names) {
+    const i = new Image();
+    OPT[n] = { img: i, ok: false };
+    i.onload = () => { OPT[n].ok = true; };
+    i.src = 'assets/sprites/' + n + '.png';
+  }
+})();
+const opt = (n) => (OPT[n] && OPT[n].ok) ? OPT[n].img : null;
+
 // team-color tinted copies, built once per (sprite, team) on first use
 const tintCache = new Map();
 function teamSprite(img, team) {
@@ -257,8 +274,22 @@ function teamSprite(img, team) {
 }
 
 // distance from unit/building center to the muzzle tip of its drawn barrel
-const MUZZLE_LEN = { marine: 15, sniper: 24, raider: 17, tank: 22, artillery: 28, gunship: 13, turret: 22, engineer: 11, harvester: 12 };
+const MUZZLE_LEN = { marine: 15, sniper: 24, raider: 17, tank: 22, artillery: 28, gunship: 13, turret: 22, flak: 20, engineer: 11, harvester: 12 };
 const FX_CAP = 450;
+
+// "base under attack" alerts: pulsing minimap pings + a throttled alarm
+// end-of-match scoreboard for the player
+let stats = { built: 0, lost: 0, kills: 0, mined: 0 };
+
+let alerts = [];          // {x, y, t}
+let lastAlert = -1e9;
+function raiseAlert(x, y, msg) {
+  alerts.push({ x, y, t: 0 });
+  if (tick - lastAlert < 12 * 60) return;   // one alarm per 12s, pings always show
+  lastAlert = tick;
+  toast(msg);
+  snd.alarm();
+}
 
 let shakeAmp = 0;
 function addShake(x, y, amp) {
@@ -531,7 +562,7 @@ function placeBase(team, M) {
     for (const s of M.eSup) makeBuilding('supply', 2, ...s);
     for (const t of M.eTur) makeBuilding('turret', 2, ...t);
   }
-  const patch = addPatch(...(p ? M.pPatch : M.ePatch), 7, 1400);
+  const patch = addPatch(...(p ? M.pPatch : M.ePatch), 7, 1700);
   hq.rally = { x: patch[0].x, y: patch[0].y };               // fresh harvesters auto-mine
   for (let i = 0; i < 3; i++) {
     // string the starting harvesters out along the HQ→patch line
@@ -606,10 +637,11 @@ function nearestDamagedBuilding(team, x, y, range) {
 }
 // can this unit/building shoot at flyers?
 const canAA = (e) => e.kind === 'unit' ? !UNIT[e.type].noAA : true;   // only turrets fire among buildings, and they have AA
-function nearestEnemyUnit(x, y, team, range, aa) {
+function nearestEnemyUnit(x, y, team, range, aa, airOnly) {
   let best = null, bd = 1e18;
   for (const u of units) {
     if (u.team === team) continue;
+    if (airOnly && !UNIT[u.type].fly) continue;           // flak ignores the ground war
     if (aa === false && UNIT[u.type].fly) continue;       // gun can't elevate — skip flyers
     if (team === 1 && !isVisibleAt(u.x, u.y)) continue;   // player can't target into the fog
     const d = dist(x, y, u.x, u.y) - u.r;
@@ -714,6 +746,7 @@ function spawnFromBuilding(b, type) {
   const sx = b.x + Math.cos(a) * (b.r + 16) + (Math.random() - 0.5) * 10;
   const sy = b.y + Math.sin(a) * (b.r + 16) + (Math.random() - 0.5) * 10;
   const u = makeUnit(type, b.team, clamp(sx, 20, W - 20), clamp(sy, 20, H - 20));
+  if (b.team === 1) stats.built++;
   const c = nearestCrystalTo(rally.x, rally.y, 60);
   if (type === 'harvester' && c) u.order = { type: 'harvest', target: c };
   else u.order = { type: 'move', x: rally.x, y: rally.y };
@@ -822,11 +855,18 @@ function damage(e, d, src) {
   d *= armorMult(e);
   if (e.kind === 'unit' && e.order.type === 'hunker') d *= 0.5;
   e.hp -= d;
+  // warn the player when the home front takes hits (buildings & workers)
+  if (e.team === 1 && !gameOver && src && src.team !== 1) {
+    if (e.kind === 'building') raiseAlert(e.x, e.y, '⚠ Your base is under attack!');
+    else if (e.type === 'harvester' || e.type === 'engineer') raiseAlert(e.x, e.y, '⚠ Your workers are under attack!');
+  }
   // fight back if idle
   if (e.kind === 'unit' && isCombat(e) && e.order.type === 'idle' && src && src.hp > 0) {
     e.order = { type: 'attack', target: src, resume: null };
   }
   if (e.hp <= 0) {
+    if (src && src.team === 1 && e.team !== 1) stats.kills++;
+    if (e.team === 1 && e.kind === 'unit') stats.lost++;
     // veterancy credit: the killer remembers, and might rank up
     if (src && src.kind === 'unit' && src.hp > 0 && src.team !== e.team) {
       const before = rankOf(src);
@@ -1060,6 +1100,7 @@ function updateUnit(u) {
       else {
         teams[u.team].crystals += u.carry;
         if (u.team === 1) {
+          stats.mined += u.carry;
           fxs.push({ kind: 'text', x: u.x, y: u.y - 14, t: 0, max: 50, msg: '+' + u.carry });
           snd.deposit();
         }
@@ -1133,7 +1174,9 @@ function updateBuilding(b) {
   }
   if (b.cool > 0) b.cool--;
   if (b.dmg > 0) {
-    const t = acquireTarget(b.x, b.y, b.team, b.range, b);
+    const t = BLD[b.type].airOnly
+      ? nearestEnemyUnit(b.x, b.y, b.team, b.range, true, true)
+      : acquireTarget(b.x, b.y, b.team, b.range, b);
     if (t) {
       b.faceA = Math.atan2(t.y - b.y, t.x - b.x);
       if (b.cool <= 0) fire(b, t);
@@ -1184,6 +1227,8 @@ function updateBullets() {
 function updateFx() {
   for (const f of fxs) f.t++;
   fxs = fxs.filter(f => f.t < f.max);
+  for (const a of alerts) a.t++;
+  alerts = alerts.filter(a => a.t < 150);
   // smoke + fire from badly damaged buildings and tanks (only where the player can see)
   if (spritesReady && tick % 7 === 0) {
     for (const b of buildings) {
@@ -1202,6 +1247,43 @@ function updateFx() {
 }
 
 // ---------------- Enemy AI ----------------
+// site check mirroring canPlaceBuilding, minus the team-1-only rules
+function aiSpotFree(type, wx, wy) {
+  const d = BLD[type];
+  if (wx < 40 || wy < 40 || wx > W - 40 || wy > H - 40) return false;
+  for (const b of buildings) {
+    if (Math.abs(wx - b.x) < (b.w + d.w) / 2 + 10 && Math.abs(wy - b.y) < (b.h + d.h) / 2 + 10) return false;
+  }
+  for (const c of crystals) if (c.amount > 0 && dist2(wx, wy, c.x, c.y) < (d.w / 2 + 26) ** 2) return false;
+  if (type === 'refinery' && !crystals.some(c => c.amount > 0 && dist2(wx, wy, c.x, c.y) < REFINERY_NEAR_CRYSTAL ** 2)) return false;
+  return true;
+}
+function aiPlace(type, nearX, nearY) {
+  const t = teams[2];
+  if (t.crystals < BLD[type].cost) return false;
+  for (let i = 0; i < 24; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = type === 'refinery' ? 50 + Math.random() * 120 : 90 + Math.random() * 190;
+    const x = clamp(nearX + Math.cos(a) * r, 60, W - 60);
+    const y = clamp(nearY + Math.sin(a) * r, 60, H - 60);
+    if (!aiSpotFree(type, x, y)) continue;
+    t.crystals -= BLD[type].cost;
+    makeBuilding(type, 2, x, y, true);
+    return true;
+  }
+  return false;
+}
+// richest live crystal that has no AI drop-off yet and no nest standing guard
+function aiExpansionSpot() {
+  let best = null, bestAmt = 0;
+  for (const c of crystals) {
+    if (c.amount <= 0 || c.amount <= bestAmt) continue;
+    if (buildings.some(b => b.team === 2 && (b.type === 'hq' || b.type === 'refinery') && dist2(b.x, b.y, c.x, c.y) < 500 ** 2)) continue;
+    if (buildings.some(b => b.type === 'nest' && dist2(b.x, b.y, c.x, c.y) < 420 ** 2)) continue;
+    bestAmt = c.amount; best = c;
+  }
+  return best;
+}
 function aiUpdate() {
   if (tick % 30 !== 0 || gameOver) return;
   const t = teams[2];
@@ -1224,7 +1306,7 @@ function aiUpdate() {
   const fac = buildings.find(b => b.team === 2 && b.type === 'factory' && b.built >= 1);
   const air = buildings.find(b => b.team === 2 && b.type === 'airpad' && b.built >= 1);
   const queued = [rax, fac, air].reduce((s, bld) =>
-    s + (bld ? bld.queue.reduce((q, ty) => q + UNIT[ty].supply, 0) : 0), 0);
+    s + (bld ? bld.queue.reduce((q, ty) => q + (ty.startsWith('up:') ? 0 : UNIT[ty].supply), 0) : 0), 0);
   const armySupply = units.reduce((s, u) => (u.team === 2 && isCombat(u) ? s + UNIT[u.type].supply : s), 0) + queued;
   const armyCap = 3 + Math.floor((tick / 3600) * diff.capRate);   // +capRate supply per minute
   if (rax && rax.queue.length < 2 && armySupply < armyCap) {
@@ -1238,6 +1320,24 @@ function aiUpdate() {
     if (tick > 4 * 3600 && t.crystals >= UNIT.artillery.cost && roll < 0.15) trainUnit(fac, 'artillery');
     else if (t.crystals >= UNIT.tank.cost && roll < 0.45) trainUnit(fac, 'tank');
     else if (t.crystals >= UNIT.raider.cost && roll < 0.75) trainUnit(fac, 'raider');
+  }
+  // --- base building: fix supply crunches, rebuild losses, expand when flush ---
+  if (tick % 150 === 0 && hq) {
+    const have = (ty) => buildings.filter(b => b.team === 2 && b.type === ty).length;
+    if (supplyMax(2) - supplyUsed(2) < 5 && supplyMax(2) < SUPPLY_HARD_CAP && t.crystals > BLD.supply.cost + 100) {
+      aiPlace('supply', hq.x, hq.y);
+    } else if (!have('barracks') && t.crystals > BLD.barracks.cost) {
+      aiPlace('barracks', hq.x, hq.y);
+    } else if (!have('factory') && t.crystals > BLD.factory.cost + 150) {
+      aiPlace('factory', hq.x, hq.y);
+    } else if (!have('airpad') && tick > 5 * 3600 && t.crystals > BLD.airpad.cost + 250) {
+      aiPlace('airpad', hq.x, hq.y);
+    } else if (units.some(u => u.team === 1 && u.fly) && have('flak') < 2 && t.crystals > 300) {
+      aiPlace('flak', hq.x, hq.y);   // player went air — answer with AA
+    } else if (t.crystals > 400 && have('refinery') < 3 && tick > 4 * 3600) {
+      const spot = aiExpansionSpot();
+      if (spot) aiPlace('refinery', spot.x + 60, spot.y + 60);
+    }
   }
   // gunships arrive mid-game — the AI holds off so early waves stay learnable
   if (air && air.queue.length < 1 && armySupply < armyCap && tick > 6 * 3600
@@ -1256,7 +1356,7 @@ function waveUpdate() {
   if (gameOver) return;
   if (tick < waveAt) return;
   waveNum++;
-  waveAt = tick + Math.max(45, 75 - waveNum * 4) * 60 * diff.waveEvery;
+  waveAt = tick + Math.max(55, 82 - waveNum * 3) * 60 * diff.waveEvery;
   const targ = buildings.find(b => b.team === 1 && b.type === 'hq')
             || buildings.find(b => b.team === 1)
             || units.find(u => u.team === 1);
@@ -1285,6 +1385,13 @@ function checkEnd() {
       elOvSub.textContent = pAlive
         ? 'The enemy headquarters is rubble. The crystal fields are yours, Commander.'
         : 'Your headquarters has fallen. The crystals belong to the enemy… for now.';
+      const mins = Math.floor(tick / 3600), secs = Math.floor((tick % 3600) / 60);
+      document.getElementById('ov-stats').innerHTML =
+        `<div><b>${mins}:${String(secs).padStart(2, '0')}</b><span>match time</span></div>` +
+        `<div><b>${stats.built}</b><span>units fielded</span></div>` +
+        `<div><b>${stats.lost}</b><span>units lost</span></div>` +
+        `<div><b>${stats.kills}</b><span>kills</span></div>` +
+        `<div><b>${Math.floor(stats.mined)}</b><span>crystals mined</span></div>`;
       elOverlay.classList.remove('hidden');
       beep(pAlive ? 520 : 220, 0.5, 'sine', 0.06, pAlive ? 1040 : 80);
     }, 1400);
@@ -1362,6 +1469,7 @@ window.addEventListener('mouseup', (e) => {
       selection = b ? [b] : [];
     }
   }
+  if (selection.length) beep(540, 0.035, 'sine', 0.02);   // soft select blip
 });
 cv.addEventListener('contextmenu', (e) => {
   e.preventDefault();
@@ -1405,7 +1513,17 @@ function miniToCam(e) {
 mini.addEventListener('mousedown', (e) => { audioInit(); if (e.button === 0) { miniDown = true; miniToCam(e); } });
 window.addEventListener('mousemove', (e) => { if (miniDown) miniToCam(e); });
 window.addEventListener('mouseup', () => { miniDown = false; });
-mini.addEventListener('contextmenu', (e) => e.preventDefault());
+mini.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  audioInit();
+  pruneSelection();
+  if (!selection.some(s => s.kind === 'unit')) return;
+  const r = mini.getBoundingClientRect();
+  const wx = clamp(((e.clientX - r.left) / r.width) * W, 20, W - 20);
+  const wy = clamp(((e.clientY - r.top) / r.height) * H, 20, H - 20);
+  commandMove(selection, wx, wy, false);
+  fxs.push({ kind: 'ping', x: wx, y: wy, t: 0, max: 22, color: '#8fd8cf' });
+});
 
 // keyboard
 window.addEventListener('keydown', (e) => {
@@ -1488,8 +1606,9 @@ function canPlaceBuilding(type, wx, wy) {
   if (type === 'refinery') {
     return crystals.some(c => c.amount > 0 && dist2(wx, wy, c.x, c.y) < REFINERY_NEAR_CRYSTAL ** 2);
   }
-  // turrets must anchor to a permanent structure (HQ/Barracks/Factory/…) — no turret-to-turret creep
-  return buildings.some(b => b.team === 1 && (type !== 'turret' || b.type !== 'turret') &&
+  // defense towers must anchor to a permanent structure (HQ/Barracks/Factory/…) — no tower-to-tower creep
+  const isDef = (t) => t === 'turret' || t === 'flak';
+  return buildings.some(b => b.team === 1 && (!isDef(type) || !isDef(b.type)) &&
     dist2(wx, wy, b.x, b.y) < PLACE_NEAR_BASE ** 2);
 }
 function tryPlaceBuilding(type, wx, wy) {
@@ -1619,6 +1738,7 @@ function refreshCard() {
   } else if (b) {
     const desc = b.type === 'supply' ? 'Raises your supply cap by ' + BLD.supply.supply + '.'
       : b.type === 'refinery' ? 'Harvesters drop crystals off here. Build more near far-away patches to expand.'
+      : b.type === 'flak' ? 'Anti-air battery. Shreds gunships; ignores everything on the ground.'
       : 'Defensive structure. It shoots on its own.';
     html = `<h3>${BLD[b.type].label}</h3><div class="sub">${desc}</div>`;
   } else if (selection.length) {
@@ -1789,6 +1909,11 @@ function drawCrystal(c) {
 }
 
 function drawEgg(e) {
+  const img = opt('egg');
+  if (img) {
+    cx.drawImage(img, e.x - 9, e.y - 11, 18, 22);
+    return;
+  }
   cx.save();
   cx.translate(e.x, e.y);
   cx.fillStyle = 'rgba(232,226,204,0.16)';   // soft glow so they read on dark ground
@@ -1858,6 +1983,16 @@ function drawBuildingSprite(b, x, y) {
       cx.fillStyle = '#f0c86a';
       cx.beginPath(); cx.arc(x + b.w - 8, y + 8, 2.5, 0, Math.PI * 2); cx.fill();
     }
+  } else if (b.type === 'flak') {
+    cx.drawImage(teamSprite(BODY.bld_plate, b.team), b.x - 22, b.y - 22, 44, 44);
+    cx.save();
+    cx.translate(b.x, b.y);
+    cx.rotate(b.faceA + Math.PI / 2);   // twin AA guns, splayed
+    cx.drawImage(BODY.turret_gun, -18, -18, 24, 24);
+    cx.drawImage(BODY.turret_gun, -6, -18, 24, 24);
+    cx.restore();
+    cx.fillStyle = C.light;             // sky-watch radar dot
+    cx.beginPath(); cx.arc(b.x, b.y - 14, 2.5 + Math.sin(tick * 0.15) * 1, 0, Math.PI * 2); cx.fill();
   } else { // turret
     cx.drawImage(teamSprite(BODY.bld_plate, b.team), b.x - 22, b.y - 22, 44, 44);
     cx.save();
@@ -1878,6 +2013,13 @@ function drawBuildingSprite(b, x, y) {
 
 // mound + eggs + rib bones; pulses so it reads as alive
 function drawNest(b) {
+  const img = opt('dino_nest');
+  if (img) {
+    const pulse = 1 + Math.sin(tick * 0.05) * 0.02;
+    const w = b.w * 1.15 * pulse, h = b.h * 1.15 * pulse;
+    cx.drawImage(img, b.x - w / 2, b.y - h / 2, w, h);
+    return;
+  }
   const C = COLORS[3];
   const pulse = 1 + Math.sin(tick * 0.05) * 0.03;
   cx.save();
@@ -1972,6 +2114,18 @@ function drawBuilding(b) {
     cx.beginPath();
     cx.moveTo(b.x, b.y - 12); cx.lineTo(b.x + 8, b.y); cx.lineTo(b.x, b.y + 12); cx.lineTo(b.x - 8, b.y);
     cx.closePath(); cx.fill();
+  } else if (b.type === 'flak') {
+    cx.fillStyle = '#1a201c';
+    cx.beginPath(); cx.arc(b.x, b.y, 13, 0, Math.PI * 2); cx.fill();
+    cx.strokeStyle = C.main; cx.lineWidth = 3;
+    for (const off of [-0.22, 0.22]) {
+      cx.beginPath();
+      cx.moveTo(b.x, b.y);
+      cx.lineTo(b.x + Math.cos(b.faceA + off) * 20, b.y + Math.sin(b.faceA + off) * 20);
+      cx.stroke();
+    }
+    cx.fillStyle = C.light;
+    cx.beginPath(); cx.arc(b.x, b.y, 4, 0, Math.PI * 2); cx.fill();
   } else if (b.type === 'airpad') {
     cx.strokeStyle = C.light; cx.lineWidth = 2;
     cx.beginPath(); cx.arc(b.x, b.y, 15, 0, Math.PI * 2); cx.stroke();
@@ -2028,6 +2182,8 @@ function drawUnitSprite(u) {
     cx.drawImage(teamSprite(BODY.tank_body, u.team), -16, -15, 32, 30);
     cx.drawImage(teamSprite(BODY.tank_barrel, u.team), -3.5, -21, 7, 24);
   } else if (u.type === 'artillery') {
+    const art = opt('artillery');
+    if (art) { cx.drawImage(teamSprite(art, u.team), -16, -20, 32, 40); return; }
     // narrow chassis, extra-long tube — reads as "siege" next to the tank
     cx.drawImage(teamSprite(BODY.tank_body, u.team), -12, -14, 24, 28);
     cx.drawImage(teamSprite(BODY.tank_barrel, u.team), -3, -32, 6, 34);
@@ -2051,6 +2207,12 @@ function drawUnitSprite(u) {
 // Team-colored: wild ones are acid green, hatched player dinos wear teal.
 // No sprite art yet; when dino sprites land they slot in via drawUnitSprite.
 function drawDino(u) {
+  const img = opt('dino_spitter');
+  if (img) {
+    cx.rotate(Math.PI / 2);   // art faces up
+    cx.drawImage(teamSprite(img, u.team), -13, -13, 26, 26);
+    return;
+  }
   const C = COLORS[u.team];
   const wag = Math.sin(tick * 0.25 + u.id) * 3;    // tail sway
   cx.fillStyle = C.dark;                            // tail
@@ -2071,6 +2233,22 @@ function drawDino(u) {
 
 // gunship — drawn inside translate+rotate, +x forward. Procedural (no air art yet).
 function drawGunship(u) {
+  const img = opt('gunship');
+  if (img) {
+    cx.rotate(Math.PI / 2);   // art faces up
+    cx.drawImage(teamSprite(img, u.team), -17, -17, 34, 34);
+    cx.rotate(-Math.PI / 2);
+    const ra = tick * 0.55 + u.id;   // keep the spinning rotor over the art
+    cx.strokeStyle = 'rgba(220,235,230,0.55)';
+    cx.lineWidth = 1.4;
+    cx.beginPath();
+    cx.moveTo(Math.cos(ra) * 15, Math.sin(ra) * 15);
+    cx.lineTo(-Math.cos(ra) * 15, -Math.sin(ra) * 15);
+    cx.moveTo(Math.cos(ra + Math.PI / 2) * 15, Math.sin(ra + Math.PI / 2) * 15);
+    cx.lineTo(-Math.cos(ra + Math.PI / 2) * 15, -Math.sin(ra + Math.PI / 2) * 15);
+    cx.stroke();
+    return;
+  }
   const C = COLORS[u.team];
   cx.fillStyle = C.dark;                              // tail boom
   cx.fillRect(-16, -1.5, 10, 3);
@@ -2366,10 +2544,10 @@ function render() {
     cx.fillStyle = ok ? '#3fb9c9' : '#e0564a';
     rr(cx, mouse.wx - d.w / 2, mouse.wy - d.h / 2, d.w, d.h, 6); cx.fill();
     cx.globalAlpha = 1;
-    if (placing === 'turret') {
+    if (BLD[placing].range) {
       cx.strokeStyle = ok ? 'rgba(63,185,201,0.35)' : 'rgba(224,86,74,0.35)';
       cx.setLineDash([4, 6]);
-      cx.beginPath(); cx.arc(mouse.wx, mouse.wy, BLD.turret.range, 0, Math.PI * 2); cx.stroke();
+      cx.beginPath(); cx.arc(mouse.wx, mouse.wy, BLD[placing].range, 0, Math.PI * 2); cx.stroke();
       cx.setLineDash([]);
     }
   }
@@ -2402,6 +2580,12 @@ function renderMinimap() {
     mcx.fillRect(u.x * sx - 1, u.y * sy - 1, 2, 2);
   }
   mcx.drawImage(fogCv, 0, 0, mini.width, mini.height);
+  for (const a of alerts) {                       // attack pings pulse over the fog
+    const k = (a.t % 40) / 40;
+    mcx.strokeStyle = `rgba(240,90,70,${1 - k})`;
+    mcx.lineWidth = 1.5;
+    mcx.beginPath(); mcx.arc(a.x * sx, a.y * sy, 2 + k * 8, 0, Math.PI * 2); mcx.stroke();
+  }
   mcx.strokeStyle = 'rgba(255,255,255,0.7)';
   mcx.lineWidth = 1;
   mcx.strokeRect(cam.x * sx, cam.y * sy, view.w * sx, view.h * sy);
@@ -2471,7 +2655,9 @@ function renderMenu() {
 }
 // wipe the world so startGame can never stack two setups (also enables restarts)
 function resetWorld() {
-  units = []; buildings = []; crystals = []; bullets = []; fxs = []; eggs = [];
+  units = []; buildings = []; crystals = []; bullets = []; fxs = []; eggs = []; alerts = [];
+  lastAlert = -1e9;
+  stats = { built: 0, lost: 0, kills: 0, mined: 0 };
   selection = [];
   for (const k in groups) delete groups[k];
   teams[1] = { crystals: 180, eggs: 0, up: newUp() };
@@ -2512,6 +2698,7 @@ window.CC = {
   get buildings() { return buildings; },
   get crystals() { return crystals; },
   get eggs() { return eggs; },
+  get stats() { return stats; },
   get teams() { return teams; },
   get tick() { return tick; },
   get selection() { return selection; },
