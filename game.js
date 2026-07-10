@@ -179,6 +179,7 @@ const UPG = {
 };
 const IS_INF = { marine: 1, sniper: 1, engineer: 1, medic: 1 };
 const isFlesh = (u) => !!IS_INF[u.type] || u.type === 'spitter';   // what a medic can heal: infantry + dinos
+const isVehicle = (u) => u.kind === 'unit' && !IS_INF[u.type] && u.type !== 'spitter';   // what an engineer can repair
 // Veterancy: every unit remembers its kills. 2/4/8 kills → +10% damage and
 // −8% damage taken per rank, and Legends (rank 3) slowly self-heal.
 const RANK_AT = [2, 4, 8];
@@ -778,10 +779,11 @@ function nearestDropoff(team, x, y) {
   }
   return best;
 }
-function nearestWoundedAlly(u, range) {
+function nearestWoundedAlly(u, range, pred) {
+  pred = pred || isFlesh;
   let best = null, bd = 1e18;
   for (const o of units) {
-    if (o === u || o.team !== u.team || o.hp <= 0 || o.hp >= o.maxHp || !isFlesh(o)) continue;
+    if (o === u || o.team !== u.team || o.hp <= 0 || o.hp >= o.maxHp || !pred(o)) continue;
     const d = dist(u.x, u.y, o.x, o.y) - o.r;
     if (d <= range && d * d < bd) { bd = d * d; best = o; }
   }
@@ -1135,6 +1137,10 @@ function updateUnit(u) {
       } else if (u.type === 'engineer') {
         const nb = nearestDamagedBuilding(u.team, u.x, u.y, 240);
         if (nb) u.order = { type: 'repair', target: nb };
+        else {
+          const v = nearestWoundedAlly(u, 240, isVehicle);
+          if (v) u.order = { type: 'heal', target: v };
+        }
       } else if (isCombat(u)) {
         const t = acquireTarget(u.x, u.y, u.team, u.range + 70, u);
         if (t) u.order = { type: 'attack', target: t, resume: null };
@@ -1223,9 +1229,11 @@ function updateUnit(u) {
       break;
     }
     case 'heal': {
+      const pred = u.type === 'engineer' ? isVehicle : isFlesh;
+      const rate = u.type === 'engineer' ? UNIT.engineer.repair : UNIT.medic.heal;
       const t = o.target;
       if (!t || t.hp <= 0 || t.hp >= t.maxHp || !units.includes(t)) {
-        const w = nearestWoundedAlly(u, 300);
+        const w = nearestWoundedAlly(u, 300, pred);
         if (w) { o.target = w; break; }
         u.order = { type: 'idle' };
         break;
@@ -1234,7 +1242,7 @@ function updateUnit(u) {
       if (d > 26) moveToward(u, t.x, t.y);
       else {
         u.faceA = Math.atan2(t.y - u.y, t.x - u.x);
-        t.hp = Math.min(t.maxHp, t.hp + UNIT.medic.heal);
+        t.hp = Math.min(t.maxHp, t.hp + rate);
         if (tick % 12 === 0) {
           fxs.push({ kind: 'spark', x: t.x + (Math.random() - 0.5) * 10, y: t.y - 8, t: 0, max: 18 });
         }
@@ -1714,11 +1722,14 @@ cv.addEventListener('contextmenu', (e) => {
   }
   const t = thingAtPoint(wx, wy);
   if (t && t.kind === 'crystal') commandHarvest(selection, t);
-  else if (t && t.kind === 'unit' && t.team === 1 && t.hp < t.maxHp && isFlesh(t)
-           && selection.some(s => s.kind === 'unit' && s.type === 'medic')) {
+  else if (t && t.kind === 'unit' && t.team === 1 && t.hp < t.maxHp
+           && selection.some(s => s.kind === 'unit' &&
+                ((s.type === 'medic' && isFlesh(t)) || (s.type === 'engineer' && isVehicle(t))))) {
     for (const s of selection) {
       if (s.kind !== 'unit') continue;
-      if (s.type === 'medic') s.order = { type: 'heal', target: t };
+      if ((s.type === 'medic' && isFlesh(t)) || (s.type === 'engineer' && isVehicle(t))) {
+        s.order = { type: 'heal', target: t };
+      }
     }
     fxs.push({ kind: 'ping', x: t.x, y: t.y, t: 0, max: 22, color: '#8ce6a0' });
   }
@@ -1980,7 +1991,7 @@ function refreshCard() {
     const counts = {};
     for (const u of selection) counts[u.type] = (counts[u.type] || 0) + 1;
     const label = Object.entries(counts).map(([t, n]) => `${n}× ${UNIT[t].label}`).join(', ');
-    const engHint = selection.some(u => u.type === 'engineer') ? 'Right-click a damaged building to repair it. ' : '';
+    const engHint = selection.some(u => u.type === 'engineer') ? 'Right-click a damaged building or vehicle to repair it. ' : '';
     html = `<h3>${label}</h3><div class="sub">${engHint}Right-click: move · attack · harvest</div><div class="row">`;
     if (selection.some(u => isCombat(u))) html += '<button data-act="amove">Attack-move [A]</button>';
     if (selection.some(u => u.kind === 'unit' && canHunker(u))) html += '<button data-act="hunker">Hunker down [H]</button>';

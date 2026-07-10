@@ -78,8 +78,8 @@ fight) · **Hard** (early pressure, relentless waves, a rich enemy).
 ## Units
 
 - **Harvester** (60) — mines crystals and hauls them back to the HQ
-- **Engineer** (90) — repairs damaged buildings; right-click a building, or leave
-  him near the base and he'll fix things on his own
+- **Engineer** (90) — repairs damaged buildings **and vehicles**; right-click a
+  target, or leave him near the base and he'll fix things on his own
 - **Marine** (80) — fast, cheap ranged infantry; can hunker down to hold ground (Barracks)
 - **Sniper** (130) — fragile, but huge range and the best eyesight in the game (Barracks)
 - **Medic** (100) — unarmed. Automatically heals nearby wounded infantry and
