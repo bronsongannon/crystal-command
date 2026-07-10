@@ -28,6 +28,7 @@ will tint weirdly. (Exceptions below say "natural colors".)
 | `gunship.png` | attack helicopter / VTOL gunship | neutral tones, tinted. Rotor is drawn by the game — leave the top center clear-ish |
 | `artillery.png` | long-barreled siege gun on tracks, barrel up | neutral tones, tinted. Should look longer/thinner than the tank |
 | `egg.png` | single dino egg, speckled | **natural colors** (off-white + green speckles) |
+| `medic.png` | field medic with backpack + red-cross armband | neutral tones, tinted. Faces **RIGHT** like the other infantry |
 
 ## Existing art you can replace anytime (same filenames)
 

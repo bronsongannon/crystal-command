@@ -40,14 +40,18 @@ Every unit remembers its kills. At **2 / 4 / 8 kills** it becomes a
 Legends slowly heal in the field. Ranked units wear gold chevrons. Keep your
 heroes alive; a Legend tank is a monster.
 
-## Maps
+## Maps & terrain
+
+Impassable **rock ridges** carve every map into lanes and chokepoints — armies
+path around them automatically (gunships just fly over). Hold a gate with
+hunkered marines and a flak turret; slip raiders through the back lane.
 
 - **Crystal Basin** — the classic. Corner bases, twin rich fields mid-map, each
-  watched by a nest.
-- **The Gauntlet** — bases face off across a nest-choked center column. Win the
-  middle, win the game.
+  watched by a nest; two staggered ridges bend the middle into an S-corridor.
+- **The Gauntlet** — bases face off across a nest-choked center column, walled
+  in by twin ridgelines with a single center gate. Win the middle, win the game.
 - **Fossil Valley** — quiet corner expansions, and a mega-field dead center
-  under double nest guard.
+  under double nest guard, ringed by rock arcs with gates at N/E/S/W.
 
 ## Difficulty
 
@@ -78,6 +82,9 @@ fight) · **Hard** (early pressure, relentless waves, a rich enemy).
   him near the base and he'll fix things on his own
 - **Marine** (80) — fast, cheap ranged infantry; can hunker down to hold ground (Barracks)
 - **Sniper** (130) — fragile, but huge range and the best eyesight in the game (Barracks)
+- **Medic** (100) — unarmed. Automatically heals nearby wounded infantry and
+  dinos, and follows the fight; right-click a hurt friend to assign her. Keep
+  one behind your marine line and it lives twice as long (Barracks)
 - **Raider** (150) — very fast attack buggy; great for scouting and harassing harvesters (Factory)
 - **Tank** (220) — slow, heavily armored, big cannon (Factory)
 - **Artillery** (270) — siege gun with huge range and splash damage. Shells land
@@ -90,7 +97,7 @@ fight) · **Hard** (early pressure, relentless waves, a rich enemy).
 
 ## Buildings
 
-- **Barracks** (150) — trains infantry: Marine, Sniper
+- **Barracks** (150) — trains infantry: Marine, Sniper, Medic
 - **Factory** (200) — builds vehicles: Raider, Tank
 - **Supply Depot** (100) — raises your supply cap by 8
 - **Refinery** (175) — crystal drop-off point; build next to far-away patches to

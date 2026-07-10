@@ -26,8 +26,8 @@ const btnMute = document.getElementById('btn-mute');
 const btnFog = document.getElementById('btn-fog');
 
 // ---------------- World ----------------
-const TILE = 32, MAP_W = 64, MAP_H = 48;
-const W = MAP_W * TILE, H = MAP_H * TILE;      // 2048 x 1536 world px
+const TILE = 32, MAP_W = 96, MAP_H = 72;
+const W = MAP_W * TILE, H = MAP_H * TILE;      // 3072 x 2304 world px
 const view = { w: window.innerWidth, h: window.innerHeight };
 let dpr = window.devicePixelRatio || 1;
 function resize() {
@@ -53,6 +53,8 @@ const UNIT = {
   engineer:  { label: 'Engineer',  cost: 90,  supply: 1, hp: 60,  speed: 1.9,  r: 9,  dmg: 2,  range: 22,  cooldown: 55,  buildTime: 6 * 60,  sight: 190, repair: 0.55, noAA: 1 },
   marine:    { label: 'Marine',    cost: 80,  supply: 1, hp: 70,  speed: 1.9,  r: 9,  dmg: 9,  range: 125, cooldown: 36,  buildTime: 5 * 60,  sight: 200 },
   sniper:    { label: 'Sniper',    cost: 130, supply: 1, hp: 45,  speed: 1.7,  r: 8,  dmg: 30, range: 190, cooldown: 110, buildTime: 7 * 60,  sight: 310 },
+  // Unarmed. Follows wounded flesh (infantry + dinos) and patches it up.
+  medic:     { label: 'Medic',     cost: 100, supply: 1, hp: 60,  speed: 2.0,  r: 9,  dmg: 0,  range: 0,   cooldown: 0,   buildTime: 6 * 60,  sight: 200, heal: 0.4, noAA: 1 },
   raider:    { label: 'Raider',    cost: 150, supply: 1, hp: 155, speed: 3.0,  r: 11, dmg: 7,  range: 100, cooldown: 20,  buildTime: 6 * 60,  sight: 240 },
   tank:      { label: 'Tank',      cost: 220, supply: 2, hp: 280, speed: 1.25, r: 14, dmg: 34, range: 155, cooldown: 95,  buildTime: 10 * 60, sight: 210, noAA: 1 },
   // Air. Fast harasser that flies over everything; helpless targets: tanks,
@@ -69,7 +71,7 @@ const UNIT = {
 };
 const BLD = {
   hq:       { label: 'Headquarters', hp: 3000, w: 96, h: 96, supply: 20, sight: 300, trains: ['harvester', 'engineer'] },
-  barracks: { label: 'Barracks',     hp: 1100, w: 78, h: 78, supply: 4,  sight: 250, trains: ['marine', 'sniper'],  cost: 150, buildTime: 13 * 60 },
+  barracks: { label: 'Barracks',     hp: 1100, w: 78, h: 78, supply: 4,  sight: 250, trains: ['marine', 'sniper', 'medic'], cost: 150, buildTime: 13 * 60 },
   factory:  { label: 'Factory',      hp: 1000, w: 88, h: 72, supply: 4,  sight: 220, trains: ['raider', 'tank', 'artillery'], cost: 200, buildTime: 15 * 60 },
   supply:   { label: 'Supply Depot', hp: 500,  w: 56, h: 56, supply: 8,  sight: 180, cost: 100, buildTime: 10 * 60 },
   refinery: { label: 'Refinery',     hp: 700,  w: 70, h: 70, supply: 0,  sight: 240, cost: 175, buildTime: 12 * 60 },
@@ -103,6 +105,12 @@ const MAPS = {
       { p: [W / 2, H / 2 - 200], n: 8, a: 2600, nests: [[W / 2 + 110, H / 2 - 290]] },
       { p: [W / 2, H / 2 + 200], n: 8, a: 2600, nests: [[W / 2 - 110, H / 2 + 290]] },
     ],
+    // two staggered ridges pinch the middle into an S-shaped corridor
+    ridges: [
+      [W * 0.40, H * 0.08, W * 0.50, H * 0.28, 48],
+      [W * 0.50, H * 0.72, W * 0.60, H * 0.92, 48],
+    ],
+    boulders: [[W * 0.17, H * 0.46, 55], [W * 0.83, H * 0.54, 55]],
   },
   gauntlet: {
     label: 'The Gauntlet',
@@ -116,6 +124,13 @@ const MAPS = {
       { p: [W / 2, 260], n: 8, a: 2600, nests: [[W / 2 + 100, 170]] },
       { p: [W / 2, H / 2], n: 9, a: 3000, nests: [[W / 2 - 120, H / 2 - 90]] },
       { p: [W / 2, H - 260], n: 8, a: 2600, nests: [[W / 2 + 100, H - 170]] },
+    ],
+    // twin walls with a center gate and edge runs — the gauntlet itself
+    ridges: [
+      [W * 0.34, H * 0.16, W * 0.34, H * 0.40, 46],
+      [W * 0.34, H * 0.60, W * 0.34, H * 0.84, 46],
+      [W * 0.66, H * 0.16, W * 0.66, H * 0.40, 46],
+      [W * 0.66, H * 0.60, W * 0.66, H * 0.84, 46],
     ],
   },
   valley: {
@@ -131,6 +146,14 @@ const MAPS = {
       { p: [320, H - 320], n: 6, a: 2100, nests: [[440, H - 250]] },
       { p: [W / 2, H / 2], n: 10, a: 3400, nests: [[W / 2 - 130, H / 2 - 110], [W / 2 + 130, H / 2 + 110]] },
     ],
+    // a broken ring around the mega-field: gates at N/E/S/W, diagonals blocked
+    ridges: [
+      [W * 0.37, H * 0.37, W * 0.44, H * 0.29, 44],
+      [W * 0.56, H * 0.29, W * 0.63, H * 0.37, 44],
+      [W * 0.37, H * 0.63, W * 0.44, H * 0.71, 44],
+      [W * 0.56, H * 0.71, W * 0.63, H * 0.63, 44],
+    ],
+    boulders: [[W * 0.25, H * 0.25, 60], [W * 0.75, H * 0.75, 60]],
   },
 };
 
@@ -154,7 +177,8 @@ const UPG = {
   vehArmor:   { label: 'Vehicle Armor',    at: 'factory',  max: 3, cost: [125, 200, 275], time: [22 * 60, 27 * 60, 32 * 60] },
   harvest:    { label: 'Harvester Systems', at: 'hq',      max: 3, cost: [125, 200, 275], time: [20 * 60, 25 * 60, 30 * 60] },
 };
-const IS_INF = { marine: 1, sniper: 1, engineer: 1 };
+const IS_INF = { marine: 1, sniper: 1, engineer: 1, medic: 1 };
+const isFlesh = (u) => !!IS_INF[u.type] || u.type === 'spitter';   // what a medic can heal: infantry + dinos
 // Veterancy: every unit remembers its kills. 2/4/8 kills → +10% damage and
 // −8% damage taken per rank, and Legends (rank 3) slowly self-heal.
 const RANK_AT = [2, 4, 8];
@@ -182,6 +206,7 @@ const CRYSTAL_COLOR = '#6fe3d0';
 // ---------------- State ----------------
 let nextId = 1;
 let units = [], buildings = [], crystals = [], bullets = [], fxs = [], eggs = [];
+let rocks = [];   // impassable terrain circles {x, y, r} — flyers ignore them
 const newUp = () => ({ infWeapons: 0, infArmor: 0, vehWeapons: 0, vehArmor: 0, harvest: 0 });
 // team 3 = neutral dinos — no economy, but weaponMult/armorMult index into it
 const teams = {
@@ -199,7 +224,7 @@ let fogMemory = true;   // true = explored ground stays dimly visible; false = r
 const dist2 = (x1, y1, x2, y2) => { const dx = x2 - x1, dy = y2 - y1; return dx * dx + dy * dy; };
 const dist = (x1, y1, x2, y2) => Math.sqrt(dist2(x1, y1, x2, y2));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const isCombat = (u) => u.type !== 'harvester' && u.type !== 'engineer';
+const isCombat = (u) => u.type !== 'harvester' && u.type !== 'engineer' && u.type !== 'medic';
 
 // ---------------- FX sprites (Kenney particle packs, CC0 — see assets/fx/) ----------------
 // If the images fail to load (e.g. moved/deleted), spritesReady stays false and
@@ -243,7 +268,7 @@ let bodiesReady = false;
 // until then the procedural drawing stays. See assets/sprites/ART-WANTED.md.
 const OPT = {};
 (function loadOptional() {
-  const names = ['dino_spitter', 'dino_nest', 'gunship', 'artillery', 'egg'];
+  const names = ['dino_spitter', 'dino_nest', 'gunship', 'artillery', 'egg', 'medic'];
   for (const n of names) {
     const i = new Image();
     OPT[n] = { img: i, ok: false };
@@ -489,7 +514,7 @@ function makeUnit(type, team, x, y) {
     speed: d.speed, dmg: d.dmg, range: d.range, cooldown: d.cooldown,
     cool: 0, faceA: team === 1 ? -Math.PI / 4 : Math.PI * 0.75,
     carry: 0, mineT: 0, lastCrystal: null,
-    kills: 0, eggCarry: false, fly: !!d.fly,
+    kills: 0, eggCarry: false, fly: !!d.fly, stuckT: 0, ghostT: 0,
     order: { type: 'idle' },
   };
   units.push(u);
@@ -551,6 +576,121 @@ function addPatch(px, py, n, amount) {
   return made;
 }
 
+// ---------------- Terrain pathfinding ----------------
+// Rocks are static, so they live in a tile grid. Movement uses straight-line
+// walking when line-of-sight is clear (the common case) and a cached A* path
+// around ridges when it isn't. Buildings stay dynamic (wall-slide handles them).
+const blocked = new Uint8Array(MAP_W * MAP_H);
+function buildTerrainGrid() {
+  blocked.fill(0);
+  for (const rk of rocks) {
+    const x0 = Math.max(0, Math.floor((rk.x - rk.r - 12) / TILE));
+    const x1 = Math.min(MAP_W - 1, Math.floor((rk.x + rk.r + 12) / TILE));
+    const y0 = Math.max(0, Math.floor((rk.y - rk.r - 12) / TILE));
+    const y1 = Math.min(MAP_H - 1, Math.floor((rk.y + rk.r + 12) / TILE));
+    for (let gy = y0; gy <= y1; gy++) for (let gx = x0; gx <= x1; gx++) {
+      if (dist2(gx * TILE + 16, gy * TILE + 16, rk.x, rk.y) < (rk.r + 22) ** 2) blocked[gy * MAP_W + gx] = 1;
+    }
+  }
+}
+function losClear(x0, y0, x1, y1) {
+  const steps = Math.ceil(dist(x0, y0, x1, y1) / 16);
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const gx = Math.floor((x0 + (x1 - x0) * t) / TILE), gy = Math.floor((y0 + (y1 - y0) * t) / TILE);
+    if (blocked[gy * MAP_W + gx]) return false;
+  }
+  return true;
+}
+function nearestFreeTile(gx, gy) {
+  if (!blocked[gy * MAP_W + gx]) return [gx, gy];
+  for (let r = 1; r < 14; r++) {
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const nx = gx + dx, ny = gy + dy;
+      if (nx < 0 || ny < 0 || nx >= MAP_W || ny >= MAP_H) continue;
+      if (!blocked[ny * MAP_W + nx]) return [nx, ny];
+    }
+  }
+  return null;
+}
+function findPath(x0, y0, x1, y1) {
+  const start = nearestFreeTile(Math.floor(x0 / TILE), Math.floor(y0 / TILE));
+  const goal = nearestFreeTile(Math.floor(x1 / TILE), Math.floor(y1 / TILE));
+  if (!start || !goal) return null;
+  const [sx, sy] = start, [gx, gy] = goal;
+  const sIdx = sy * MAP_W + sx, gIdx = gy * MAP_W + gx;
+  if (sIdx === gIdx) return [{ x: x1, y: y1 }];
+  const g = new Float32Array(MAP_W * MAP_H).fill(Infinity);
+  const from = new Int32Array(MAP_W * MAP_H).fill(-1);
+  const heap = [], hIdx = [];   // parallel arrays: fscore, node
+  const push = (f, n) => {
+    let i = heap.length; heap.push(f); hIdx.push(n);
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (heap[p] <= heap[i]) break;
+      [heap[p], heap[i]] = [heap[i], heap[p]]; [hIdx[p], hIdx[i]] = [hIdx[i], hIdx[p]];
+      i = p;
+    }
+  };
+  const pop = () => {
+    const n = hIdx[0], last = heap.length - 1;
+    heap[0] = heap[last]; hIdx[0] = hIdx[last];
+    heap.pop(); hIdx.pop();
+    let i = 0;
+    while (true) {
+      const l = i * 2 + 1, r = l + 1;
+      let s = i;
+      if (l < heap.length && heap[l] < heap[s]) s = l;
+      if (r < heap.length && heap[r] < heap[s]) s = r;
+      if (s === i) break;
+      [heap[s], heap[i]] = [heap[i], heap[s]]; [hIdx[s], hIdx[i]] = [hIdx[i], hIdx[s]];
+      i = s;
+    }
+    return n;
+  };
+  const hFn = (n) => {
+    const nx = n % MAP_W, ny = (n / MAP_W) | 0;
+    return Math.hypot(nx - gx, ny - gy);
+  };
+  g[sIdx] = 0;
+  push(hFn(sIdx), sIdx);
+  let found = false, guard = 0;
+  while (heap.length && guard++ < 20000) {
+    const cur = pop();
+    if (cur === gIdx) { found = true; break; }
+    const cx0 = cur % MAP_W, cy0 = (cur / MAP_W) | 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      const nx = cx0 + dx, ny = cy0 + dy;
+      if (nx < 0 || ny < 0 || nx >= MAP_W || ny >= MAP_H) continue;
+      const n = ny * MAP_W + nx;
+      if (blocked[n]) continue;
+      if (dx && dy && (blocked[cy0 * MAP_W + nx] || blocked[ny * MAP_W + cx0])) continue;   // no corner cutting
+      const cost = g[cur] + (dx && dy ? 1.414 : 1);
+      if (cost < g[n]) { g[n] = cost; from[n] = cur; push(cost + hFn(n), n); }
+    }
+  }
+  if (!found) return null;
+  // reconstruct, then smooth with line-of-sight so units cut natural corners
+  const tiles = [];
+  for (let n = gIdx; n !== -1; n = from[n]) tiles.push(n);
+  tiles.reverse();
+  const pts = tiles.map(n => ({ x: (n % MAP_W) * TILE + 16, y: ((n / MAP_W) | 0) * TILE + 16 }));
+  pts.push({ x: x1, y: y1 });
+  const out = [];
+  let anchor = { x: x0, y: y0 }, i = 0;
+  while (i < pts.length - 1) {
+    let j = pts.length - 1;
+    while (j > i && !losClear(anchor.x, anchor.y, pts[j].x, pts[j].y)) j--;
+    if (j === i) j = i + 1;   // can't skip — take the next step anyway
+    out.push(pts[j]);
+    anchor = pts[j];
+    i = j;
+  }
+  return out;
+}
+
 // place one team's base from a map spec; returns its HQ
 function placeBase(team, M) {
   const p = team === 1;
@@ -580,6 +720,18 @@ function placeBase(team, M) {
 
 function setup(mapKey) {
   const M = MAPS[mapKey] || MAPS.basin;
+  // terrain first, so the ground pre-render includes it
+  for (const rg of (M.ridges || [])) {
+    const [x1, y1, x2, y2, r] = rg;
+    const n = Math.max(1, Math.round(dist(x1, y1, x2, y2) / (r * 1.1)));
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      rocks.push({ x: x1 + (x2 - x1) * t, y: y1 + (y2 - y1) * t, r: r * (0.85 + Math.random() * 0.3) });
+    }
+  }
+  for (const [bx, by, br] of (M.boulders || [])) rocks.push({ x: bx, y: by, r: br });
+  buildTerrainGrid();
+  paintGround();
   const pHQ = placeBase(1, M);
   placeBase(2, M);
 
@@ -623,6 +775,15 @@ function nearestDropoff(team, x, y) {
     if (b.team !== team || b.built < 1 || (b.type !== 'hq' && b.type !== 'refinery')) continue;
     const d = dist2(x, y, b.x, b.y);
     if (d < bd) { bd = d; best = b; }
+  }
+  return best;
+}
+function nearestWoundedAlly(u, range) {
+  let best = null, bd = 1e18;
+  for (const o of units) {
+    if (o === u || o.team !== u.team || o.hp <= 0 || o.hp >= o.maxHp || !isFlesh(o)) continue;
+    const d = dist(u.x, u.y, o.x, o.y) - o.r;
+    if (d <= range && d * d < bd) { bd = d * d; best = o; }
   }
   return best;
 }
@@ -917,15 +1078,26 @@ function moveToward(u, tx, ty) {
     u.y += Math.sin(a) * step;
     return d - step < 5;
   }
-  // If a building blocks the path just ahead, slide along its wall toward the
-  // clear side instead of grinding into it until separation() shoves us around.
+  // ground units path around terrain: straight line when clear, cached A* when not
+  let gx = tx, gy = ty;
+  if (rocks.length && !losClear(u.x, u.y, tx, ty)) {
+    const o = u.order;
+    if (!o._path || !o._path.length || Math.abs(tx - o._pgx) + Math.abs(ty - o._pgy) > 56) {
+      o._path = findPath(u.x, u.y, tx, ty) || [];
+      o._pgx = tx; o._pgy = ty;
+    }
+    while (o._path.length && dist2(u.x, u.y, o._path[0].x, o._path[0].y) < 24 * 24) o._path.shift();
+    if (o._path.length) { gx = o._path[0].x; gy = o._path[0].y; a = Math.atan2(gy - u.y, gx - u.x); }
+  }
+  // If a building or rock blocks the path just ahead, slide along its wall
+  // toward the clear side instead of grinding into it until separation() helps.
   const look = u.r + 12;
   const lx = u.x + Math.cos(a) * look, ly = u.y + Math.sin(a) * look;
   for (const b of buildings) {
     if (Math.abs(lx - b.x) >= b.w / 2 + u.r || Math.abs(ly - b.y) >= b.h / 2 + u.r) continue;
     // if the waypoint is at/inside this building (attack, repair, drop-off), walk straight in
-    if (Math.abs(tx - b.x) < b.w / 2 + u.r + 10 && Math.abs(ty - b.y) < b.h / 2 + u.r + 10) break;
-    const cross = (tx - u.x) * (b.y - u.y) - (ty - u.y) * (b.x - u.x);
+    if (Math.abs(gx - b.x) < b.w / 2 + u.r + 10 && Math.abs(gy - b.y) < b.h / 2 + u.r + 10) break;
+    const cross = (gx - u.x) * (b.y - u.y) - (gy - u.y) * (b.x - u.x);
     a += (cross > 0 ? -1 : 1) * Math.PI / 2;   // turn away from the blocked side
     break;
   }
@@ -938,12 +1110,29 @@ function moveToward(u, tx, ty) {
 
 function updateUnit(u) {
   if (u.cool > 0) u.cool--;
+  if (u.ghostT > 0) u.ghostT--;
+  // pathing watchdog: while following a path, require steady progress toward
+  // the goal. No progress for 2.5s = orbiting or wedged on a rock face —
+  // re-route and briefly ghost through the obstacle lip to break the cycle.
+  const op = u.order;
+  if (op._path) {
+    const dGoal = dist2(u.x, u.y, op._pgx, op._pgy);
+    if (op._best === undefined || dGoal < op._best - 400) {
+      op._best = dGoal; op._bestT = tick;
+    } else if (tick - op._bestT > 150) {
+      op._path = null; op._best = undefined;
+      u.ghostT = 60;
+    }
+  }
   if (u.hp < u.maxHp && rankOf(u) >= 3) u.hp = Math.min(u.maxHp, u.hp + 0.05);   // Legends field-patch themselves
   const o = u.order;
 
   switch (o.type) {
     case 'idle': {
-      if (u.type === 'engineer') {
+      if (u.type === 'medic') {
+        const w = nearestWoundedAlly(u, 260);
+        if (w) u.order = { type: 'heal', target: w };
+      } else if (u.type === 'engineer') {
         const nb = nearestDamagedBuilding(u.team, u.x, u.y, 240);
         if (nb) u.order = { type: 'repair', target: nb };
       } else if (isCombat(u)) {
@@ -1007,7 +1196,7 @@ function updateUnit(u) {
         u.faceA = Math.atan2(t.y - u.y, t.x - u.x);
         // artillery has a dead zone — anything that closes inside minRange is safe from it
         const min = UNIT[u.type].minRange;
-        if (u.cool <= 0 && !(min && d < min)) fire(u, t);
+        if (u.cool <= 0 && u.dmg > 0 && !(min && d < min)) fire(u, t);
       }
       break;
     }
@@ -1030,6 +1219,26 @@ function updateUnit(u) {
           c.amount--;
           fxMinePuff(c, u);
         }
+      }
+      break;
+    }
+    case 'heal': {
+      const t = o.target;
+      if (!t || t.hp <= 0 || t.hp >= t.maxHp || !units.includes(t)) {
+        const w = nearestWoundedAlly(u, 300);
+        if (w) { o.target = w; break; }
+        u.order = { type: 'idle' };
+        break;
+      }
+      const d = dist(u.x, u.y, t.x, t.y) - t.r;
+      if (d > 26) moveToward(u, t.x, t.y);
+      else {
+        u.faceA = Math.atan2(t.y - u.y, t.x - u.x);
+        t.hp = Math.min(t.maxHp, t.hp + UNIT.medic.heal);
+        if (tick % 12 === 0) {
+          fxs.push({ kind: 'spark', x: t.x + (Math.random() - 0.5) * 10, y: t.y - 8, t: 0, max: 18 });
+        }
+        if (tick % 60 === 0 && u.team === 1) snd.repair();
       }
       break;
     }
@@ -1130,8 +1339,18 @@ function separation() {
       a.x -= nx * push; a.y -= ny * push;
       b.x += nx * push; b.y += ny * push;
     }
+    if (!a.fly && !(a.ghostT > 0)) for (const rk of rocks) {
+      const dx = a.x - rk.x, dy = a.y - rk.y;
+      const min = rk.r + a.r;
+      if (Math.abs(dx) > min || Math.abs(dy) > min) continue;
+      const d2 = dx * dx + dy * dy;
+      if (d2 >= min * min) continue;
+      if (d2 === 0) { a.x = rk.x + min; continue; }
+      const d = Math.sqrt(d2), push = min - d;
+      a.x += (dx / d) * push; a.y += (dy / d) * push;
+    }
     for (const bl of buildings) {
-      if (a.fly) break;                    // flyers hover over rooftops
+      if (a.fly || a.ghostT > 0) break;    // flyers hover; ghosting units slip out of pockets
       const cxp = clamp(a.x, bl.x - bl.w / 2, bl.x + bl.w / 2);
       const cyp = clamp(a.y, bl.y - bl.h / 2, bl.y + bl.h / 2);
       const dx = a.x - cxp, dy = a.y - cyp;
@@ -1255,6 +1474,7 @@ function aiSpotFree(type, wx, wy) {
     if (Math.abs(wx - b.x) < (b.w + d.w) / 2 + 10 && Math.abs(wy - b.y) < (b.h + d.h) / 2 + 10) return false;
   }
   for (const c of crystals) if (c.amount > 0 && dist2(wx, wy, c.x, c.y) < (d.w / 2 + 26) ** 2) return false;
+  for (const rk of rocks) if (Math.abs(wx - rk.x) < d.w / 2 + rk.r && Math.abs(wy - rk.y) < d.h / 2 + rk.r) return false;
   if (type === 'refinery' && !crystals.some(c => c.amount > 0 && dist2(wx, wy, c.x, c.y) < REFINERY_NEAR_CRYSTAL ** 2)) return false;
   return true;
 }
@@ -1311,7 +1531,9 @@ function aiUpdate() {
   const armyCap = 3 + Math.floor((tick / 3600) * diff.capRate);   // +capRate supply per minute
   if (rax && rax.queue.length < 2 && armySupply < armyCap) {
     const roll = Math.random();
+    const medics = units.filter(u => u.team === 2 && u.type === 'medic').length;
     if (t.crystals >= UNIT.sniper.cost && roll < 0.3) trainUnit(rax, 'sniper');
+    else if (tick > 4 * 3600 && medics < 2 && t.crystals >= UNIT.medic.cost && roll < 0.45) trainUnit(rax, 'medic');
     else if (t.crystals >= UNIT.marine.cost) trainUnit(rax, 'marine');
   }
   if (fac && fac.queue.length < 2 && armySupply < armyCap) {
@@ -1363,9 +1585,13 @@ function waveUpdate() {
   if (!targ) return;
   let sent = 0;
   for (const u of units) {
-    if (u.team === 2 && isCombat(u)) {
+    if (u.team !== 2) continue;
+    if (isCombat(u)) {
       const p = spreadPoint(targ.x, targ.y, sent++);
       u.order = { type: 'attackmove', x: p.x, y: p.y };
+    } else if (u.type === 'medic') {
+      const p = spreadPoint(targ.x, targ.y, sent);
+      u.order = { type: 'move', x: p.x, y: p.y };   // tags along, heals on arrival
     }
   }
   if (sent > 0) { toast('⚔ Enemy assault incoming!'); snd.alarm(); }
@@ -1488,6 +1714,14 @@ cv.addEventListener('contextmenu', (e) => {
   }
   const t = thingAtPoint(wx, wy);
   if (t && t.kind === 'crystal') commandHarvest(selection, t);
+  else if (t && t.kind === 'unit' && t.team === 1 && t.hp < t.maxHp && isFlesh(t)
+           && selection.some(s => s.kind === 'unit' && s.type === 'medic')) {
+    for (const s of selection) {
+      if (s.kind !== 'unit') continue;
+      if (s.type === 'medic') s.order = { type: 'heal', target: t };
+    }
+    fxs.push({ kind: 'ping', x: t.x, y: t.y, t: 0, max: 22, color: '#8ce6a0' });
+  }
   else if (t && t.kind === 'egg') {
     commandCollect(selection, t);
     fxs.push({ kind: 'ping', x: t.x, y: t.y, t: 0, max: 22, color: '#e8e2cc' });
@@ -1603,6 +1837,7 @@ function canPlaceBuilding(type, wx, wy) {
     if (Math.abs(wx - b.x) < (b.w + d.w) / 2 + 10 && Math.abs(wy - b.y) < (b.h + d.h) / 2 + 10) return false;
   }
   for (const c of crystals) if (c.amount > 0 && dist2(wx, wy, c.x, c.y) < (d.w / 2 + 26) ** 2) return false;
+  for (const rk of rocks) if (Math.abs(wx - rk.x) < d.w / 2 + rk.r && Math.abs(wy - rk.y) < d.h / 2 + rk.r) return false;
   if (type === 'refinery') {
     return crystals.some(c => c.amount > 0 && dist2(wx, wy, c.x, c.y) < REFINERY_NEAR_CRYSTAL ** 2);
   }
@@ -1834,15 +2069,34 @@ function refreshProgressBar() {
   if (b) el.style.width = Math.min(100, (b.prog / queueTime(b.team, b.queue[0])) * 100) + '%';
 }
 
-// ---------------- Ground texture (pre-rendered) ----------------
+// ---------------- Ground texture (pre-rendered per map) ----------------
 const groundCv = document.createElement('canvas');
 groundCv.width = W; groundCv.height = H;
-(function paintGround() {
+function paintRock(g, rk) {
+  g.fillStyle = 'rgba(0,0,0,0.35)';   // ground shadow
+  g.beginPath(); g.ellipse(rk.x + 5, rk.y + 7, rk.r * 1.02, rk.r * 0.88, 0, 0, Math.PI * 2); g.fill();
+  const blob = (rad, fill, ox, oy) => {
+    g.fillStyle = fill;
+    g.beginPath();
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2;
+      const rr2 = rad * (0.82 + Math.random() * 0.3);
+      const px = rk.x + ox + Math.cos(a) * rr2, py = rk.y + oy + Math.sin(a) * rr2 * 0.92;
+      i ? g.lineTo(px, py) : g.moveTo(px, py);
+    }
+    g.closePath(); g.fill();
+  };
+  blob(rk.r, '#2c322c', 0, 0);                    // rock body
+  blob(rk.r * 0.62, '#3a423a', -rk.r * 0.12, -rk.r * 0.16);   // upper facet
+  blob(rk.r * 0.3, '#485148', -rk.r * 0.2, -rk.r * 0.28);     // highlight
+}
+function paintGround() {
   const g = groundCv.getContext('2d');
+  const area = (W * H) / (2048 * 1536);   // texture density scales with map area
   g.fillStyle = '#171c16';
   g.fillRect(0, 0, W, H);
   // mottled soil
-  for (let i = 0; i < 1400; i++) {
+  for (let i = 0; i < 1400 * area; i++) {
     const x = Math.random() * W, y = Math.random() * H;
     const r = 8 + Math.random() * 42;
     g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.05)';
@@ -1854,12 +2108,14 @@ groundCv.width = W; groundCv.height = H;
   for (let x = 0; x <= W; x += TILE) { g.beginPath(); g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, H); g.stroke(); }
   for (let y = 0; y <= H; y += TILE) { g.beginPath(); g.moveTo(0, y + 0.5); g.lineTo(W, y + 0.5); g.stroke(); }
   // scattered pebbles
-  for (let i = 0; i < 240; i++) {
+  for (let i = 0; i < 240 * area; i++) {
     const x = Math.random() * W, y = Math.random() * H;
     g.fillStyle = 'rgba(190,200,190,0.06)';
     g.beginPath(); g.arc(x, y, 1 + Math.random() * 2.5, 0, Math.PI * 2); g.fill();
   }
-})();
+  for (const rk of rocks) paintRock(g, rk);
+}
+paintGround();   // pre-menu backdrop; setup() repaints with the map's terrain
 
 // ---------------- Drawing ----------------
 // gold chevrons above a ranked unit — one per rank, stacked
@@ -2170,6 +2426,23 @@ function drawBuilding(b) {
 // called inside a translate(u.x,u.y)+rotate(u.faceA) transform, so +x is forward.
 // Infantry art faces right (no extra rotation); vehicle art points up (rotate +90°).
 function drawUnitSprite(u) {
+  if (u.type === 'medic') {
+    const img = opt('medic');
+    if (img) {
+      cx.drawImage(teamSprite(img, u.team), -12, -12, 24, 24);   // dedicated art faces right like infantry
+    } else {
+      const base = teamSprite(BODY.inf_engineer, u.team);
+      const w = 24, h = w * base.height / base.width;
+      cx.drawImage(base, -w * 0.45, -h / 2, w, h);
+    }
+    cx.rotate(-u.faceA);                    // badge stays upright
+    cx.fillStyle = '#f2f2ee';
+    cx.beginPath(); cx.arc(0, -9, 4.5, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = '#d84a3e';
+    cx.fillRect(-1.2, -12.2, 2.4, 6.4); cx.fillRect(-3.2, -10.2, 6.4, 2.4);
+    cx.rotate(u.faceA);
+    return;
+  }
   if (u.type === 'marine' || u.type === 'sniper' || u.type === 'engineer') {
     const img = teamSprite(BODY['inf_' + u.type], u.team);
     const w = u.type === 'sniper' ? 30 : u.type === 'marine' ? 26 : 24;
@@ -2350,6 +2623,13 @@ function drawUnit(u) {
     cx.moveTo(u.r + 10, 0); cx.lineTo(u.r + 14, -4);                        // bipod legs
     cx.moveTo(u.r + 10, 0); cx.lineTo(u.r + 14, 4);
     cx.stroke();
+  } else if (u.type === 'medic') {
+    cx.fillStyle = C.dark;
+    cx.beginPath(); cx.arc(0, 0, u.r, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = '#f2f2ee';
+    cx.beginPath(); cx.arc(0, 0, u.r - 3, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = '#d84a3e';                                               // red cross
+    cx.fillRect(-1.5, -5, 3, 10); cx.fillRect(-5, -1.5, 10, 3);
   } else if (u.type === 'engineer') {
     cx.fillStyle = C.dark;
     cx.beginPath(); cx.arc(0, 0, u.r, 0, Math.PI * 2); cx.fill();
@@ -2569,6 +2849,10 @@ function renderMinimap() {
     mcx.fillStyle = '#e8e2cc';
     mcx.fillRect(e.x * sx - 1, e.y * sy - 1, 2, 2);
   }
+  mcx.fillStyle = '#3d443d';
+  for (const rk of rocks) {
+    mcx.beginPath(); mcx.arc(rk.x * sx, rk.y * sy, Math.max(1.5, rk.r * sx), 0, Math.PI * 2); mcx.fill();
+  }
   for (const b of buildings) {
     if (b.team !== 1 && !isShownAt(b.x, b.y)) continue;
     mcx.fillStyle = COLORS[b.team].main;
@@ -2655,7 +2939,8 @@ function renderMenu() {
 }
 // wipe the world so startGame can never stack two setups (also enables restarts)
 function resetWorld() {
-  units = []; buildings = []; crystals = []; bullets = []; fxs = []; eggs = []; alerts = [];
+  units = []; buildings = []; crystals = []; bullets = []; fxs = []; eggs = []; alerts = []; rocks = [];
+  blocked.fill(0);
   lastAlert = -1e9;
   stats = { built: 0, lost: 0, kills: 0, mined: 0 };
   selection = [];
@@ -2698,6 +2983,7 @@ window.CC = {
   get buildings() { return buildings; },
   get crystals() { return crystals; },
   get eggs() { return eggs; },
+  get rocks() { return rocks; },
   get stats() { return stats; },
   get teams() { return teams; },
   get tick() { return tick; },
