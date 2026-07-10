@@ -45,24 +45,30 @@
     cursor: pointer;
   }
 
-  /* bottom-right dock: queue strip grows UPWARD above the card, so the
-     card's buttons never move when production starts or finishes */
+  /* bottom command bar: a short horizontal strip from the minimap to the
+     screen edge — buttons flow sideways so the bar never hides the map */
   #dock {
-    position: fixed; right: 10px; bottom: 10px; width: 300px;
-    display: flex; flex-direction: column; gap: 8px;
+    position: fixed; left: 220px; right: 10px; bottom: 10px;
+    display: flex; flex-direction: row; align-items: flex-end; gap: 8px;
     font-size: 13px;
   }
   #qpanel, #card {
     background: rgba(14, 18, 15, 0.9);
     border: 1px solid rgba(120, 200, 190, 0.25);
     border-radius: 10px;
-    padding: 12px;
+    padding: 8px 12px;
   }
+  #qpanel { width: 216px; flex-shrink: 0; }
   #qpanel.hidden { display: none; }
-  #dock h3 { font-size: 14px; margin-bottom: 6px; color: #8fd8cf; font-weight: 700; }
-  #dock .sub { color: #9aa89e; font-size: 12px; margin-bottom: 8px; line-height: 1.45; }
-  /* uniform 2-col grid — the card stays compact no matter how many actions */
-  #dock .row { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 6px; }
+  #card {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: row; flex-wrap: wrap; align-items: center;
+    column-gap: 12px; row-gap: 4px;
+  }
+  #card .hd { width: 170px; flex-shrink: 0; }
+  #dock h3 { font-size: 13px; margin: 0 0 2px; color: #8fd8cf; font-weight: 700; }
+  #dock .sub { color: #9aa89e; font-size: 10.5px; margin: 0; line-height: 1.35; }
+  #dock .row { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; flex: 0 1 auto; }
   #dock button {
     background: #17251f;
     border: 1px solid rgba(120, 200, 190, 0.35);
@@ -77,7 +83,7 @@
     overflow: hidden;
   }
   #dock button small { color: #8fd8cf; flex-shrink: 0; }
-  #dock button.wide { grid-column: 1 / -1; }
+  #dock button.wide { }   /* was full-width in the grid layout; flows normally now */
   #dock button:hover { border-color: #8fd8cf; background: #1c2f27; }
   #dock button.dim { opacity: 0.45; }
   #dock .queue { font-size: 12px; color: #9aa89e; }

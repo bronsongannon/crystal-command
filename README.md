@@ -52,6 +52,8 @@ hunkered marines and a flak turret; slip raiders through the back lane.
   in by twin ridgelines with a single center gate. Win the middle, win the game.
 - **Fossil Valley** — quiet corner expansions, and a mega-field dead center
   under double nest guard, ringed by rock arcs with gates at N/E/S/W.
+- **The Boneyard** — north vs south across three broken lanes, and a
+  monstrously rich middle. Pick a gate and punch.
 
 ## Difficulty
 

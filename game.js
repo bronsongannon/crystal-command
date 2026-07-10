@@ -146,6 +146,28 @@ const MAPS = {
       [W * 0.66, H * 0.60, W * 0.66, H * 0.84, 46],
     ],
   },
+  boneyard: {
+    label: 'The Boneyard',
+    desc: 'North vs south across three broken lanes — and a monstrously rich middle.',
+    pHQ: [W / 2, H - 200], pRax: [W / 2 + 200, H - 140], pPatch: [W / 2 - 260, H - 380],
+    eHQ: [W / 2, 200], eRax: [W / 2 - 200, 140], eFac: [W / 2 - 400, 240],
+    eSup: [[W / 2 + 180, 100], [W / 2 - 140, 340]], eTur: [[W / 2 + 260, 330], [W / 2 - 330, 300]],
+    eAir: [W / 2 + 350, 250],
+    ePatch: [W / 2 + 260, 380],
+    patches: [
+      { p: [W * 0.16, H * 0.5], n: 8, a: 2600, nests: [[W * 0.16 + 120, H * 0.5 - 120]] },
+      { p: [W * 0.84, H * 0.5], n: 8, a: 2600, nests: [[W * 0.84 - 120, H * 0.5 + 120]] },
+      { p: [W / 2, H / 2], n: 12, a: 3400, nests: [[W / 2 - 150, H / 2 - 100], [W / 2 + 150, H / 2 + 100]] },
+    ],
+    // two broken walls make three north-south gates: west run, center punch, east run
+    ridges: [
+      [W * 0.27, H * 0.36, W * 0.43, H * 0.36, 46],
+      [W * 0.57, H * 0.36, W * 0.73, H * 0.36, 46],
+      [W * 0.27, H * 0.64, W * 0.43, H * 0.64, 46],
+      [W * 0.57, H * 0.64, W * 0.73, H * 0.64, 46],
+    ],
+    boulders: [[W * 0.08, H * 0.26, 55], [W * 0.92, H * 0.74, 55]],
+  },
   valley: {
     label: 'Fossil Valley',
     desc: 'Quiet corner expansions — and a mega-field dead center under double nest guard.',
@@ -2307,6 +2329,9 @@ function refreshCard() {
     }
     html += '</div>';
   }
+  // fold the leading title+hint into a fixed-width block; buttons flow beside it
+  html = html.replace(/^<h3>(.*?)<\/h3>(<div class="sub">.*?<\/div>)?/,
+    (m, t, s) => `<div class="hd"><h3>${t}</h3>${s || ''}</div>`);
   elCard.innerHTML = html;
 }
 
@@ -3216,22 +3241,29 @@ function render() {
   if (shakeAmp < 0.3) shakeAmp = 0;
   cx.translate(-cam.x + (Math.random() - 0.5) * shakeAmp, -cam.y + (Math.random() - 0.5) * shakeAmp);
 
-  cx.drawImage(groundCv, 0, 0);
-  for (const c of crystals) if (isShownAt(c.x, c.y)) drawCrystal(c);
-  for (const e of eggs) if (isShownAt(e.x, e.y)) drawEgg(e);
-  for (const b of buildings) if (b.team === 1 || isShownAt(b.x, b.y)) drawBuilding(b);
-  for (const u of units) if (u.team === 1 || isVisibleAt(u.x, u.y)) drawUnit(u);
-  for (const p of bullets) if (p.team === 1 || isVisibleAt(p.x, p.y)) drawBullet(p);
+  // only touch the pixels the camera can see — full-world blits were the
+  // number one frame cost on the big map (padded for screen shake)
+  const vx = Math.max(0, cam.x - 24), vy = Math.max(0, cam.y - 24);
+  const vw = Math.min(W - vx, view.w + 48), vh = Math.min(H - vy, view.h + 48);
+  const inView = (x, y, m) => x > vx - m && x < vx + vw + m && y > vy - m && y < vy + vh + m;
+  cx.drawImage(groundCv, vx, vy, vw, vh, vx, vy, vw, vh);
+  for (const c of crystals) if (inView(c.x, c.y, 40) && isShownAt(c.x, c.y)) drawCrystal(c);
+  for (const e of eggs) if (inView(e.x, e.y, 30) && isShownAt(e.x, e.y)) drawEgg(e);
+  for (const b of buildings) if (inView(b.x, b.y, 130) && (b.team === 1 || isShownAt(b.x, b.y))) drawBuilding(b);
+  for (const u of units) if (inView(u.x, u.y, 60) && (u.team === 1 || isVisibleAt(u.x, u.y))) drawUnit(u);
+  for (const p of bullets) if (inView(p.x, p.y, 60) && (p.team === 1 || isVisibleAt(p.x, p.y))) drawBullet(p);
   for (const f of fxs) {
+    if (!inView(f.x, f.y, 260)) continue;
     const worldFx = f.kind === 'boom' || f.kind === 'sprite' || f.kind === 'muzzle';
     if (!worldFx || isVisibleAt(f.x, f.y)) drawFx(f);
   }
 
-  // fog of war (small canvas scaled up = soft edges)
-  cx.drawImage(fogCv, 0, 0, fogW, fogH, 0, 0, W, H);
+  // fog of war (small canvas scaled up = soft edges), viewport slice only
+  cx.drawImage(fogCv, vx / TILE, vy / TILE, vw / TILE, vh / TILE, vx, vy, vw, vh);
 
   // inbound nukes: pulsing ground zero + countdown, visible through fog
   for (const n of nukes) {
+    if (!inView(n.x, n.y, 340)) continue;
     const spec = NUKE[n.tier];
     const pulse = 0.5 + 0.4 * Math.abs(Math.sin(tick * 0.12));
     cx.strokeStyle = `rgba(255,86,60,${pulse})`;
@@ -3291,8 +3323,9 @@ function render() {
     }
   }
   cx.restore();
-  renderMinimap();
+  if (++frameNo % 3 === 0) renderMinimap();
 }
+let frameNo = 0;
 
 function renderMinimap() {
   const sx = mini.width / W, sy = mini.height / H;
