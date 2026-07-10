@@ -96,6 +96,8 @@ const NEST_RESPAWN = 7 * 60;   // one replacement every 7s
 const NEST_LEASH = 360;        // guards give up the chase past this radius from home
 const NEST_EGGS = 3;           // eggs left in the rubble when a nest dies
 const SPITTER_CAP = 5;         // max hatched spitters a side can field at once
+const HARRIER_CAP = 5;         // max harriers a side can field (alive + queued)
+const HARRIER_REARM = 7 * 60;  // seconds on the pad between sorties
 
 // ---------------- Maps ----------------
 // Every position is explicit — no procedural generation, each map is authored.
@@ -939,6 +941,14 @@ function commandRepair(sel, b) {
 function trainUnit(b, type) {
   const d = UNIT[type];
   const t = teams[b.team];
+  if (type === 'harrier') {
+    const fleet = units.filter(u => u.team === b.team && u.type === 'harrier').length
+      + buildings.reduce((s, x) => s + (x.team === b.team ? x.queue.filter(q => q === 'harrier').length : 0), 0);
+    if (fleet >= HARRIER_CAP) {
+      if (b.team === 1) { toast(`Harrier fleet is at capacity (${HARRIER_CAP})`); snd.error(); }
+      return false;
+    }
+  }
   if (b.queue.length >= 5) { if (b.team === 1) { toast('Queue is full'); snd.error(); } return false; }
   if (t.crystals < d.cost) { if (b.team === 1) { toast('Not enough crystals'); snd.error(); } return false; }
   t.crystals -= d.cost;
@@ -1395,7 +1405,7 @@ function updateUnit(u) {
       if (!pad) { u.order = { type: 'idle' }; break; }
       const d = dist(u.x, u.y, pad.x, pad.y);
       if (d > 30) { moveToward(u, pad.x, pad.y); o.t = 0; }
-      else if ((o.t = (o.t || 0) + 1) >= 180) {   // 3s on the pad
+      else if ((o.t = (o.t || 0) + 1) >= HARRIER_REARM) {   // 7s on the pad
         u.armed = true;
         u.order = { type: 'idle' };
         if (u.team === 1) { toast('Harrier rearmed'); snd.ready(); }
@@ -2168,7 +2178,7 @@ function cardSig() {
     (placing || '') + (attackMoveMode ? 'A' : '') + '|' +
     BUILD_MENU.map(([t]) => (teams[1].crystals >= BLD[t].cost ? 'y' : 'n')).join('') + '|' +
     Object.values(teams[1].up).join('') + '.' + Math.floor(teams[1].crystals / 25) + '.' + teams[1].eggs +
-    '.' + units.reduce((s, u) => s + (u.team === 1 && u.type === 'spitter' ? 1 : 0), 0) +
+    '.' + units.reduce((s, u) => s + (u.team === 1 && (u.type === 'spitter' || u.type === 'harrier') ? 1 : 0), 0) +
     '.' + selection.map(e => (e.warhead || '') + (e.cargo ? e.cargo.length : '')).join('') +
     (nukeTargeting ? 'N' : '');
 }
@@ -2194,8 +2204,15 @@ function refreshCard() {
       const key = ['Q', 'W', 'E', 'R', 'D', 'Z'][i];
       if (a.kind === 'train') {
         const ud = UNIT[a.t];
-        const dim = teams[1].crystals < ud.cost ? ' class="dim"' : '';
-        html += `<button data-act="train:${a.t}"${dim}>${ud.label} · ${ud.cost} ⬡ <small>[${key}]</small></button>`;
+        let label = `${ud.label} · ${ud.cost} ⬡`, capped = false;
+        if (a.t === 'harrier') {
+          const fleet = units.filter(u => u.team === 1 && u.type === 'harrier').length
+            + buildings.reduce((s, x) => s + (x.team === 1 ? x.queue.filter(q => q === 'harrier').length : 0), 0);
+          label = `${ud.label} · ${ud.cost} ⬡ (${fleet}/${HARRIER_CAP})`;
+          capped = fleet >= HARRIER_CAP;
+        }
+        const dim = (teams[1].crystals < ud.cost || capped) ? ' class="dim"' : '';
+        html += `<button data-act="train:${a.t}"${dim}>${label} <small>[${key}]</small></button>`;
       } else if (a.kind === 'hatch') {
         const pack = units.filter(u => u.team === 1 && u.type === 'spitter').length;
         const cls = ' class="wide' + ((teams[1].eggs < 1 || pack >= SPITTER_CAP) ? ' dim' : '') + '"';

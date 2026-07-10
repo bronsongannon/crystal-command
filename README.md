@@ -101,7 +101,8 @@ fight) · **Hard** (early pressure, relentless waves, a rich enemy, nukes) ·
   rapid-fire chaingun, superb harasser. Tanks and artillery **cannot shoot
   upward** — but marines, snipers, raiders, spitters, and turrets all can (Airpad)
 - **Harrier** (320) — strike jet. One devastating bomb per sortie, then it must
-  fly home to the Airpad and rearm. Click a target and watch the run (Airpad)
+  fly home to the Airpad for a 7-second rearm. Click a target and watch the
+  run. Each side fields at most **5 Harriers** at a time (Airpad)
 
 ## Buildings
 
