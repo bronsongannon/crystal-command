@@ -29,6 +29,9 @@ will tint weirdly. (Exceptions below say "natural colors".)
 | `artillery.png` | long-barreled siege gun on tracks, barrel up | neutral tones, tinted. Should look longer/thinner than the tank |
 | `egg.png` | single dino egg, speckled | **natural colors** (off-white + green speckles) |
 | `medic.png` | field medic with backpack + red-cross armband | neutral tones, tinted. Faces **RIGHT** like the other infantry |
+| `rocket_trooper.png` | infantryman with shoulder rocket launcher | neutral tones, tinted. Faces **RIGHT** |
+| `apc.png` | 8-wheeled armored personnel carrier, roof hatch | neutral tones, tinted. Faces up |
+| `harrier.png` | delta-wing VTOL strike jet | neutral tones, tinted. Faces up |
 
 ## Existing art you can replace anytime (same filenames)
 

@@ -57,9 +57,15 @@ const UNIT = {
   medic:     { label: 'Medic',     cost: 100, supply: 1, hp: 60,  speed: 2.0,  r: 9,  dmg: 0,  range: 0,   cooldown: 0,   buildTime: 6 * 60,  sight: 200, heal: 0.4, noAA: 1 },
   raider:    { label: 'Raider',    cost: 150, supply: 1, hp: 155, speed: 3.0,  r: 11, dmg: 7,  range: 100, cooldown: 20,  buildTime: 6 * 60,  sight: 240 },
   tank:      { label: 'Tank',      cost: 220, supply: 2, hp: 280, speed: 1.25, r: 14, dmg: 34, range: 155, cooldown: 95,  buildTime: 10 * 60, sight: 210, noAA: 1 },
+  // Anti-armor specialist: slow rockets that hit vehicles 1.6x — and can hit air.
+  rocket:    { label: 'Rocket Trooper', cost: 140, supply: 1, hp: 55, speed: 1.7, r: 9, dmg: 28, range: 160, cooldown: 90, buildTime: 8 * 60, sight: 210, vehBonus: 1.6 },
+  // Battle bus: hauls 4 infantry. Light MG, no AA. Cargo dies with the ride.
+  apc:       { label: 'APC',       cost: 200, supply: 2, hp: 240, speed: 2.6,  r: 13, dmg: 5,  range: 100, cooldown: 30,  buildTime: 9 * 60,  sight: 220, noAA: 1, cargo: 4 },
   // Air. Fast harasser that flies over everything; helpless targets: tanks,
   // artillery, workers. Countered by marines/snipers/raiders/spitters/turrets.
   gunship:   { label: 'Gunship',   cost: 240, supply: 2, hp: 150, speed: 3.2,  r: 12, dmg: 10, range: 130, cooldown: 18,  buildTime: 11 * 60, sight: 260, fly: 1 },
+  // Strike bomber: one devastating bomb per run, then home to the Airpad to rearm.
+  harrier:   { label: 'Harrier',   cost: 320, supply: 2, hp: 120, speed: 4.2,  r: 12, dmg: 0,  range: 0,   cooldown: 0,   buildTime: 13 * 60, sight: 240, fly: 1, bomb: 120, bombSplash: 55, bombBldBonus: 1.4 },
   // Siege piece. Shells fly to where the target WAS (no homing) and splash on
   // impact — devastating vs buildings/nests, whiffs vs anything fast. Can't
   // fire inside minRange, and sight < range means it wants spotters.
@@ -71,11 +77,13 @@ const UNIT = {
 };
 const BLD = {
   hq:       { label: 'Headquarters', hp: 3000, w: 96, h: 96, supply: 20, sight: 300, trains: ['harvester', 'engineer'] },
-  barracks: { label: 'Barracks',     hp: 1100, w: 78, h: 78, supply: 4,  sight: 250, trains: ['marine', 'sniper', 'medic'], cost: 150, buildTime: 13 * 60 },
-  factory:  { label: 'Factory',      hp: 1000, w: 88, h: 72, supply: 4,  sight: 220, trains: ['raider', 'tank', 'artillery'], cost: 200, buildTime: 15 * 60 },
+  barracks: { label: 'Barracks',     hp: 1100, w: 78, h: 78, supply: 4,  sight: 250, trains: ['marine', 'sniper', 'medic', 'rocket'], cost: 150, buildTime: 13 * 60 },
+  factory:  { label: 'Factory',      hp: 1000, w: 88, h: 72, supply: 4,  sight: 220, trains: ['raider', 'tank', 'artillery', 'apc'], cost: 200, buildTime: 15 * 60 },
   supply:   { label: 'Supply Depot', hp: 500,  w: 56, h: 56, supply: 8,  sight: 180, cost: 100, buildTime: 10 * 60 },
   refinery: { label: 'Refinery',     hp: 700,  w: 70, h: 70, supply: 0,  sight: 240, cost: 175, buildTime: 12 * 60 },
-  airpad:   { label: 'Airpad',       hp: 600,  w: 62, h: 62, supply: 2,  sight: 220, trains: ['gunship'], cost: 175, buildTime: 12 * 60 },
+  airpad:   { label: 'Airpad',       hp: 600,  w: 62, h: 62, supply: 2,  sight: 220, trains: ['gunship', 'harrier'], cost: 175, buildTime: 12 * 60 },
+  // Endgame. Buy warheads here; the defender gets 30 loud seconds to react.
+  silo:     { label: 'Missile Silo', hp: 900,  w: 70, h: 70, supply: 0,  sight: 200, cost: 500, buildTime: 20 * 60 },
   turret:   { label: 'Turret',       hp: 450,  w: 40, h: 40, supply: 0,  sight: 260, dmg: 15, range: 200, cooldown: 42, cost: 140, buildTime: 8 * 60 },
   // Dino nest (team 3): guards a rich crystal patch and respawns spitters
   // until it's destroyed. Clear it or mine poor — the expansion gatekeeper.
@@ -163,11 +171,11 @@ const DIFFS = {
   easy:   { label: 'Easy',    desc: 'Slower assaults, lazier enemy economy. Learn the ropes.',
             firstWave: 150, waveEvery: 1.4, capRate: 1.2, trickle: 0.55, aiUpgrades: false },
   normal: { label: 'Normal',  desc: 'The intended fight.',
-            firstWave: 95,  waveEvery: 0.95, capRate: 2.4, trickle: 1.2, aiUpgrades: true },
+            firstWave: 95,  waveEvery: 0.95, capRate: 2.4, trickle: 1.2, aiUpgrades: true, aiNukes: false },
   hard:   { label: 'Hard',    desc: 'Early pressure, relentless waves, a rich enemy. Good luck.',
-            firstWave: 75,  waveEvery: 0.75, capRate: 3.2, trickle: 1.8, aiUpgrades: true },
+            firstWave: 75,  waveEvery: 0.75, capRate: 3.2, trickle: 1.8, aiUpgrades: true, aiNukes: true },
   specops: { label: 'Spec Ops', desc: 'The enemy cheats. Openly. Bring everything you have.',
-            firstWave: 60,  waveEvery: 0.55, capRate: 4.5, trickle: 2.6, aiUpgrades: true },
+            firstWave: 60,  waveEvery: 0.55, capRate: 4.5, trickle: 2.6, aiUpgrades: true, aiNukes: true },
 };
 let diff = DIFFS.normal;
 // Research, StarCraft-style: bought at the producing building, occupies its queue.
@@ -179,7 +187,7 @@ const UPG = {
   vehArmor:   { label: 'Vehicle Armor',    at: 'factory',  max: 3, cost: [125, 200, 275], time: [22 * 60, 27 * 60, 32 * 60] },
   harvest:    { label: 'Harvester Systems', at: 'hq',      max: 3, cost: [125, 200, 275], time: [20 * 60, 25 * 60, 30 * 60] },
 };
-const IS_INF = { marine: 1, sniper: 1, engineer: 1, medic: 1 };
+const IS_INF = { marine: 1, sniper: 1, engineer: 1, medic: 1, rocket: 1 };
 const isFlesh = (u) => !!IS_INF[u.type] || u.type === 'spitter';   // what a medic can heal: infantry + dinos
 const isVehicle = (u) => u.kind === 'unit' && !IS_INF[u.type] && u.type !== 'spitter';   // what an engineer can repair
 // Veterancy: every unit remembers its kills. 2/4/8 kills → +10% damage and
@@ -198,7 +206,7 @@ const PLACE_NEAR_BASE = 300;       // most buildings must go near an existing fr
 const REFINERY_NEAR_CRYSTAL = 240; // refineries instead must go near a live crystal patch
 const SUPPLY_HARD_CAP = 100;
 // player-placeable buildings and their hotkeys (shown on the command card)
-const BUILD_MENU = [['turret', 'T'], ['barracks', 'B'], ['factory', 'V'], ['supply', 'C'], ['refinery', 'G'], ['airpad', 'X'], ['flak', 'Y']];
+const BUILD_MENU = [['turret', 'T'], ['barracks', 'B'], ['factory', 'V'], ['supply', 'C'], ['refinery', 'G'], ['airpad', 'X'], ['flak', 'Y'], ['silo', 'N']];
 const COLORS = {
   1: { main: '#3fb9c9', dark: '#1e6570', light: '#9fe8ef' },
   2: { main: '#e0564a', dark: '#7c2a24', light: '#f5a89a' },
@@ -210,6 +218,14 @@ const CRYSTAL_COLOR = '#6fe3d0';
 let nextId = 1;
 let units = [], buildings = [], crystals = [], bullets = [], fxs = [], eggs = [];
 let rocks = [];   // impassable terrain circles {x, y, r} — flyers ignore them
+let nukes = [];          // inbound warheads {x, y, team, tier, t, max}
+let nukeTargeting = null;   // the silo currently picking a target
+const NUKE = {
+  tac: { label: 'Tactical Nuke', cost: 10000, radius: 170, dmg: 1300, hqSafe: true },
+  hq:  { label: 'Bunker Buster', cost: 25000, radius: 200, dmg: 3200, hqSafe: false },
+};
+const NUKE_COUNTDOWN = 30 * 60;     // both sides get 30 loud seconds
+const NUKE_HQ_EXCLUSION = 180;      // tactical warheads can't be aimed at an HQ itself (blast still spares HQs entirely)
 const newUp = () => ({ infWeapons: 0, infArmor: 0, vehWeapons: 0, vehArmor: 0, harvest: 0 });
 // team 3 = neutral dinos — no economy, but weaponMult/armorMult index into it
 const teams = {
@@ -271,7 +287,7 @@ let bodiesReady = false;
 // until then the procedural drawing stays. See assets/sprites/ART-WANTED.md.
 const OPT = {};
 (function loadOptional() {
-  const names = ['dino_spitter', 'dino_nest', 'gunship', 'artillery', 'egg', 'medic'];
+  const names = ['dino_spitter', 'dino_nest', 'gunship', 'artillery', 'egg', 'medic', 'rocket_trooper', 'apc', 'harrier'];
   for (const n of names) {
     const i = new Image();
     OPT[n] = { img: i, ok: false };
@@ -302,7 +318,7 @@ function teamSprite(img, team) {
 }
 
 // distance from unit/building center to the muzzle tip of its drawn barrel
-const MUZZLE_LEN = { marine: 15, sniper: 24, raider: 17, tank: 22, artillery: 28, gunship: 13, turret: 22, flak: 20, engineer: 11, harvester: 12 };
+const MUZZLE_LEN = { marine: 15, sniper: 24, rocket: 16, raider: 17, tank: 22, artillery: 28, gunship: 13, turret: 22, flak: 20, engineer: 11, harvester: 12 };
 const FX_CAP = 450;
 
 // "base under attack" alerts: pulsing minimap pings + a throttled alarm
@@ -499,6 +515,8 @@ const snd = {
   shell()   { if (tick - lastShotSound < 4) return; lastShotSound = tick; beep(170, 0.16, 'sawtooth', 0.05, 60); },
   thump()   { if (tick - lastShotSound < 4) return; lastShotSound = tick; beep(90, 0.24, 'sawtooth', 0.07, 30); },
   spit()    { if (tick - lastShotSound < 4) return; lastShotSound = tick; beep(340, 0.09, 'triangle', 0.035, 120); },
+  rocket()  { if (tick - lastShotSound < 4) return; lastShotSound = tick; beep(420, 0.18, 'sawtooth', 0.04, 90); },
+  launch()  { beep(60, 0.9, 'sawtooth', 0.09, 400); setTimeout(() => beep(52, 0.9, 'sawtooth', 0.08, 300), 350); },
   snipe()   { if (tick - lastShotSound < 4) return; lastShotSound = tick; beep(1600, 0.09, 'square', 0.03, 220); },
   boom()    { beep(95, 0.32, 'sawtooth', 0.07, 28); },
   deposit() { beep(1240, 0.07, 'sine', 0.035); },
@@ -518,6 +536,7 @@ function makeUnit(type, team, x, y) {
     cool: 0, faceA: team === 1 ? -Math.PI / 4 : Math.PI * 0.75,
     carry: 0, mineT: 0, lastCrystal: null,
     kills: 0, eggCarry: false, fly: !!d.fly, stuckT: 0, ghostT: 0,
+    cargo: d.cargo ? [] : null, armed: !!d.bomb,
     order: { type: 'idle' },
   };
   units.push(u);
@@ -531,6 +550,7 @@ function makeBuilding(type, team, x, y, constructing) {
     hp: constructing ? 60 : d.hp, maxHp: d.hp,
     dmg: d.dmg || 0, range: d.range || 0, cooldown: d.cooldown || 0, cool: 0, faceA: 0,
     queue: [], prog: 0, boost: 1,   // boost 2 = rush-paid double production speed (current item only)
+    warhead: null,                  // silos only: 'tac' | 'hq' when armed
     built: constructing ? 0 : 1,
     rally: null,
   };
@@ -754,7 +774,11 @@ function setup(mapKey) {
 // ---------------- Queries ----------------
 function supplyUsed(team) {
   let s = 0;
-  for (const u of units) if (u.team === team) s += UNIT[u.type].supply;
+  for (const u of units) {
+    if (u.team !== team) continue;
+    s += UNIT[u.type].supply;
+    if (u.cargo) for (const c of u.cargo) s += UNIT[c.type].supply;   // passengers count
+  }
   return s;
 }
 function supplyMax(team) {
@@ -850,6 +874,20 @@ function nearestEggTo(x, y, maxDist) {
   return best;
 }
 
+// APC doors: passengers pile out in a ring; dead APCs take everyone with them
+function unloadAPC(apc) {
+  if (!apc.cargo || !apc.cargo.length) return;
+  let i = 0;
+  for (const p of apc.cargo) {
+    const spot = spreadPoint(apc.x, apc.y + apc.r + 14, i++);
+    p.x = clamp(spot.x, 20, W - 20); p.y = clamp(spot.y, 20, H - 20);
+    p.order = { type: 'idle' };
+    units.push(p);
+  }
+  apc.cargo = [];
+  if (apc.team === 1) { toast('APC unloaded'); beep(500, 0.07, 'triangle', 0.04); }
+}
+
 // ---------------- Orders ----------------
 function spreadPoint(x, y, i) {
   if (i === 0) return { x, y };
@@ -867,7 +905,9 @@ function commandMove(sel, wx, wy, attackMove) {
 function commandAttack(sel, target) {
   for (const e of sel) {
     if (e.kind !== 'unit') continue;
-    e.order = { type: 'attack', target, resume: null };
+    e.order = e.type === 'harrier'
+      ? { type: 'strike', target }
+      : { type: 'attack', target, resume: null };
   }
 }
 function commandHarvest(sel, c) {
@@ -984,12 +1024,73 @@ function rushProduction(b, instant) {
   }
 }
 
+// ---------------- Nukes ----------------
+function buyNuke(b, tier) {
+  const t = teams[b.team], spec = NUKE[tier];
+  if (b.warhead) { if (b.team === 1) { toast('Silo is already armed'); snd.error(); } return false; }
+  if (t.crystals < spec.cost) {
+    if (b.team === 1) { toast(`Not enough crystals (${spec.cost.toLocaleString()} ⬡)`); snd.error(); }
+    return false;
+  }
+  t.crystals -= spec.cost;
+  b.warhead = tier;
+  if (b.team === 1) { toast(`☢ ${spec.label} armed — select the silo and press L to launch`); snd.ready(); }
+  return true;
+}
+function launchNuke(b, wx, wy) {
+  const tier = b.warhead;
+  if (!tier) return false;
+  const spec = NUKE[tier];
+  if (spec.hqSafe && buildings.some(x => x.type === 'hq' && dist2(wx, wy, x.x, x.y) < NUKE_HQ_EXCLUSION ** 2)) {
+    if (b.team === 1) { toast('Tactical warheads can\'t be aimed at an HQ — that takes the Bunker Buster'); snd.error(); }
+    return false;
+  }
+  b.warhead = null;
+  nukes.push({ x: wx, y: wy, team: b.team, tier, t: 0, max: NUKE_COUNTDOWN });
+  toast(b.team === 1 ? '🚀 Launch confirmed — impact in 30 seconds' : '☢ NUCLEAR LAUNCH DETECTED — impact in 30 seconds!');
+  snd.launch();
+  return true;
+}
+function detonate(n) {
+  const spec = NUKE[n.tier];
+  const hit = (e) => {
+    const d = Math.max(0, dist(n.x, n.y, e.x, e.y) - (e.r || 0));
+    if (d > spec.radius) return;
+    const fall = 1 - 0.55 * (d / spec.radius);   // full at center, 45% at the rim
+    const before = e.hp;
+    damage(e, spec.dmg * fall, null);
+    if (n.team === 1 && e.team !== 1 && before > 0 && e.hp <= 0) stats.kills++;
+  };
+  for (const u of units.slice()) if (u.hp > 0) hit(u);           // friendly fire: yes. It's a nuke.
+  for (const b of buildings.slice()) {
+    if (b.hp <= 0) continue;
+    if (spec.hqSafe && b.type === 'hq') continue;                // tactical warheads spare HQs
+    hit(b);
+  }
+  for (let i = 0; i < 10; i++) {
+    fxExplosion(n.x + (Math.random() - 0.5) * spec.radius * 1.3,
+                n.y + (Math.random() - 0.5) * spec.radius * 1.3, 28 + Math.random() * 22, true);
+  }
+  fxs.push({ kind: 'boom', x: n.x, y: n.y, t: 0, max: 45, size: spec.radius });
+  addShake(n.x, n.y, 30);
+  snd.boom(); setTimeout(() => snd.boom(), 160); setTimeout(() => snd.boom(), 340);
+}
+function updateNukes() {
+  for (const n of nukes) {
+    n.t++;
+    if (n.t === n.max - 300 && n.team !== 1) { toast('☢ Impact in 5 seconds!'); snd.alarm(); }
+    if (n.t >= n.max) detonate(n);
+  }
+  nukes = nukes.filter(n => n.t < n.max);
+}
+
 // ---------------- Combat ----------------
 function fire(src, target) {
   src.cool = src.cooldown;
   src.faceA = Math.atan2(target.y - src.y, target.x - src.x);
   const kind = src.type === 'artillery' ? 'arc' : src.type === 'tank' ? 'shell'
-    : src.type === 'sniper' ? 'snipe' : src.type === 'spitter' ? 'spit' : 'bolt';
+    : src.type === 'sniper' ? 'snipe' : src.type === 'spitter' ? 'spit'
+    : src.type === 'rocket' ? 'rocket' : 'bolt';
   const sx = src.x + Math.cos(src.faceA) * (src.r * 0.8);
   const sy = src.y + Math.sin(src.faceA) * (src.r * 0.8);
   if (kind === 'arc') {
@@ -1002,10 +1103,13 @@ function fire(src, target) {
       speed: 5, kind, splash: d.splash, bldBonus: d.bldBonus,
     });
   } else {
+    // rocket troopers punch armor: bonus applies vs vehicles only
+    const armorBonus = (UNIT[src.type] && UNIT[src.type].vehBonus
+      && target.kind === 'unit' && isVehicle(target)) ? UNIT[src.type].vehBonus : 1;
     bullets.push({
       x: sx, y: sy, tx: target.x, ty: target.y,
-      target, dmg: src.dmg * weaponMult(src), team: src.team, src,
-      speed: kind === 'shell' ? 6.5 : kind === 'snipe' ? 13 : kind === 'spit' ? 6 : 9,
+      target, dmg: src.dmg * weaponMult(src) * armorBonus, team: src.team, src,
+      speed: kind === 'shell' ? 6.5 : kind === 'snipe' ? 13 : kind === 'spit' ? 6 : kind === 'rocket' ? 5.5 : 9,
       kind,
     });
   }
@@ -1013,7 +1117,8 @@ function fire(src, target) {
   if (src.team === 1 || Math.random() < 0.4) {
     if (kind === 'arc') snd.thump();
     else if (kind === 'shell') snd.shell(); else if (kind === 'snipe') snd.snipe();
-    else if (kind === 'spit') snd.spit(); else snd.shot();
+    else if (kind === 'spit') snd.spit(); else if (kind === 'rocket') snd.rocket();
+    else snd.shot();
   }
 }
 function damage(e, d, src) {
@@ -1050,6 +1155,10 @@ function damage(e, d, src) {
 }
 function kill(e) {
   e.hp = 0;
+  if (e.kind === 'unit' && e.cargo && e.cargo.length) {
+    if (e.team === 1) stats.lost += e.cargo.length;   // passengers are lost too
+    e.cargo = [];
+  }
   fxs.push({ kind: 'boom', x: e.x, y: e.y, t: 0, max: 26, size: (e.r || 16) * 1.6 });
   fxExplosion(e.x, e.y, (e.r || 16) * 1.3, e.kind === 'building');
   if (e.kind === 'building' && e.type === 'nest') {
@@ -1143,6 +1252,10 @@ function updateUnit(u) {
           const v = nearestWoundedAlly(u, 240, isVehicle);
           if (v) u.order = { type: 'heal', target: v };
         }
+      } else if (u.type === 'harrier') {
+        if (!u.armed) { u.order = { type: 'rearm' }; break; }
+        const t = acquireTarget(u.x, u.y, u.team, UNIT.harrier.sight, u);
+        if (t) u.order = { type: 'strike', target: t };
       } else if (isCombat(u)) {
         const t = acquireTarget(u.x, u.y, u.team, u.range + 70, u);
         if (t) u.order = { type: 'attack', target: t, resume: null };
@@ -1182,6 +1295,13 @@ function updateUnit(u) {
       break;
     }
     case 'attackmove': {
+      if (u.type === 'harrier') {
+        if (!u.armed) { u.order = { type: 'rearm' }; break; }
+        const ht = acquireTarget(u.x, u.y, u.team, UNIT.harrier.sight, u);
+        if (ht) { u.order = { type: 'strike', target: ht }; break; }
+        if (moveToward(u, o.x, o.y)) u.order = { type: 'idle' };
+        break;
+      }
       const t = acquireTarget(u.x, u.y, u.team, u.range + 90, u);
       if (t) { u.order = { type: 'attack', target: t, resume: { x: o.x, y: o.y } }; break; }
       if (moveToward(u, o.x, o.y)) u.order = { type: 'idle' };
@@ -1227,6 +1347,58 @@ function updateUnit(u) {
           c.amount--;
           fxMinePuff(c, u);
         }
+      }
+      break;
+    }
+    case 'board': {
+      const apc = o.target;
+      if (!apc || apc.hp <= 0 || !units.includes(apc) || !apc.cargo || apc.cargo.length >= UNIT.apc.cargo) {
+        u.order = { type: 'idle' };
+        break;
+      }
+      const d = dist(u.x, u.y, apc.x, apc.y);
+      if (d > apc.r + u.r + 8) moveToward(u, apc.x, apc.y);
+      else {
+        apc.cargo.push(u);
+        units = units.filter(x => x !== u);       // inside now — out of the world
+        selection = selection.filter(s => s !== u);
+        if (u.team === 1) beep(440, 0.06, 'triangle', 0.04);
+      }
+      break;
+    }
+    case 'strike': {
+      // bomb run: fly at the target, one devastating hit, then home to rearm
+      const t = o.target;
+      if (!u.armed) { u.order = { type: 'rearm' }; break; }
+      if (!t || t.hp <= 0) { u.order = { type: 'idle' }; break; }
+      if (!moveToward(u, t.x, t.y) && dist(u.x, u.y, t.x, t.y) > 30) break;
+      // bombs away
+      u.armed = false;
+      const D = UNIT.harrier;
+      for (const e of units.slice()) {
+        if (e.team === u.team || e.hp <= 0) continue;
+        if (dist(t.x, t.y, e.x, e.y) <= D.bombSplash + e.r) damage(e, D.bomb * weaponMult(u), u);
+      }
+      for (const b of buildings.slice()) {
+        if (b.team === u.team || b.hp <= 0) continue;
+        if (dist(t.x, t.y, b.x, b.y) <= D.bombSplash + b.r) damage(b, D.bomb * D.bombBldBonus * weaponMult(u), u);
+      }
+      fxs.push({ kind: 'boom', x: t.x, y: t.y, t: 0, max: 20, size: D.bombSplash });
+      fxExplosion(t.x, t.y, 26, true);
+      addShake(t.x, t.y, 8);
+      snd.boom();
+      u.order = { type: 'rearm' };
+      break;
+    }
+    case 'rearm': {
+      const pad = buildings.find(b => b.team === u.team && b.type === 'airpad' && b.built >= 1);
+      if (!pad) { u.order = { type: 'idle' }; break; }
+      const d = dist(u.x, u.y, pad.x, pad.y);
+      if (d > 30) { moveToward(u, pad.x, pad.y); o.t = 0; }
+      else if ((o.t = (o.t || 0) + 1) >= 180) {   // 3s on the pad
+        u.armed = true;
+        u.order = { type: 'idle' };
+        if (u.team === 1) { toast('Harrier rearmed'); snd.ready(); }
       }
       break;
     }
@@ -1443,6 +1615,9 @@ function updateBullets() {
       if (p.kind === 'shell') {
         fxs.push({ kind: 'boom', x: p.tx, y: p.ty, t: 0, max: 14, size: 14 });
         fxExplosion(p.tx, p.ty, 12, false);
+      } else if (p.kind === 'rocket') {
+        fxs.push({ kind: 'boom', x: p.tx, y: p.ty, t: 0, max: 12, size: 11 });
+        fxExplosion(p.tx, p.ty, 9, false);
       }
       continue;
     }
@@ -1450,6 +1625,9 @@ function updateBullets() {
     p.a = a;
     p.x += Math.cos(a) * p.speed;
     p.y += Math.sin(a) * p.speed;
+    if (p.kind === 'rocket' && spritesReady && tick % 3 === 0) {
+      fxSprite({ img: pick(SPR.puff), x: p.x, y: p.y, s0: 5, s1: 12, a0: 0.35, max: 20 });
+    }
   }
   bullets = bullets.filter(p => !p.dead);
 }
@@ -1544,6 +1722,7 @@ function aiUpdate() {
     const medics = units.filter(u => u.team === 2 && u.type === 'medic').length;
     if (t.crystals >= UNIT.sniper.cost && roll < 0.3) trainUnit(rax, 'sniper');
     else if (tick > 4 * 3600 && medics < 2 && t.crystals >= UNIT.medic.cost && roll < 0.45) trainUnit(rax, 'medic');
+    else if (tick > 5 * 3600 && t.crystals >= UNIT.rocket.cost && roll < 0.6) trainUnit(rax, 'rocket');
     else if (t.crystals >= UNIT.marine.cost) trainUnit(rax, 'marine');
   }
   if (fac && fac.queue.length < 2 && armySupply < armyCap) {
@@ -1566,15 +1745,35 @@ function aiUpdate() {
       aiPlace('airpad', hq.x, hq.y);
     } else if (units.some(u => u.team === 1 && u.fly) && have('flak') < 2 && t.crystals > 300) {
       aiPlace('flak', hq.x, hq.y);   // player went air — answer with AA
+    } else if (diff.aiNukes && !have('silo') && tick > 8 * 3600 && t.crystals > BLD.silo.cost + 400) {
+      aiPlace('silo', hq.x, hq.y);
     } else if (t.crystals > 400 && have('refinery') < 3 && tick > 4 * 3600) {
       const spot = aiExpansionSpot();
       if (spot) aiPlace('refinery', spot.x + 60, spot.y + 60);
     }
   }
+  // nuclear ambitions (Hard / Spec Ops only)
+  if (diff.aiNukes) {
+    const silo = buildings.find(b => b.team === 2 && b.type === 'silo' && b.built >= 1);
+    if (silo) {
+      if (!silo.warhead && t.crystals >= NUKE.hq.cost + 500) buyNuke(silo, 'hq');
+      else if (!silo.warhead && t.crystals >= NUKE.tac.cost + 500) buyNuke(silo, 'tac');
+      else if (silo.warhead && Math.random() < 0.02) {
+        let target = null;
+        if (silo.warhead === 'hq') target = buildings.find(b => b.team === 1 && b.type === 'hq');
+        else {
+          const cands = buildings.filter(b => b.team === 1 && b.type !== 'hq' &&
+            !buildings.some(h => h.type === 'hq' && dist2(b.x, b.y, h.x, h.y) < NUKE_HQ_EXCLUSION ** 2));
+          target = cands[Math.floor(Math.random() * cands.length)];
+        }
+        if (target) launchNuke(silo, target.x, target.y);
+      }
+    }
+  }
   // gunships arrive mid-game — the AI holds off so early waves stay learnable
-  if (air && air.queue.length < 1 && armySupply < armyCap && tick > 6 * 3600
-      && t.crystals >= UNIT.gunship.cost && Math.random() < 0.35) {
-    trainUnit(air, 'gunship');
+  if (air && air.queue.length < 1 && armySupply < armyCap && tick > 6 * 3600 && Math.random() < 0.35) {
+    if (tick > 9 * 3600 && t.crystals >= UNIT.harrier.cost && Math.random() < 0.4) trainUnit(air, 'harrier');
+    else if (t.crystals >= UNIT.gunship.cost) trainUnit(air, 'gunship');
   }
   // once the economy is rolling, the AI researches upgrades with spare cash
   if (diff.aiUpgrades && tick > 5 * 3600 && t.crystals > 350 && Math.random() < 0.06) {
@@ -1644,10 +1843,10 @@ const groups = {};
 const keys = {};
 
 function setCursor() {
-  cv.style.cursor = (attackMoveMode || placing) ? 'crosshair' : 'default';
+  cv.style.cursor = (attackMoveMode || placing || nukeTargeting) ? 'crosshair' : 'default';
 }
 function pruneSelection() {
-  selection = selection.filter(e => e.hp > 0);
+  selection = selection.filter(e => e.hp > 0 && (e.kind !== 'unit' || units.includes(e)));
 }
 const canHunker = (u) => u.type === 'marine' || u.type === 'artillery';
 function toggleHunker() {
@@ -1677,6 +1876,10 @@ cv.addEventListener('mousedown', (e) => {
   audioInit();
   if (e.button !== 0) return;
   const wx = mouse.sx + cam.x, wy = mouse.sy + cam.y;
+  if (nukeTargeting) {
+    if (nukeTargeting.warhead && launchNuke(nukeTargeting, wx, wy)) { nukeTargeting = null; setCursor(); }
+    return;
+  }
   if (placing) { tryPlaceBuilding(placing, wx, wy); return; }
   if (attackMoveMode) {
     commandMove(selection, wx, wy, true);
@@ -1711,7 +1914,7 @@ cv.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   audioInit();
   const wx = mouse.sx + cam.x, wy = mouse.sy + cam.y;
-  if (placing || attackMoveMode) { placing = null; attackMoveMode = false; setCursor(); return; }
+  if (placing || attackMoveMode || nukeTargeting) { placing = null; attackMoveMode = false; nukeTargeting = null; setCursor(); return; }
   pruneSelection();
   if (!selection.length) return;
 
@@ -1724,6 +1927,15 @@ cv.addEventListener('contextmenu', (e) => {
   }
   const t = thingAtPoint(wx, wy);
   if (t && t.kind === 'crystal') commandHarvest(selection, t);
+  else if (t && t.kind === 'unit' && t.team === 1 && t.type === 'apc'
+           && selection.some(s => s.kind === 'unit' && IS_INF[s.type] && s !== t)) {
+    for (const s of selection) {
+      if (s.kind !== 'unit' || s === t) continue;
+      if (s.type === 'engineer' && t.hp < t.maxHp) s.order = { type: 'heal', target: t };
+      else if (IS_INF[s.type]) s.order = { type: 'board', target: t };
+    }
+    fxs.push({ kind: 'ping', x: t.x, y: t.y, t: 0, max: 22, color: '#8fd8cf' });
+  }
   else if (t && t.kind === 'unit' && t.team === 1 && t.hp < t.maxHp
            && selection.some(s => s.kind === 'unit' &&
                 ((s.type === 'medic' && isFlesh(t)) || (s.type === 'engineer' && isVehicle(t))))) {
@@ -1780,7 +1992,7 @@ window.addEventListener('keydown', (e) => {
 
   if (e.code === 'Escape') {
     if (!elHelp.classList.contains('hidden')) { setHelp(false); return; }
-    attackMoveMode = false; placing = null; selection = []; setCursor(); return;
+    attackMoveMode = false; placing = null; nukeTargeting = null; selection = []; setCursor(); return;
   }
   if (e.code === 'KeyM') { muted = !muted; btnMute.textContent = muted ? '🔇' : '🔊'; return; }
   if (e.code === 'KeyF') { toggleFogMemory(); return; }
@@ -1796,13 +2008,29 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyA' && selection.some(s => s.kind === 'unit' && isCombat(s))) { attackMoveMode = true; placing = null; setCursor(); return; }
   if (e.code === 'KeyS') { for (const s of selection) if (s.kind === 'unit') s.order = { type: 'idle' }; return; }
   if (e.code === 'KeyH' && selection.some(s => s.kind === 'unit' && canHunker(s))) { toggleHunker(); return; }
+  if (e.code === 'KeyU' && selection.some(s => s.kind === 'unit' && s.cargo && s.cargo.length)) {
+    for (const s of selection) if (s.kind === 'unit' && s.cargo && s.cargo.length) unloadAPC(s);
+    return;
+  }
+  // silo controls: Q/W buy warheads, L opens targeting
+  const silo = selection.length === 1 && selection[0].kind === 'building'
+    && selection[0].type === 'silo' && selection[0].built >= 1 ? selection[0] : null;
+  if (silo) {
+    if (e.code === 'KeyQ') { buyNuke(silo, 'tac'); lastCardSig = ''; return; }
+    if (e.code === 'KeyW') { buyNuke(silo, 'hq'); lastCardSig = ''; return; }
+    if (e.code === 'KeyL' && silo.warhead) {
+      nukeTargeting = silo; placing = null; attackMoveMode = false; setCursor();
+      toast('Pick a target — right-click to abort');
+      return;
+    }
+  }
   if (!e.metaKey && !e.ctrlKey) {
     const bm = BUILD_MENU.find(([, k]) => e.code === 'Key' + k);
     if (bm) { placing = bm[0]; attackMoveMode = false; setCursor(); return; }
   }
 
   // production/research hotkeys on a selected building
-  const prodKeys = { KeyQ: 0, KeyW: 1, KeyE: 2, KeyR: 3, KeyD: 4 };
+  const prodKeys = { KeyQ: 0, KeyW: 1, KeyE: 2, KeyR: 3, KeyD: 4, KeyZ: 5 };
   if (prodKeys[e.code] !== undefined) {
     const b = selection.find(s => s.kind === 'building' && BLD[s.type].trains);
     if (b) {
@@ -1819,7 +2047,7 @@ window.addEventListener('keydown', (e) => {
   const m = e.code.match(/^Digit([1-5])$/);
   if (m) {
     if (e.ctrlKey || e.metaKey) { groups[m[1]] = [...selection]; toast('Group ' + m[1] + ' saved'); e.preventDefault(); }
-    else if (groups[m[1]]) { selection = groups[m[1]].filter(u => u.hp > 0); }
+    else if (groups[m[1]]) { selection = groups[m[1]].filter(u => u.hp > 0 && (u.kind !== 'unit' || units.includes(u))); }
   }
 });
 window.addEventListener('keyup', (e) => { keys[e.code] = false; });
@@ -1940,7 +2168,9 @@ function cardSig() {
     (placing || '') + (attackMoveMode ? 'A' : '') + '|' +
     BUILD_MENU.map(([t]) => (teams[1].crystals >= BLD[t].cost ? 'y' : 'n')).join('') + '|' +
     Object.values(teams[1].up).join('') + '.' + Math.floor(teams[1].crystals / 25) + '.' + teams[1].eggs +
-    '.' + units.reduce((s, u) => s + (u.team === 1 && u.type === 'spitter' ? 1 : 0), 0);
+    '.' + units.reduce((s, u) => s + (u.team === 1 && u.type === 'spitter' ? 1 : 0), 0) +
+    '.' + selection.map(e => (e.warhead || '') + (e.cargo ? e.cargo.length : '')).join('') +
+    (nukeTargeting ? 'N' : '');
 }
 function refreshCard() {
   const sig = cardSig();
@@ -1961,7 +2191,7 @@ function refreshCard() {
     const d = BLD[b.type];
     html = `<h3>${d.label}</h3><div class="sub">Right-click the map to set the rally point.</div><div class="row">`;
     cardActions(b).forEach((a, i) => {
-      const key = ['Q', 'W', 'E', 'R', 'D'][i];
+      const key = ['Q', 'W', 'E', 'R', 'D', 'Z'][i];
       if (a.kind === 'train') {
         const ud = UNIT[a.t];
         const dim = teams[1].crystals < ud.cost ? ' class="dim"' : '';
@@ -1983,6 +2213,20 @@ function refreshCard() {
       }
     });
     html += '</div>';
+  } else if (b && b.type === 'silo') {
+    html = '<h3>Missile Silo</h3>';
+    if (b.built < 1) {
+      html += '<div class="sub">Under construction…</div>';
+    } else if (b.warhead) {
+      html += `<div class="sub">${NUKE[b.warhead].label} armed and ready. Tactical warheads can’t be aimed near an HQ.</div><div class="row">`;
+      html += `<button data-act="nuke:launch" class="wide">🚀 Launch ${NUKE[b.warhead].label} <small>[L]</small></button></div>`;
+    } else {
+      html += '<div class="sub">Buy a warhead. The Bunker Buster is the only one that can hit an HQ.</div><div class="row">';
+      const d1 = teams[1].crystals < NUKE.tac.cost ? ' dim' : '';
+      const d2 = teams[1].crystals < NUKE.hq.cost ? ' dim' : '';
+      html += `<button data-act="nuke:tac" class="wide${d1}">☢ Tactical Nuke · 10,000 ⬡ <small>[Q]</small></button>`;
+      html += `<button data-act="nuke:hq" class="wide${d2}">💥 Bunker Buster · 25,000 ⬡ <small>[W]</small></button></div>`;
+    }
   } else if (b) {
     const desc = b.type === 'supply' ? 'Raises your supply cap by ' + BLD.supply.supply + '.'
       : b.type === 'refinery' ? 'Harvesters drop crystals off here. Build more near far-away patches to expand.'
@@ -1997,6 +2241,8 @@ function refreshCard() {
     html = `<h3>${label}</h3><div class="sub">${engHint}Right-click: move · attack · harvest</div><div class="row">`;
     if (selection.some(u => isCombat(u))) html += '<button data-act="amove">Attack-move [A]</button>';
     if (selection.some(u => u.kind === 'unit' && canHunker(u))) html += '<button data-act="hunker">Hunker down [H]</button>';
+    const aboard = selection.reduce((s, u) => s + (u.cargo ? u.cargo.length : 0), 0);
+    if (aboard > 0) html += `<button data-act="unload">Unload ${aboard} [U]</button>`;
     html += '<button data-act="stop">Stop [S]</button></div>';
   } else {
     html = '<h3>Crystal Command</h3><div class="sub">Drag to select units. Right-click to give orders. Select a building to train units.</div>';
@@ -2049,6 +2295,18 @@ elDock.addEventListener('click', (e) => {
   } else if (act.startsWith('research:')) {
     const b = selection.find(s => s.kind === 'building' && BLD[s.type].trains);
     if (b) startResearch(b, act.slice(9));
+    lastCardSig = '';
+  } else if (act.startsWith('nuke:')) {
+    const b = selection.find(s => s.kind === 'building' && s.type === 'silo' && s.built >= 1);
+    if (b) {
+      const what = act.slice(5);
+      if (what === 'launch') {
+        if (b.warhead) { nukeTargeting = b; placing = null; attackMoveMode = false; setCursor(); toast('Pick a target — right-click to abort'); }
+      } else buyNuke(b, what);
+    }
+    lastCardSig = '';
+  } else if (act === 'unload') {
+    for (const s of selection) if (s.kind === 'unit' && s.cargo && s.cargo.length) unloadAPC(s);
     lastCardSig = '';
   } else if (act === 'hatch') {
     const b = selection.find(s => s.kind === 'building' && s.type === 'hq');
@@ -2238,6 +2496,26 @@ function drawBuildingSprite(b, x, y) {
     cx.beginPath();
     cx.moveTo(b.x, b.y - r); cx.lineTo(b.x + r * 0.7, b.y); cx.lineTo(b.x, b.y + r); cx.lineTo(b.x - r * 0.7, b.y);
     cx.closePath(); cx.fill();
+  } else if (b.type === 'silo') {
+    cx.drawImage(teamSprite(BODY.bld_plate_oct, b.team), x, y, b.w, b.h);
+    cx.strokeStyle = C.dark; cx.lineWidth = 3;     // blast doors
+    cx.beginPath(); cx.arc(b.x, b.y, 17, 0, Math.PI * 2); cx.stroke();
+    cx.fillStyle = '#141a15';
+    cx.beginPath(); cx.arc(b.x, b.y, 14, 0, Math.PI * 2); cx.fill();
+    if (b.warhead) {
+      cx.fillStyle = '#e0564a';                    // warhead riding the elevator
+      cx.beginPath(); cx.ellipse(b.x, b.y, 5, 11, 0, 0, Math.PI * 2); cx.fill();
+      cx.fillStyle = '#f2f2ee';
+      cx.beginPath(); cx.arc(b.x, b.y - 8, 3, 0, Math.PI * 2); cx.fill();
+      if (tick % 40 < 20) {                        // armed strobe
+        cx.fillStyle = '#ffb060';
+        cx.beginPath(); cx.arc(x + b.w - 9, y + 9, 3, 0, Math.PI * 2); cx.fill();
+      }
+    } else {
+      cx.strokeStyle = '#3a423a'; cx.lineWidth = 2;   // empty tube stripes
+      cx.beginPath(); cx.moveTo(b.x - 9, b.y - 9); cx.lineTo(b.x + 9, b.y + 9); cx.stroke();
+      cx.beginPath(); cx.moveTo(b.x + 9, b.y - 9); cx.lineTo(b.x - 9, b.y + 9); cx.stroke();
+    }
   } else if (b.type === 'airpad') {
     cx.drawImage(teamSprite(BODY.bld_plate, b.team), x, y, b.w, b.h);
     cx.strokeStyle = C.light; cx.lineWidth = 2;    // helipad ring + H
@@ -2383,6 +2661,15 @@ function drawBuilding(b) {
     cx.beginPath();
     cx.moveTo(b.x, b.y - 12); cx.lineTo(b.x + 8, b.y); cx.lineTo(b.x, b.y + 12); cx.lineTo(b.x - 8, b.y);
     cx.closePath(); cx.fill();
+  } else if (b.type === 'silo') {
+    cx.strokeStyle = C.main; cx.lineWidth = 2;
+    cx.beginPath(); cx.arc(b.x, b.y, 16, 0, Math.PI * 2); cx.stroke();
+    cx.fillStyle = '#141a15';
+    cx.beginPath(); cx.arc(b.x, b.y, 13, 0, Math.PI * 2); cx.fill();
+    if (b.warhead) {
+      cx.fillStyle = '#e0564a';
+      cx.beginPath(); cx.ellipse(b.x, b.y, 4.5, 10, 0, 0, Math.PI * 2); cx.fill();
+    }
   } else if (b.type === 'flak') {
     cx.fillStyle = '#1a201c';
     cx.beginPath(); cx.arc(b.x, b.y, 13, 0, Math.PI * 2); cx.fill();
@@ -2456,6 +2743,18 @@ function drawUnitSprite(u) {
     cx.rotate(u.faceA);
     return;
   }
+  if (u.type === 'rocket') {
+    const img = opt('rocket_trooper');
+    if (img) { cx.drawImage(teamSprite(img, u.team), -12, -12, 24, 24); return; }
+    const base = teamSprite(BODY.inf_marine, u.team);
+    const w = 25, h = w * base.height / base.width;
+    cx.drawImage(base, -w * 0.45, -h / 2, w, h);
+    cx.fillStyle = '#3a3f38';                    // launch tube over the shoulder
+    cx.fillRect(-6, -8, 17, 4);
+    cx.fillStyle = '#e0564a';
+    cx.fillRect(10, -8, 2.5, 4);                 // loaded rocket tip
+    return;
+  }
   if (u.type === 'marine' || u.type === 'sniper' || u.type === 'engineer') {
     const img = teamSprite(BODY['inf_' + u.type], u.team);
     const w = u.type === 'sniper' ? 30 : u.type === 'marine' ? 26 : 24;
@@ -2473,6 +2772,15 @@ function drawUnitSprite(u) {
     // narrow chassis, extra-long tube — reads as "siege" next to the tank
     cx.drawImage(teamSprite(BODY.tank_body, u.team), -12, -14, 24, 28);
     cx.drawImage(teamSprite(BODY.tank_barrel, u.team), -3, -32, 6, 34);
+  } else if (u.type === 'apc') {
+    const img = opt('apc');
+    if (img) { cx.drawImage(teamSprite(img, u.team), -16, -15, 32, 30); }
+    else {
+      cx.drawImage(teamSprite(BODY.tank_body, u.team), -16, -14, 32, 28);
+      cx.drawImage(BODY.crate, -8, -10, 16, 16);
+      cx.fillStyle = '#12171380';                // troop bay doors
+      cx.fillRect(-13, 6, 26, 5);
+    }
   } else if (u.type === 'raider') {
     cx.drawImage(teamSprite(BODY.tank_body, u.team), -10, -13, 20, 26);
     cx.drawImage(teamSprite(BODY.raider_barrel, u.team), -2.5, -22, 5, 24);
@@ -2562,6 +2870,38 @@ function drawGunship(u) {
   cx.beginPath(); cx.arc(0, 0, 15, 0, Math.PI * 2); cx.stroke();
 }
 
+// delta-wing strike jet — +x forward. Red belly light = bomb still aboard.
+function drawJet(u) {
+  const C = COLORS[u.team];
+  const img = opt('harrier');
+  if (img) {
+    cx.rotate(Math.PI / 2);
+    cx.drawImage(teamSprite(img, u.team), -16, -16, 32, 32);
+    cx.rotate(-Math.PI / 2);
+  } else {
+    cx.fillStyle = C.dark;                        // delta wing
+    cx.beginPath(); cx.moveTo(17, 0); cx.lineTo(-7, -12); cx.lineTo(-3, 0); cx.lineTo(-7, 12); cx.closePath(); cx.fill();
+    cx.strokeStyle = C.main; cx.lineWidth = 1.5;
+    cx.beginPath(); cx.moveTo(17, 0); cx.lineTo(-7, -12); cx.lineTo(-3, 0); cx.lineTo(-7, 12); cx.closePath(); cx.stroke();
+    cx.fillStyle = C.main;                        // fuselage
+    cx.beginPath(); cx.ellipse(4, 0, 8, 2.8, 0, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = C.light;                       // canopy
+    cx.beginPath(); cx.arc(9, 0, 2.2, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = C.dark;                        // twin tails
+    cx.fillRect(-9, -7, 4, 2.5); cx.fillRect(-9, 4.5, 4, 2.5);
+  }
+  if (u.armed) {                                  // the payload
+    cx.fillStyle = '#e0564a';
+    cx.beginPath(); cx.arc(-1, 0, 2.2, 0, Math.PI * 2); cx.fill();
+  }
+}
+
+function drawCargoPips(u) {
+  if (!u.cargo || !u.cargo.length) return;
+  cx.fillStyle = '#e8e2cc';
+  for (let i = 0; i < u.cargo.length; i++) cx.fillRect(u.x - 11 + i * 6.5, u.y + u.r + 4, 4.5, 4.5);
+}
+
 function drawUnit(u) {
   const C = COLORS[u.team];
   const sel = selection.includes(u);
@@ -2570,13 +2910,13 @@ function drawUnit(u) {
     cx.lineWidth = 1.5;
     cx.beginPath(); cx.arc(u.x, u.y, u.r + 5, 0, Math.PI * 2); cx.stroke();
   }
-  if (u.type === 'gunship') {
+  if (u.type === 'gunship' || u.type === 'harrier') {
     cx.fillStyle = 'rgba(0,0,0,0.3)';   // ground shadow sells the altitude
     cx.beginPath(); cx.ellipse(u.x + 8, u.y + 13, u.r * 0.9, u.r * 0.45, 0, 0, Math.PI * 2); cx.fill();
     cx.save();
     cx.translate(u.x, u.y);
     cx.rotate(u.faceA);
-    drawGunship(u);
+    if (u.type === 'gunship') drawGunship(u); else drawJet(u);
     cx.restore();
     if (sel || u.hp < u.maxHp) drawHpBar(u.x, u.y - u.r - 12, u.r * 2.4, u.hp, u.maxHp);
     drawRank(u);
@@ -2608,6 +2948,7 @@ function drawUnit(u) {
     cx.restore();
     if (sel || u.hp < u.maxHp) drawHpBar(u.x, u.y - u.r - 10, u.r * 2.4, u.hp, u.maxHp);
     drawRank(u);
+    drawCargoPips(u);
     return;
   }
   if (u.type === 'marine') {
@@ -2674,6 +3015,15 @@ function drawUnit(u) {
     cx.beginPath(); cx.arc(0, 0, 8, 0, Math.PI * 2); cx.fill();
     cx.strokeStyle = C.main; cx.lineWidth = 4;
     cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(22, 0); cx.stroke();
+  } else if (u.type === 'apc') {
+    cx.fillStyle = C.dark;
+    rr(cx, -15, -12, 30, 24, 6); cx.fill();
+    cx.fillStyle = '#12171380';
+    cx.fillRect(-15, -12, 30, 5); cx.fillRect(-15, 7, 30, 5);
+    cx.fillStyle = C.main;
+    rr(cx, -8, -6, 16, 12, 3); cx.fill();        // troop bay
+    cx.strokeStyle = '#0e1210'; cx.lineWidth = 2;
+    cx.beginPath(); cx.moveTo(8, 0); cx.lineTo(18, 0); cx.stroke();   // MG stub
   } else if (u.type === 'artillery') {
     cx.fillStyle = C.dark;
     rr(cx, -13, -9, 26, 18, 4); cx.fill();
@@ -2703,6 +3053,7 @@ function drawUnit(u) {
   cx.restore();
   if (sel || u.hp < u.maxHp) drawHpBar(u.x, u.y - u.r - 10, u.r * 2.4, u.hp, u.maxHp);
   drawRank(u);
+  drawCargoPips(u);
 }
 
 function drawBullet(p) {
@@ -2720,6 +3071,15 @@ function drawBullet(p) {
   } else if (p.kind === 'shell') {
     cx.fillStyle = '#f0c86a';
     cx.beginPath(); cx.arc(p.x, p.y, 3.4, 0, Math.PI * 2); cx.fill();
+  } else if (p.kind === 'rocket') {
+    cx.save();
+    cx.translate(p.x, p.y);
+    cx.rotate(p.a || 0);
+    cx.fillStyle = '#d8dcd0';
+    cx.fillRect(-5, -1.5, 8, 3);
+    cx.fillStyle = '#e0564a';
+    cx.beginPath(); cx.moveTo(3, -1.5); cx.lineTo(6.5, 0); cx.lineTo(3, 1.5); cx.closePath(); cx.fill();
+    cx.restore();
   } else if (p.kind === 'spit') {
     cx.fillStyle = '#a8e05a';
     cx.beginPath(); cx.arc(p.x, p.y, 3, 0, Math.PI * 2); cx.fill();
@@ -2819,6 +3179,41 @@ function render() {
   // fog of war (small canvas scaled up = soft edges)
   cx.drawImage(fogCv, 0, 0, fogW, fogH, 0, 0, W, H);
 
+  // inbound nukes: pulsing ground zero + countdown, visible through fog
+  for (const n of nukes) {
+    const spec = NUKE[n.tier];
+    const pulse = 0.5 + 0.4 * Math.abs(Math.sin(tick * 0.12));
+    cx.strokeStyle = `rgba(255,86,60,${pulse})`;
+    cx.lineWidth = 2.5;
+    cx.beginPath(); cx.arc(n.x, n.y, spec.radius, 0, Math.PI * 2); cx.stroke();
+    cx.lineWidth = 1.5;
+    cx.beginPath();
+    cx.moveTo(n.x - 16, n.y); cx.lineTo(n.x + 16, n.y);
+    cx.moveTo(n.x, n.y - 16); cx.lineTo(n.x, n.y + 16);
+    cx.stroke();
+    cx.fillStyle = `rgba(255,120,90,${0.6 + 0.4 * pulse})`;
+    cx.font = 'bold 18px -apple-system, sans-serif';
+    cx.textAlign = 'center';
+    cx.fillText('☢ ' + Math.ceil((n.max - n.t) / 60), n.x, n.y - spec.radius - 10);
+  }
+
+  // nuke targeting ghost
+  if (nukeTargeting && mouse.overCanvas && nukeTargeting.warhead) {
+    const spec = NUKE[nukeTargeting.warhead];
+    const bad = spec.hqSafe && buildings.some(x => x.type === 'hq' && dist2(mouse.wx, mouse.wy, x.x, x.y) < NUKE_HQ_EXCLUSION ** 2);
+    cx.strokeStyle = bad ? 'rgba(255,60,40,0.9)' : 'rgba(255,180,80,0.8)';
+    cx.setLineDash([6, 6]);
+    cx.lineWidth = 2;
+    cx.beginPath(); cx.arc(mouse.wx, mouse.wy, spec.radius, 0, Math.PI * 2); cx.stroke();
+    cx.setLineDash([]);
+    if (bad) {
+      cx.font = 'bold 14px -apple-system, sans-serif';
+      cx.textAlign = 'center';
+      cx.fillStyle = 'rgba(255,80,60,0.95)';
+      cx.fillText('too close to an HQ', mouse.wx, mouse.wy - spec.radius - 8);
+    }
+  }
+
   // drag select rect
   if (dragging && dragStart) {
     const wx = mouse.wx, wy = mouse.wy;
@@ -2877,6 +3272,11 @@ function renderMinimap() {
     mcx.fillRect(u.x * sx - 1, u.y * sy - 1, 2, 2);
   }
   mcx.drawImage(fogCv, 0, 0, mini.width, mini.height);
+  for (const n of nukes) {
+    if (tick % 24 >= 12) continue;
+    mcx.fillStyle = '#ff5040';
+    mcx.beginPath(); mcx.arc(n.x * sx, n.y * sy, 3.5, 0, Math.PI * 2); mcx.fill();
+  }
   for (const a of alerts) {                       // attack pings pulse over the fog
     const k = (a.t % 40) / 40;
     mcx.strokeStyle = `rgba(240,90,70,${1 - k})`;
@@ -2899,6 +3299,7 @@ function update() {
   for (const b of buildings) updateBuilding(b);
   updateBullets();
   updateFx();
+  updateNukes();
   aiUpdate();
   waveUpdate();
 
@@ -2953,6 +3354,7 @@ function renderMenu() {
 // wipe the world so startGame can never stack two setups (also enables restarts)
 function resetWorld() {
   units = []; buildings = []; crystals = []; bullets = []; fxs = []; eggs = []; alerts = []; rocks = [];
+  nukes = []; nukeTargeting = null;
   blocked.fill(0);
   lastAlert = -1e9;
   stats = { built: 0, lost: 0, kills: 0, mined: 0 };
@@ -3015,6 +3417,8 @@ window.CC = {
   damage, trainUnit, commandMove, fxExplosion,
   canPlaceBuilding, tryPlaceBuilding, makeBuilding, makeUnit, makeNest, makeEgg, startResearch,
   hatchSpitter, rankOf, startGame, MAPS, DIFFS,
+  buyNuke, launchNuke, unloadAPC, NUKE,
+  get nukes() { return nukes; },
   get started() { return started; },
   get diff() { return diff; },
   // run n game ticks synchronously — lets automated tests advance the sim even

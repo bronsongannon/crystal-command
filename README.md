@@ -56,7 +56,8 @@ hunkered marines and a flak turret; slip raiders through the back lane.
 ## Difficulty
 
 **Easy** (slower assaults, lazier enemy economy) · **Normal** (the intended
-fight) · **Hard** (early pressure, relentless waves, a rich enemy).
+fight) · **Hard** (early pressure, relentless waves, a rich enemy, nukes) ·
+**Spec Ops** (the enemy cheats — openly).
 
 ## Controls
 
@@ -85,8 +86,13 @@ fight) · **Hard** (early pressure, relentless waves, a rich enemy).
 - **Medic** (100) — unarmed. Automatically heals nearby wounded infantry and
   dinos, and follows the fight; right-click a hurt friend to assign her. Keep
   one behind your marine line and it lives twice as long (Barracks)
+- **Rocket Trooper** (140) — shoulder-fired rockets that hit vehicles for 60%
+  extra, and can reach aircraft. Slow reload, soft target — screen him (Barracks)
 - **Raider** (150) — very fast attack buggy; great for scouting and harassing harvesters (Factory)
 - **Tank** (220) — slow, heavily armored, big cannon (Factory)
+- **APC** (200) — armored bus for 4 infantry. Right-click it with troops selected
+  to board; `U` unloads. Fast, light MG, no AA — and if it dies, everyone inside
+  dies with it (Factory)
 - **Artillery** (270) — siege gun with huge range and splash damage. Shells land
   where the target *was* — buildings can't dodge, fast units can. Can't fire at
   anything close, so escort it — or hunker it down (`H`) to take half damage
@@ -94,6 +100,8 @@ fight) · **Hard** (early pressure, relentless waves, a rich enemy).
 - **Gunship** (240) — flying attack helicopter. Ignores terrain and walls,
   rapid-fire chaingun, superb harasser. Tanks and artillery **cannot shoot
   upward** — but marines, snipers, raiders, spitters, and turrets all can (Airpad)
+- **Harrier** (320) — strike jet. One devastating bomb per sortie, then it must
+  fly home to the Airpad and rearm. Click a target and watch the run (Airpad)
 
 ## Buildings
 
@@ -106,6 +114,20 @@ fight) · **Hard** (early pressure, relentless waves, a rich enemy).
 - **Flak Turret** (160) — anti-air battery; shreds gunships, ignores the ground war
 - **Turret** (140) — stationary base defense; must anchor to a main building
   (HQ, Barracks, Factory…), so no turret-chaining across the map
+- **Missile Silo** (500) — unlocks the endgame. See below ☢
+
+## The Nuclear Option ☢
+
+Build a **Missile Silo** (500), then save up:
+
+- **Tactical Nuke** — 10,000 ⬡. Huge blast, flattens anything it lands on —
+  but it **cannot be aimed at an HQ**, and HQs take zero damage from it.
+- **Bunker Buster** — 25,000 ⬡. The HQ killer. One hit, game over.
+
+Select the armed silo, press `L`, click the map. Both sides then get **30 very
+loud seconds** — the target zone pulses on the map and minimap, so if you hear
+"NUCLEAR LAUNCH DETECTED," move everything you love. On Hard and Spec Ops, the
+enemy builds silos too. Warheads don't care whose units are under them.
 
 ## Upgrades
 
