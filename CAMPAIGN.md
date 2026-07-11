@@ -110,7 +110,12 @@ can pad the late acts cheaply.
 
 ## Order of work
 
-1. **Mission framework** (`MISSIONS` table + objectives/triggers) — prerequisite for everything
+1. ✅ DONE 2026-07-11: **Mission framework** (`MISSIONS` table + objectives/triggers, campaign
+   menu with linear unlock, typewriter briefings, in-mission dialogue + objectives HUD,
+   world/minimap objective beacons) — shipped with **Mission 1 "Landfall"**: full tutorial
+   base-build, scripted spitter probe, scouting the mid-map fields, and capturing a live
+   spitter for Dr. Lin with the new **Capture Rig** unit (~10–15 min).
+   Cast established: Cpt. Vega (ops), Dr. Lin (xenobiology), Cdr. Krauss (Rubicon — unused yet).
 2. **Team color pass** — small, and Act 1 needs it
 3. **Raptor + Raptor Den** — Act 1's finale wants the swarm tease
 4. Rest of the roster as the acts demand (Screecher → Ironback → Broodmother)

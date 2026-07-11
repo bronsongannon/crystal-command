@@ -199,6 +199,95 @@
   }
   #btn-start:hover { background: #1d4536; }
 
+  /* mission objectives HUD (campaign only) */
+  #objectives {
+    position: fixed; top: 52px; left: 10px; z-index: 5;
+    pointer-events: none;
+    background: rgba(14, 18, 15, 0.82);
+    border: 1px solid rgba(120, 200, 190, 0.25);
+    border-radius: 10px;
+    padding: 9px 13px;
+    font-size: 12.5px; max-width: 320px; line-height: 1.5;
+  }
+  #objectives h5 {
+    color: #8fd8cf; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 1.2px; margin: 0 0 4px; font-weight: 700;
+  }
+  #objectives .obj { color: #c8d4cb; }
+  #objectives .obj.done { color: #5f7a68; text-decoration: line-through; }
+
+  /* mission dialogue bar (campaign only) */
+  #dialogue {
+    position: fixed; bottom: 148px; left: 50%; transform: translateX(-50%);
+    z-index: 12; pointer-events: none;
+    width: max-content; max-width: min(640px, calc(100vw - 40px));
+    background: rgba(12, 16, 13, 0.92);
+    border: 1px solid rgba(120, 200, 190, 0.35);
+    border-radius: 10px;
+    padding: 9px 16px 10px;
+    font-size: 14px; line-height: 1.45;
+  }
+  #dialogue b { display: block; font-size: 11px; letter-spacing: 1.5px; margin-bottom: 2px; }
+
+  /* full-screen mission briefing */
+  #briefing {
+    position: fixed; inset: 0; z-index: 32;
+    background: radial-gradient(ellipse at 50% 35%, #14201a 0%, #0a0d0a 70%);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .brief-box {
+    width: min(640px, calc(100vw - 40px));
+    background: rgba(16, 22, 18, 0.92);
+    border: 1px solid rgba(120, 200, 190, 0.35);
+    border-radius: 14px;
+    padding: 26px 30px 22px;
+    max-height: calc(100vh - 40px); overflow-y: auto;
+  }
+  .brief-kicker { color: #9aa89e; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+  .brief-box h2 { color: #6fe3d0; font-size: 27px; letter-spacing: 1px; margin: 3px 0 14px; }
+  #brief-lines { min-height: 130px; font-size: 14px; line-height: 1.55; cursor: pointer; }
+  #brief-lines p { margin: 0 0 11px; }
+  #brief-lines b { display: block; font-size: 11px; letter-spacing: 1.5px; }
+  .brief-box h4 {
+    color: #8fd8cf; font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px;
+    margin: 12px 0 6px;
+  }
+  #brief-objs { list-style: none; }
+  #brief-objs li { margin: 3px 0; color: #c8d4cb; font-size: 13px; }
+  #brief-objs li::before { content: '◈ '; color: #8fd8cf; }
+  .brief-btns { display: flex; gap: 10px; margin-top: 20px; }
+  #btn-deploy {
+    flex: 1;
+    background: #17352a; border: 1px solid #6fe3d0; color: #d8f0e8;
+    font-size: 17px; font-weight: 800; letter-spacing: 1px;
+    border-radius: 10px; padding: 12px; cursor: pointer; font-family: inherit;
+  }
+  #btn-deploy:hover { background: #1d4536; }
+  #btn-brief-back {
+    background: #141b16; border: 1px solid rgba(120, 200, 190, 0.3); color: #9aa89e;
+    font-size: 14px; font-weight: 600; border-radius: 10px;
+    padding: 12px 20px; cursor: pointer; font-family: inherit;
+  }
+  #btn-brief-back:hover { border-color: #8fd8cf; color: #d8e0d8; }
+
+  /* campaign mission list */
+  #menu-missions { display: flex; flex-direction: column; gap: 8px; }
+  .mrow {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    text-align: left; cursor: pointer; font-family: inherit;
+    background: #141b16; color: #d8e0d8;
+    border: 1px solid rgba(120, 200, 190, 0.22); border-radius: 10px;
+    padding: 10px 14px;
+  }
+  .mrow:hover:not(.locked) { background: #182219; border-color: #6fe3d0; }
+  .mrow.locked { opacity: 0.4; cursor: default; }
+  .mrow .mnum { font-size: 20px; font-weight: 800; color: #3f574d; font-variant-numeric: tabular-nums; }
+  .mrow .mtitle { flex: 1; }
+  .mrow .mtitle b { display: block; font-size: 14px; }
+  .mrow .mtitle span { font-size: 11px; color: #9aa89e; }
+  .mrow .mstat { font-size: 15px; }
+  .mnote { color: #55635b; font-size: 11.5px; margin-top: 8px; text-align: center; }
+
   #pause-banner {
     position: fixed; top: 42%; left: 50%; transform: translate(-50%, -50%);
     z-index: 15; text-align: center;
@@ -220,6 +309,7 @@
   <div id="topbar">
     <div class="chip" id="res-crystals">⬡ 0</div>
     <div class="chip" id="res-supply">☰ 0 / 0</div>
+    <div class="chip" id="res-power">⚡ 0 / 0</div>
     <div class="chip" id="res-eggs" style="display:none">🥚 0</div>
     <div class="chip warn" id="wave-timer">⚔ first assault: —</div>
     <div class="spacer"></div>
@@ -237,7 +327,9 @@
       <b>Right-click</b> (two-finger tap) — move / attack / harvest / collect eggs<br>
       <b>A</b> then click — attack-move &nbsp;·&nbsp; <b>S</b> — stop &nbsp;·&nbsp; <b>H</b> — marines &amp; artillery hunker down (½ damage, hold position)<br>
       <b>Q / W / E / R / D / Z</b> — train units &amp; research upgrades (select a building first)<br>
-      <b>T</b> turret · <b>B</b> barracks · <b>V</b> factory · <b>C</b> supply depot · <b>G</b> refinery · <b>X</b> airpad · <b>Y</b> flak · <b>N</b> silo — click to place<br>
+      <b>T</b> turret · <b>B</b> barracks · <b>V</b> factory · <b>C</b> supply depot · <b>O</b> power plant · <b>G</b> refinery · <b>X</b> airpad · <b>Y</b> flak · <b>N</b> silo — click to place<br>
+      Buildings unlock in order: <b>Depot → Barracks → Factory → Airpad → Silo</b> (turrets need a Barracks, flak needs a Factory). Depots also slowly repair nearby buildings.<br>
+      <b>⚡ Power:</b> military buildings draw from the grid (HQ covers a small base; Power Plants add capacity). Over the limit = slow production, sluggish towers, grounded nukes. Factories repair nearby ground vehicles — and Airpads repair aircraft — for crystals.<br>
       <b>U</b> — unload APC · <b>L</b> — launch nuke (armed silo selected)<br>
       <b>Arrow keys / screen edge / minimap</b> — camera<br>
       <b>⌃1–5</b> — save control group · <b>1–5</b> — recall<br>
@@ -251,6 +343,13 @@
 
   <div id="pause-banner" class="hidden">⏸ PAUSED<span>press P or the pause button to resume</span></div>
 
+  <div id="objectives" class="hidden">
+    <h5 id="obj-title"></h5>
+    <div id="obj-list"></div>
+  </div>
+
+  <div id="dialogue" class="hidden"><b id="dlg-name"></b><span id="dlg-text"></span></div>
+
   <canvas id="minimap" width="200" height="150"></canvas>
   <div id="dock">
     <div id="qpanel"><div class="queue">Production</div><div class="idle-note">nothing in the works</div></div>
@@ -262,18 +361,40 @@
     <h1 id="ov-title"></h1>
     <p id="ov-sub"></p>
     <div id="ov-stats"></div>
-    <button onclick="location.reload()">Play again</button>
+    <button id="btn-again">Play again</button>
+  </div>
+
+  <div id="briefing" class="hidden">
+    <div class="brief-box">
+      <div class="brief-kicker" id="brief-kicker"></div>
+      <h2 id="brief-title"></h2>
+      <div id="brief-lines" title="click to skip"></div>
+      <h4>Objectives</h4>
+      <ul id="brief-objs"></ul>
+      <div class="brief-btns">
+        <button id="btn-brief-back">← Back</button>
+        <button id="btn-deploy">▶ Deploy</button>
+      </div>
+    </div>
   </div>
 
   <div id="menu">
     <div class="menu-box">
       <h1>CRYSTAL COMMAND</h1>
       <p class="menu-tag">Mine crystals · raise an army · crack the nests</p>
-      <h4>Map</h4>
-      <div class="opts" id="menu-maps"></div>
-      <h4>Difficulty</h4>
-      <div class="opts" id="menu-diffs"></div>
-      <button id="btn-start">▶ Start</button>
+      <div class="opts" id="menu-modes"></div>
+      <div id="menu-skirmish">
+        <h4>Map</h4>
+        <div class="opts" id="menu-maps"></div>
+        <h4>Difficulty</h4>
+        <div class="opts" id="menu-diffs"></div>
+        <button id="btn-start">▶ Start</button>
+      </div>
+      <div id="menu-campaign" class="hidden">
+        <h4>Missions</h4>
+        <div id="menu-missions"></div>
+        <div class="mnote">Act I is under construction — more missions land as they're built.</div>
+      </div>
     </div>
   </div>
 

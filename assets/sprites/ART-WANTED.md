@@ -32,6 +32,8 @@ will tint weirdly. (Exceptions below say "natural colors".)
 | `rocket_trooper.png` | infantryman with shoulder rocket launcher | neutral tones, tinted. Faces **RIGHT** |
 | `apc.png` | 8-wheeled armored personnel carrier, roof hatch | neutral tones, tinted. Faces up |
 | `harrier.png` | delta-wing VTOL strike jet | neutral tones, tinted. Faces up |
+| `bld_power.png` | compact power plant — reactor dome / cooling stacks | neutral tones, tinted. Game draws a glowing bolt emblem on top |
+| `unit_rig.png` | harvester truck with a containment cage on the bed | neutral tones, tinted. Faces up. Game glows the cage green when loaded |
 
 ## Existing art you can replace anytime (same filenames)
 

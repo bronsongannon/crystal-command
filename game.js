@@ -77,23 +77,45 @@ const UNIT = {
   // eggs. Cost 0 because nobody buys them with crystals; supply only bites for
   // player-owned ones (supplyUsed is per-team; wild team-3 dinos aren't counted).
   spitter:   { label: 'Spitter',   cost: 0,   supply: 1, hp: 95,  speed: 2.1,  r: 10, dmg: 11, range: 115, cooldown: 44,  buildTime: 0, sight: 200 },
+  // Xenobiology field unit: unarmed harvester chassis with a containment cage.
+  // Right-click a spitter to capture it (short channel at contact range), then
+  // haul it back to the HQ lab. Campaign-granted for now — not in any trains list.
+  rig:       { label: 'Capture Rig', cost: 140, supply: 1, hp: 150, speed: 2.0, r: 11, dmg: 0, range: 0, cooldown: 0, buildTime: 8 * 60, sight: 210, noAA: 1 },
 };
+const RIG_CAP_RANGE = 40;        // capture channel starts at contact range
+const RIG_CAP_TIME = 3 * 60;     // seconds of channeling to bag a specimen
+// req: tech tree — every listed building must STAND (built) on your team before
+// you can place this one. The chain: Depot → Barracks → Factory → Airpad → Silo,
+// with defenses hanging off the tier that fights their target. Refinery is
+// economy and stays ungated. Pre-placed buildings ignore req (only placement checks).
+// gen/pow: the power grid — gen produces, pow draws. Demand over capacity =
+// LOW POWER: production at half speed, towers fire at half rate, nukes grounded.
 const BLD = {
-  hq:       { label: 'Headquarters', hp: 3000, w: 96, h: 96, supply: 20, sight: 300, trains: ['harvester', 'engineer'] },
-  barracks: { label: 'Barracks',     hp: 1100, w: 78, h: 78, supply: 4,  sight: 250, trains: ['marine', 'sniper', 'medic', 'rocket'], cost: 150, buildTime: 13 * 60 },
-  factory:  { label: 'Factory',      hp: 1000, w: 88, h: 72, supply: 4,  sight: 220, trains: ['raider', 'tank', 'artillery', 'apc'], cost: 200, buildTime: 15 * 60 },
+  hq:       { label: 'Headquarters', hp: 3000, w: 96, h: 96, supply: 20, sight: 300, trains: ['harvester', 'engineer'], gen: 8 },
+  barracks: { label: 'Barracks',     hp: 1100, w: 78, h: 78, supply: 4,  sight: 250, trains: ['marine', 'sniper', 'medic', 'rocket'], cost: 150, buildTime: 13 * 60, req: ['supply'], pow: 3 },
+  factory:  { label: 'Factory',      hp: 1000, w: 88, h: 72, supply: 4,  sight: 220, trains: ['raider', 'tank', 'artillery', 'apc'], cost: 200, buildTime: 15 * 60, req: ['barracks'], pow: 4 },
+  // Beyond housing: the depot is the base's logistics hub — it slowly patches
+  // up nearby friendly buildings (a weak, free engineer that never wanders off).
   supply:   { label: 'Supply Depot', hp: 500,  w: 56, h: 56, supply: 8,  sight: 180, cost: 100, buildTime: 10 * 60 },
+  // Cheap and fragile — the classic raid target. The HQ's reactor covers a
+  // small base; every plant past that buys 10 more grid capacity.
+  power:    { label: 'Power Plant',  hp: 400,  w: 60, h: 60, supply: 0,  sight: 180, cost: 120, buildTime: 9 * 60, gen: 10 },
   refinery: { label: 'Refinery',     hp: 700,  w: 70, h: 70, supply: 0,  sight: 240, cost: 175, buildTime: 12 * 60 },
-  airpad:   { label: 'Airpad',       hp: 600,  w: 62, h: 62, supply: 2,  sight: 220, trains: ['gunship', 'harrier'], cost: 175, buildTime: 12 * 60 },
+  airpad:   { label: 'Airpad',       hp: 600,  w: 62, h: 62, supply: 2,  sight: 220, trains: ['gunship', 'harrier'], cost: 175, buildTime: 12 * 60, req: ['factory'], pow: 3 },
   // Endgame. Buy warheads here; the defender gets 30 loud seconds to react.
-  silo:     { label: 'Missile Silo', hp: 900,  w: 70, h: 70, supply: 0,  sight: 200, cost: 500, buildTime: 20 * 60 },
-  turret:   { label: 'Turret',       hp: 450,  w: 40, h: 40, supply: 0,  sight: 260, dmg: 15, range: 200, cooldown: 42, cost: 140, buildTime: 8 * 60 },
+  silo:     { label: 'Missile Silo', hp: 900,  w: 70, h: 70, supply: 0,  sight: 200, cost: 500, buildTime: 20 * 60, req: ['airpad'], pow: 6 },
+  turret:   { label: 'Turret',       hp: 450,  w: 40, h: 40, supply: 0,  sight: 260, dmg: 15, range: 200, cooldown: 42, cost: 140, buildTime: 8 * 60, req: ['barracks'], pow: 2 },
   // Dino nest (team 3): guards a rich crystal patch and respawns spitters
   // until it's destroyed. Clear it or mine poor — the expansion gatekeeper.
   // airOnly: this defense only engages flyers
-  flak:     { label: 'Flak Turret',  hp: 420,  w: 40, h: 40, supply: 0,  sight: 280, dmg: 14, range: 240, cooldown: 16, cost: 160, buildTime: 8 * 60, airOnly: 1 },
+  flak:     { label: 'Flak Turret',  hp: 420,  w: 40, h: 40, supply: 0,  sight: 280, dmg: 14, range: 240, cooldown: 16, cost: 160, buildTime: 8 * 60, airOnly: 1, req: ['factory'], pow: 2 },
   nest:     { label: 'Dino Nest',    hp: 850,  w: 64, h: 64, supply: 0,  sight: 200 },
 };
+const DEPOT_HEAL_RADIUS = 240;   // the depot's repair field
+const DEPOT_HEAL_RATE = 0.06;    // hp/tick per depot — a fraction of an engineer's 0.55
+const BAY_REPAIR_RADIUS = 200;   // factory (ground) / airpad (flyers) vehicle repair bay
+const BAY_REPAIR_RATE = 0.5;     // hp/tick — close to an engineer, but…
+const BAY_REPAIR_COST = 0.15;    // …it bills you: crystals per hp restored
 const NEST_BROOD = 3;          // spitters alive per nest
 const NEST_RESPAWN = 7 * 60;   // one replacement every 7s
 const NEST_LEASH = 360;        // guards give up the chase past this radius from home
@@ -205,6 +227,85 @@ const DIFFS = {
             firstWave: 60,  waveEvery: 0.55, capRate: 4.5, trickle: 2.6, aiUpgrades: true, aiNukes: true },
 };
 let diff = DIFFS.normal;
+
+// ---------------- Campaign ----------------
+// Recurring voices. Lines are plain prefixed text — portraits can come later.
+const CAST = {
+  ops: { name: 'CPT. VEGA',   color: '#8fd8cf' },   // expedition ops commander
+  sci: { name: 'DR. LIN',     color: '#e8d38a' },   // xenobiologist
+  red: { name: 'CDR. KRAUSS', color: '#f0a898' },   // Rubicon Mining field commander
+};
+// Mission specs are pure data, same philosophy as MAPS. Objective types:
+// unitCount / built / mined / flag (set by a trigger). hidden objectives appear
+// when a trigger activates them. Triggers: {when:{time|done|groupDead|mined},
+// delay?, say?, objective?, complete?, spawn?, alarm?}. winWhen lists the
+// objective ids that must all be done; player HQ loss is always a defeat.
+const MISSIONS = [
+  {
+    title: 'Landfall', act: 'Act I — The Crystal War',
+    map: 'basin', diff: 'easy', noEnemy: true, bare: true,
+    brief: [
+      ['ops', 'Dropships are down and the beacon is live, Commander. This valley holds the richest crystal signature on the planet — and Rubicon Mining wants it as badly as we do.'],
+      ['ops', 'Before their survey teams arrive, I want a working outpost: crystals in the bank, rifles on the wall — then push out and map the valley.'],
+      ['sci', 'And Commander — the mounds near the large fields are nesting sites. Xenobiology would be very grateful for a look at the local wildlife. A close look.'],
+    ],
+    intro: [
+      ['ops', 'First order of business: more hands on the crystal. Select the HQ and press Q to train another Harvester.'],
+    ],
+    objectives: [
+      { id: 'harv',    text: 'Train another Harvester (HQ — Q)',       type: 'unitCount', unit: 'harvester', count: 4 },
+      { id: 'depot',   text: 'Build a Supply Depot (C)',               type: 'built', bld: 'supply', count: 1, hidden: true },
+      { id: 'rax',     text: 'Build a Barracks (B)',                   type: 'built', bld: 'barracks', count: 1, hidden: true },
+      { id: 'marines', text: 'Train 4 Marines (Barracks — Q)',         type: 'unitCount', unit: 'marine', count: 4, hidden: true },
+      { id: 'turret',  text: 'Build a Turret on the perimeter (T)',    type: 'built', bld: 'turret', count: 1, hidden: true },
+      { id: 'repel',   text: 'Repel the spitter pack',                 type: 'flag', hidden: true },
+      { id: 'scout1',  text: 'Scout the northern crystal field',       type: 'reach', x: W / 2, y: H / 2 - 200, r: 250, hidden: true },
+      { id: 'scout2',  text: 'Scout the southern crystal field',       type: 'reach', x: W / 2, y: H / 2 + 200, r: 250, hidden: true },
+      { id: 'capture', text: 'Capture a spitter with the Capture Rig (right-click it) and haul it to the HQ', type: 'captive', count: 1, hidden: true, mark: [1050, 1650] },
+      { id: 'mine',    text: 'Mine 600 crystals',                      type: 'mined', amount: 600 },
+    ],
+    winWhen: ['harv', 'depot', 'rax', 'marines', 'turret', 'repel', 'scout1', 'scout2', 'capture', 'mine'],
+    triggers: [
+      { when: { done: ['harv'] }, objective: 'depot',
+        say: [['ops', 'Good. Now stretch our supply line — press C and place a Supply Depot near the base. Nothing else goes up without logistics.']] },
+      { when: { done: ['depot'] }, objective: 'rax',
+        say: [['ops', 'Depot is up — its crews will quietly patch any building standing near it. That unlocks the Barracks: press B. No outpost of mine goes unguarded.']] },
+      { when: { done: ['rax'] }, objective: ['marines', 'turret'],
+        say: [['ops', 'Barracks online. Train four Marines — select it and press Q — and anchor a Turret to the perimeter with T.']] },
+      { when: { done: ['marines', 'turret'] },
+        say: [['sci', 'Commander — seismic sensors show movement near your mining site. The wildlife is… agitated by the drilling.']] },
+      { when: { done: ['marines', 'turret'] }, delay: 14, objective: 'repel', alarm: '⚠ Wildlife closing on the perimeter!',
+        spawn: { group: 'probe', unit: 'spitter', team: 3, n: 3, at: [1050, H - 130], order: 'attackhq' },
+        say: [['ops', 'Contacts! Spitter pack inbound — marines, weapons free!']] },
+      { when: { groupDead: 'probe' }, complete: 'repel', objective: ['scout1', 'scout2'],
+        say: [['ops', 'Clean work. The perimeter holds.'],
+              ['sci', 'Curious. They went straight for the harvesters — it\'s the mining they answered, not us.'],
+              ['ops', 'Push a patrol out to the big fields mid-valley. I want eyes on what we\'re sharing this basin with — the beacons are on your map.']] },
+      { when: { done: ['scout1', 'scout2'] },
+        say: [['sci', 'Nesting colonies. Live broods. Commander, readings this strong change the whole mission — I need a specimen. A living one.']] },
+      { when: { done: ['scout1', 'scout2'] }, delay: 8, objective: 'capture',
+        spawn: [
+          { group: 'rig',   unit: 'rig',     team: 1, n: 1, at: [380, H - 340] },
+          { group: 'scout', unit: 'spitter', team: 3, n: 1, at: [1050, 1650], order: 'guard' },
+        ],
+        say: [['ops', 'Orbital just dropped Lin\'s Capture Rig at the base. A lone spitter is prowling the flats — it\'s marked on your map. Right-click it with the rig… and keep your marines\' rifles OFF the merchandise.']] },
+      // safety nets: the tutorial can't dead-end — lost rig or dead specimen respawns
+      { when: { groupDead: 'scout', notDone: ['capture'], noCaptive: true }, delay: 10, repeat: true,
+        spawn: { group: 'scout', unit: 'spitter', team: 3, n: 1, at: [1050, 1650], order: 'guard' },
+        say: [['sci', 'That one is no longer viable. Another is prowling the same ground — and this time, kindly keep the bullets out of my specimen.']] },
+      { when: { groupDead: 'rig', notDone: ['capture'] }, delay: 8, repeat: true,
+        spawn: { group: 'rig', unit: 'rig', team: 1, n: 1, at: [380, H - 340] },
+        say: [['ops', 'We lost the rig. Orbital is dropping another — they are not cheap, Commander. Bring an escort this time.']] },
+    ],
+    outro: [
+      ['ops', 'Specimen crated, walls manned, stockpile growing. Textbook landfall, Commander.'],
+      ['sci', 'Remarkable… its tissue is laced with crystal. They aren\'t just defending territory — they\'re connected to it. I need time. And a much bigger lab.'],
+    ],
+    winText: 'The expedition has its foothold — and its first live specimen. High above, Rubicon Mining\'s survey fleet has just made its burn for the planet.',
+    loseText: 'The outpost fell before it ever stood. Expedition command is reconsidering the landing site.',
+  },
+];
+
 // Research, StarCraft-style: bought at the producing building, occupies its queue.
 // Levels live on teams[t].up; effects applied via weaponMult/armorMult/carryCap/effSpeed.
 const UPG = {
@@ -233,7 +334,13 @@ const PLACE_NEAR_BASE = 300;       // most buildings must go near an existing fr
 const REFINERY_NEAR_CRYSTAL = 240; // refineries instead must go near a live crystal patch
 const SUPPLY_HARD_CAP = 100;
 // player-placeable buildings and their hotkeys (shown on the command card)
-const BUILD_MENU = [['turret', 'T'], ['barracks', 'B'], ['factory', 'V'], ['supply', 'C'], ['refinery', 'G'], ['airpad', 'X'], ['flak', 'Y'], ['silo', 'N']];
+const BUILD_MENU = [['turret', 'T'], ['barracks', 'B'], ['factory', 'V'], ['supply', 'C'], ['power', 'O'], ['refinery', 'G'], ['airpad', 'X'], ['flak', 'Y'], ['silo', 'N']];
+// tech tree checks (see BLD req fields)
+function hasTech(team, type) {
+  const req = BLD[type].req;
+  return !req || req.every(r => buildings.some(b => b.team === team && b.type === r && b.built >= 1));
+}
+const techLabel = (type) => (BLD[type].req || []).map(r => BLD[r].label).join(' + ');
 const COLORS = {
   1: { main: '#3fb9c9', dark: '#1e6570', light: '#9fe8ef' },
   2: { main: '#e0564a', dark: '#7c2a24', light: '#f5a89a' },
@@ -256,9 +363,9 @@ const NUKE_HQ_EXCLUSION = 180;      // tactical warheads can't be aimed at an HQ
 const newUp = () => ({ infWeapons: 0, infArmor: 0, vehWeapons: 0, vehArmor: 0, harvest: 0 });
 // team 3 = neutral dinos — no economy, but weaponMult/armorMult index into it
 const teams = {
-  1: { crystals: 180, eggs: 0, up: newUp() },
-  2: { crystals: 180, eggs: 0, up: newUp() },
-  3: { crystals: 0, eggs: 0, up: newUp() },
+  1: { crystals: 180, eggs: 0, captives: 0, up: newUp() },
+  2: { crystals: 180, eggs: 0, captives: 0, up: newUp() },
+  3: { crystals: 0, eggs: 0, captives: 0, up: newUp() },
 };
 let tick = 0;
 let gameOver = null;                 // null | 'win' | 'lose'
@@ -270,7 +377,7 @@ let fogMemory = true;   // true = explored ground stays dimly visible; false = r
 const dist2 = (x1, y1, x2, y2) => { const dx = x2 - x1, dy = y2 - y1; return dx * dx + dy * dy; };
 const dist = (x1, y1, x2, y2) => Math.sqrt(dist2(x1, y1, x2, y2));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const isCombat = (u) => u.type !== 'harvester' && u.type !== 'engineer' && u.type !== 'medic';
+const isCombat = (u) => u.type !== 'harvester' && u.type !== 'engineer' && u.type !== 'medic' && u.type !== 'rig';
 
 // ---------------- FX sprites (Kenney particle packs, CC0 — see assets/fx/) ----------------
 // If the images fail to load (e.g. moved/deleted), spritesReady stays false and
@@ -604,6 +711,7 @@ function makeUnit(type, team, x, y) {
     cool: 0, faceA: team === 1 ? -Math.PI / 4 : Math.PI * 0.75,
     carry: 0, mineT: 0, lastCrystal: null,
     kills: 0, eggCarry: false, fly: !!d.fly, stuckT: 0, ghostT: 0,
+    capT: 0, captive: false,
     cargo: d.cargo ? [] : null, armed: !!d.bomb,
     walkT: 0, moving: false, recoil: 0,
     order: { type: 'idle' },
@@ -786,13 +894,21 @@ function findPath(x0, y0, x1, y1) {
 // place one team's base from a map spec; returns its HQ
 function placeBase(team, M) {
   const p = team === 1;
+  const bare = p && mission && mission.bare;   // tutorial missions start with just the HQ + harvesters
   const hq = makeBuilding('hq', team, ...(p ? M.pHQ : M.eHQ));
-  makeBuilding('barracks', team, ...(p ? M.pRax : M.eRax));
+  if (!bare) makeBuilding('barracks', team, ...(p ? M.pRax : M.eRax));
   if (!p) {
     makeBuilding('factory', 2, ...M.eFac);
     makeBuilding('airpad', 2, ...M.eAir);
     for (const s of M.eSup) makeBuilding('supply', 2, ...s);
     for (const t of M.eTur) makeBuilding('turret', 2, ...t);
+    // one starting plant keeps the enemy base on the grid (HQ 8 + plant 10 ≥ its 14 draw)
+    for (let i = 0; i < 24; i++) {
+      const a = Math.random() * Math.PI * 2, r = 120 + Math.random() * 160;
+      const x = clamp(hq.x + Math.cos(a) * r, 60, W - 60);
+      const y = clamp(hq.y + Math.sin(a) * r, 60, H - 60);
+      if (aiSpotFree('power', x, y)) { makeBuilding('power', 2, x, y); break; }
+    }
   }
   const patch = addPatch(...(p ? M.pPatch : M.ePatch), 7, 1700);
   hq.rally = { x: patch[0].x, y: patch[0].y };               // fresh harvesters auto-mine
@@ -804,9 +920,11 @@ function placeBase(team, M) {
     u.order = { type: 'harvest', target: patch[i % patch.length] };
   }
   // two starter marines, posted toward the middle of the map
-  const a = Math.atan2(H / 2 - hq.y, W / 2 - hq.x);
-  makeUnit('marine', team, hq.x + Math.cos(a) * 135, hq.y + Math.sin(a) * 135);
-  makeUnit('marine', team, hq.x + Math.cos(a) * 165 + 22, hq.y + Math.sin(a) * 165 - 20);
+  if (!bare) {
+    const a = Math.atan2(H / 2 - hq.y, W / 2 - hq.x);
+    makeUnit('marine', team, hq.x + Math.cos(a) * 135, hq.y + Math.sin(a) * 135);
+    makeUnit('marine', team, hq.x + Math.cos(a) * 165 + 22, hq.y + Math.sin(a) * 165 - 20);
+  }
   return hq;
 }
 
@@ -825,7 +943,7 @@ function setup(mapKey) {
   buildTerrainGrid();
   paintGround();
   const pHQ = placeBase(1, M);
-  placeBase(2, M);
+  if (!(mission && mission.noEnemy)) placeBase(2, M);
 
   // neutral fields + their nest guards — clear the nest or mine poor
   for (const spec of M.patches) {
@@ -855,6 +973,18 @@ function supplyMax(team) {
   for (const b of buildings) if (b.team === team && b.built >= 1) s += BLD[b.type].supply;
   return Math.min(SUPPLY_HARD_CAP, s);
 }
+// the power grid — only standing, living buildings count on either side of the meter
+function powerMax(team) {
+  let s = 0;
+  for (const b of buildings) if (b.team === team && b.built >= 1 && b.hp > 0) s += BLD[b.type].gen || 0;
+  return s;
+}
+function powerUsed(team) {
+  let s = 0;
+  for (const b of buildings) if (b.team === team && b.built >= 1 && b.hp > 0) s += BLD[b.type].pow || 0;
+  return s;
+}
+const lowPower = (team) => powerUsed(team) > powerMax(team);
 function nearestCrystalTo(x, y, maxDist) {
   let best = null, bd = (maxDist || 1e9) ** 2;
   for (const c of crystals) {
@@ -1056,7 +1186,8 @@ function startResearch(b, key) {
 function updateProduction(b) {
   if (!b.queue.length) return;
   const item = b.queue[0];
-  if (b.prog < queueTime(b.team, item)) { b.prog += b.boost; return; }
+  // brownout: assembly lines crawl at half speed (rush boosts still help)
+  if (b.prog < queueTime(b.team, item)) { b.prog += b.boost * (lowPower(b.team) ? 0.5 : 1); return; }
   if (item.startsWith('up:')) {
     const key = item.slice(3);
     b.queue.shift(); b.prog = 0; b.boost = 1;
@@ -1117,6 +1248,10 @@ function buyNuke(b, tier) {
 function launchNuke(b, wx, wy) {
   const tier = b.warhead;
   if (!tier) return false;
+  if (lowPower(b.team)) {
+    if (b.team === 1) { toast('⚡ LOW POWER — the silo can\'t launch. Build a Power Plant.'); snd.error(); }
+    return false;
+  }
   const spec = NUKE[tier];
   if (spec.hqSafe && buildings.some(x => x.type === 'hq' && dist2(wx, wy, x.x, x.y) < NUKE_HQ_EXCLUSION ** 2)) {
     if (b.team === 1) { toast('Tactical warheads can\'t be aimed at an HQ — that takes the Bunker Buster'); snd.error(); }
@@ -1163,7 +1298,8 @@ function updateNukes() {
 
 // ---------------- Combat ----------------
 function fire(src, target) {
-  src.cool = src.cooldown;
+  // browned-out towers still shoot, just half as often
+  src.cool = src.cooldown * (src.kind === 'building' && lowPower(src.team) ? 2 : 1);
   src.recoil = src.type === 'tank' || src.type === 'artillery' ? 6
     : src.type === 'turret' || src.type === 'flak' ? 4 : 2.5;
   src.faceA = Math.atan2(target.y - src.y, target.x - src.x);
@@ -1557,6 +1693,46 @@ function updateUnit(u) {
       }
       break;
     }
+    case 'capture': {
+      // capture rig: close to contact range, channel, and bag a live specimen
+      const tgt = o.target;
+      if (u.captive) { u.order = { type: 'returnCaptive' }; break; }
+      if (!tgt || tgt.hp <= 0 || !units.includes(tgt)) { u.capT = 0; u.order = { type: 'idle' }; break; }
+      const d = dist(u.x, u.y, tgt.x, tgt.y) - tgt.r;
+      if (d > RIG_CAP_RANGE) { u.capT = 0; moveToward(u, tgt.x, tgt.y); }
+      else {
+        u.faceA = Math.atan2(tgt.y - u.y, tgt.x - u.x);
+        u.capT++;
+        if (tick % 9 === 0) {
+          fxs.push({ kind: 'spark', x: tgt.x + (Math.random() - 0.5) * 16, y: tgt.y + (Math.random() - 0.5) * 16, t: 0, max: 16 });
+        }
+        if (u.capT >= RIG_CAP_TIME) {
+          u.capT = 0;
+          tgt.hp = 0;                       // silent removal — no death fx, no kill credit
+          u.captive = true;
+          if (u.team === 1) { toast('🦖 Specimen bagged — haul the rig back to the HQ'); snd.ready(); }
+          u.order = { type: 'returnCaptive' };
+        }
+      }
+      break;
+    }
+    case 'returnCaptive': {
+      const hq = buildings.find(b => b.team === u.team && b.type === 'hq' && b.built >= 1);
+      if (!hq) { u.order = { type: 'idle' }; break; }
+      const d = dist(u.x, u.y, hq.x, hq.y);
+      if (d > hq.r + u.r + 8) moveToward(u, hq.x, hq.y);
+      else {
+        u.captive = false;
+        teams[u.team].captives++;
+        if (u.team === 1) {
+          fxs.push({ kind: 'text', x: u.x, y: u.y - 14, t: 0, max: 60, msg: '🦖 specimen delivered' });
+          toast('🦖 Live specimen delivered to the lab');
+          snd.deposit();
+        }
+        u.order = { type: 'idle' };
+      }
+      break;
+    }
     case 'returnEgg': {
       const hq = buildings.find(b => b.team === u.team && b.type === 'hq' && b.built >= 1);
       if (!hq) { u.order = { type: 'idle' }; break; }
@@ -1643,6 +1819,7 @@ function separation() {
 
 // ---------------- Buildings ----------------
 function updateBuilding(b) {
+  if (b.hp <= 0) return;   // dead this tick — no healing, firing, or spawning from the grave
   if (b.built < 1) {
     b.built = Math.min(1, b.built + 1 / (BLD[b.type].buildTime || BLD.turret.buildTime));
     b.hp = Math.min(b.maxHp, Math.max(b.hp, b.maxHp * b.built));
@@ -1666,6 +1843,36 @@ function updateBuilding(b) {
       spawnSpitter(b);
     }
     return;
+  }
+  if (b.type === 'supply') {
+    // logistics field: the depot slowly patches up nearby friendly buildings —
+    // a weak, free engineer that never wanders off (fields from several depots stack)
+    for (const o of buildings) {
+      if (o.team !== b.team || o.built < 1 || o.hp <= 0 || o.hp >= o.maxHp) continue;
+      if (dist2(b.x, b.y, o.x, o.y) > DEPOT_HEAL_RADIUS ** 2) continue;
+      o.hp = Math.min(o.maxHp, o.hp + DEPOT_HEAL_RATE);
+      if ((tick + o.id) % 60 === 0) {
+        fxs.push({ kind: 'spark', x: o.x + (Math.random() - 0.5) * o.w * 0.6, y: o.y + (Math.random() - 0.5) * o.h * 0.6, t: 0, max: 18 });
+      }
+    }
+  }
+  if (b.type === 'factory' || b.type === 'airpad') {
+    // repair bay: the factory fixes ground vehicles, the airpad fixes flyers —
+    // for a fee. Drive home damaged, drive out patched and poorer.
+    const t = teams[b.team];
+    for (const u of units) {
+      if (t.crystals < 1) break;
+      if (u.team !== b.team || u.hp <= 0 || u.hp >= u.maxHp || !isVehicle(u)) continue;
+      if (!!u.fly !== (b.type === 'airpad')) continue;
+      if (dist2(b.x, b.y, u.x, u.y) > BAY_REPAIR_RADIUS ** 2) continue;
+      const healed = Math.min(BAY_REPAIR_RATE, u.maxHp - u.hp, t.crystals / BAY_REPAIR_COST);
+      u.hp += healed;
+      t.crystals -= healed * BAY_REPAIR_COST;
+      if ((tick + u.id) % 30 === 0) {
+        fxs.push({ kind: 'spark', x: u.x + (Math.random() - 0.5) * 14, y: u.y + (Math.random() - 0.5) * 14, t: 0, max: 16 });
+        if (b.team === 1) snd.repair();
+      }
+    }
   }
   if (b.cool > 0) b.cool--;
   if (b.recoil) { b.recoil *= 0.78; if (b.recoil < 0.3) b.recoil = 0; }
@@ -1787,8 +1994,19 @@ function aiExpansionSpot() {
   }
   return best;
 }
+// the AI plays by the same tech tree: if a requirement is missing, build that
+// first; if it's already under construction, wait for it instead of stacking dupes
+function aiBuild(type, nearX, nearY) {
+  const miss = (BLD[type].req || []).find(r => !buildings.some(b => b.team === 2 && b.type === r && b.built >= 1));
+  if (miss) {
+    if (buildings.some(b => b.team === 2 && b.type === miss)) return false;   // requirement is going up — wait
+    return aiBuild(miss, nearX, nearY);
+  }
+  return aiPlace(type, nearX, nearY);
+}
 function aiUpdate() {
   if (tick % 30 !== 0 || gameOver) return;
+  if (mission && mission.noEnemy) return;   // scripted missions may field no red team
   const t = teams[2];
   // small passive trickle that grows over time, so the AI never fully stalls
   t.crystals += (1.2 + Math.min(3, tick / 21600)) * diff.trickle;
@@ -1830,18 +2048,21 @@ function aiUpdate() {
   // --- base building: fix supply crunches, rebuild losses, expand when flush ---
   if (tick % 150 === 0 && hq) {
     const have = (ty) => buildings.filter(b => b.team === 2 && b.type === ty).length;
-    if (supplyMax(2) - supplyUsed(2) < 5 && supplyMax(2) < SUPPLY_HARD_CAP && t.crystals > BLD.supply.cost + 100) {
-      aiPlace('supply', hq.x, hq.y);
+    if (lowPower(2) && t.crystals > BLD.power.cost + 50
+        && !buildings.some(b => b.team === 2 && b.type === 'power' && b.built < 1)) {
+      aiBuild('power', hq.x, hq.y);   // a browned-out army loses wars — fix the grid first (one at a time)
+    } else if (supplyMax(2) - supplyUsed(2) < 5 && supplyMax(2) < SUPPLY_HARD_CAP && t.crystals > BLD.supply.cost + 100) {
+      aiBuild('supply', hq.x, hq.y);
     } else if (!have('barracks') && t.crystals > BLD.barracks.cost) {
-      aiPlace('barracks', hq.x, hq.y);
+      aiBuild('barracks', hq.x, hq.y);
     } else if (!have('factory') && t.crystals > BLD.factory.cost + 150) {
-      aiPlace('factory', hq.x, hq.y);
+      aiBuild('factory', hq.x, hq.y);
     } else if (!have('airpad') && tick > 5 * 3600 && t.crystals > BLD.airpad.cost + 250) {
-      aiPlace('airpad', hq.x, hq.y);
+      aiBuild('airpad', hq.x, hq.y);
     } else if (units.some(u => u.team === 1 && u.fly) && have('flak') < 2 && t.crystals > 300) {
-      aiPlace('flak', hq.x, hq.y);   // player went air — answer with AA
+      aiBuild('flak', hq.x, hq.y);   // player went air — answer with AA
     } else if (diff.aiNukes && !have('silo') && tick > 8 * 3600 && t.crystals > BLD.silo.cost + 400) {
-      aiPlace('silo', hq.x, hq.y);
+      aiBuild('silo', hq.x, hq.y);
     } else if (t.crystals > 400 && have('refinery') < 3 && tick > 4 * 3600) {
       const spot = aiExpansionSpot();
       if (spot) aiPlace('refinery', spot.x + 60, spot.y + 60);
@@ -1880,6 +2101,7 @@ function aiUpdate() {
 }
 function waveUpdate() {
   if (gameOver) return;
+  if (mission && (mission.noEnemy || mission.noWaves)) return;
   if (tick < waveAt) return;
   waveNum++;
   waveAt = tick + Math.max(55, 82 - waveNum * 3) * 60 * diff.waveEvery;
@@ -1902,9 +2124,23 @@ function waveUpdate() {
 }
 
 // ---------------- End condition ----------------
+function overlayStats() {
+  const mins = Math.floor(tick / 3600), secs = Math.floor((tick % 3600) / 60);
+  document.getElementById('ov-stats').innerHTML =
+    `<div><b>${mins}:${String(secs).padStart(2, '0')}</b><span>match time</span></div>` +
+    `<div><b>${stats.built}</b><span>units fielded</span></div>` +
+    `<div><b>${stats.lost}</b><span>units lost</span></div>` +
+    `<div><b>${stats.kills}</b><span>kills</span></div>` +
+    `<div><b>${Math.floor(stats.mined)}</b><span>crystals mined</span></div>`;
+}
 function checkEnd() {
   if (gameOver) return;
   const pAlive = buildings.some(b => b.team === 1 && b.type === 'hq');
+  if (mission) {
+    // campaign: victory comes from objectives (missionUpdate); HQ loss is always defeat
+    if (!pAlive) missionEnd(false);
+    return;
+  }
   const eAlive = buildings.some(b => b.team === 2 && b.type === 'hq');
   if (!pAlive || !eAlive) {
     gameOver = pAlive ? 'win' : 'lose';
@@ -1915,13 +2151,8 @@ function checkEnd() {
       elOvSub.textContent = pAlive
         ? 'The enemy headquarters is rubble. The crystal fields are yours, Commander.'
         : 'Your headquarters has fallen. The crystals belong to the enemy… for now.';
-      const mins = Math.floor(tick / 3600), secs = Math.floor((tick % 3600) / 60);
-      document.getElementById('ov-stats').innerHTML =
-        `<div><b>${mins}:${String(secs).padStart(2, '0')}</b><span>match time</span></div>` +
-        `<div><b>${stats.built}</b><span>units fielded</span></div>` +
-        `<div><b>${stats.lost}</b><span>units lost</span></div>` +
-        `<div><b>${stats.kills}</b><span>kills</span></div>` +
-        `<div><b>${Math.floor(stats.mined)}</b><span>crystals mined</span></div>`;
+      overlayStats();
+      document.getElementById('btn-again').textContent = '↻ Play again';
       elOverlay.classList.remove('hidden');
       beep(pAlive ? 520 : 220, 0.5, 'sine', 0.06, pAlive ? 1040 : 80);
     }, 1400);
@@ -2047,6 +2278,15 @@ cv.addEventListener('contextmenu', (e) => {
     commandCollect(selection, t);
     fxs.push({ kind: 'ping', x: t.x, y: t.y, t: 0, max: 22, color: '#e8e2cc' });
   }
+  else if (t && t.kind === 'unit' && t.type === 'spitter' && t.team !== 1
+           && selection.some(s => s.kind === 'unit' && s.type === 'rig')) {
+    // capture rigs take the specimen; everyone else holds their orders so an
+    // over-eager escort doesn't gun down the science project
+    for (const s of selection) {
+      if (s.kind === 'unit' && s.type === 'rig') { s.capT = 0; s.order = { type: 'capture', target: t }; }
+    }
+    fxs.push({ kind: 'ping', x: t.x, y: t.y, t: 0, max: 22, color: '#8fc94a' });
+  }
   else if (t && t.kind === 'building' && t.team === 1 && selection.some(s => s.kind === 'unit' && s.type === 'engineer')) {
     commandRepair(selection, t);
     fxs.push({ kind: 'ping', x: t.x, y: t.y, t: 0, max: 22, color: '#8ce6a0' });
@@ -2123,7 +2363,7 @@ window.addEventListener('keydown', (e) => {
   }
   if (!e.metaKey && !e.ctrlKey) {
     const bm = BUILD_MENU.find(([, k]) => e.code === 'Key' + k);
-    if (bm) { placing = bm[0]; attackMoveMode = false; setCursor(); return; }
+    if (bm) { startPlacing(bm[0]); return; }
   }
 
   // production/research hotkeys on a selected building
@@ -2197,8 +2437,17 @@ function toggleFogMemory() {
 btnFog.addEventListener('click', () => { audioInit(); toggleFogMemory(); });
 
 // building placement
+function startPlacing(type) {
+  if (!hasTech(1, type)) {
+    toast(`${BLD[type].label} requires: ${techLabel(type)}`);
+    snd.error();
+    return;
+  }
+  placing = type; attackMoveMode = false; setCursor(); lastCardSig = '';
+}
 function canPlaceBuilding(type, wx, wy) {
   const d = BLD[type];
+  if (!hasTech(1, type)) return false;
   if (teams[1].crystals < d.cost) return false;
   if (wx < 40 || wy < 40 || wx > W - 40 || wy > H - 40) return false;
   for (const b of buildings) {
@@ -2217,7 +2466,8 @@ function canPlaceBuilding(type, wx, wy) {
 function tryPlaceBuilding(type, wx, wy) {
   const d = BLD[type];
   if (!canPlaceBuilding(type, wx, wy)) {
-    if (teams[1].crystals < d.cost) toast(`Not enough crystals (${d.cost} ⬡)`);
+    if (!hasTech(1, type)) toast(`${d.label} requires: ${techLabel(type)}`);
+    else if (teams[1].crystals < d.cost) toast(`Not enough crystals (${d.cost} ⬡)`);
     else if (type === 'refinery') toast('Build the refinery next to a crystal patch, on open ground');
     else toast('Build closer to your base, on open ground');
     snd.error();
@@ -2293,7 +2543,7 @@ function cardSig() {
   return selection.map(e => e.id).join(',') + '|' +
     selection.filter(e => e.queue).map(e => e.queue.join('.') + ':' + e.boost).join(';') + '|' +
     (placing || '') + (attackMoveMode ? 'A' : '') + '|' +
-    BUILD_MENU.map(([t]) => (teams[1].crystals >= BLD[t].cost ? 'y' : 'n')).join('') + '|' +
+    BUILD_MENU.map(([t]) => (teams[1].crystals >= BLD[t].cost ? 'y' : 'n') + (hasTech(1, t) ? 'u' : 'l')).join('') + '|' +
     Object.values(teams[1].up).join('') + '.' + Math.floor(teams[1].crystals / 25) + '.' + teams[1].eggs +
     '.' + units.reduce((s, u) => s + (u.team === 1 && (u.type === 'spitter' || u.type === 'harrier') ? 1 : 0), 0) +
     '.' + selection.map(e => (e.warhead || '') + (e.cargo ? e.cargo.length : '')).join('') +
@@ -2362,7 +2612,8 @@ function refreshCard() {
       html += `<button data-act="nuke:hq" class="wide${d2}">💥 Bunker Buster · 25,000 ⬡ <small>[W]</small></button></div>`;
     }
   } else if (b) {
-    const desc = b.type === 'supply' ? 'Raises your supply cap by ' + BLD.supply.supply + '.'
+    const desc = b.type === 'supply' ? 'Raises your supply cap by ' + BLD.supply.supply + ', unlocks the Barracks, and slowly repairs nearby buildings.'
+      : b.type === 'power' ? 'Feeds the grid +' + BLD.power.gen + ' power. Run out and production slows, towers fire at half rate, and nukes stay grounded.'
       : b.type === 'refinery' ? 'Harvesters drop crystals off here. Build more near far-away patches to expand.'
       : b.type === 'flak' ? 'Anti-air battery. Shreds gunships; ignores everything on the ground.'
       : 'Defensive structure. It shoots on its own.';
@@ -2372,7 +2623,8 @@ function refreshCard() {
     for (const u of selection) counts[u.type] = (counts[u.type] || 0) + 1;
     const label = Object.entries(counts).map(([t, n]) => `${n}× ${UNIT[t].label}`).join(', ');
     const engHint = selection.some(u => u.type === 'engineer') ? 'Right-click a damaged building or vehicle to repair it. ' : '';
-    html = `<h3>${label}</h3><div class="sub">${engHint}Right-click: move · attack · harvest</div><div class="row">`;
+    const rigHint = selection.some(u => u.type === 'rig') ? 'Right-click a spitter to capture it, then haul it to the HQ. ' : '';
+    html = `<h3>${label}</h3><div class="sub">${rigHint}${engHint}Right-click: move · attack · harvest</div><div class="row">`;
     if (selection.some(u => isCombat(u))) html += '<button data-act="amove">Attack-move [A]</button>';
     if (selection.some(u => u.kind === 'unit' && canHunker(u))) html += '<button data-act="hunker">Hunker down [H]</button>';
     const aboard = selection.reduce((s, u) => s + (u.cargo ? u.cargo.length : 0), 0);
@@ -2385,8 +2637,10 @@ function refreshCard() {
     html += '<div class="row">';
     for (const [t, k] of BUILD_MENU) {
       const d = BLD[t];
-      const dim = teams[1].crystals < d.cost ? ' class="dim"' : '';
-      html += `<button data-act="build:${t}"${dim}>${d.label} · ${d.cost} ⬡ <small>[${k}]</small></button>`;
+      const locked = !hasTech(1, t);
+      const dim = locked || teams[1].crystals < d.cost ? ' class="dim"' : '';
+      const title = locked ? ` title="Requires ${techLabel(t)}"` : '';
+      html += `<button data-act="build:${t}"${dim}${title}>${locked ? '🔒 ' : ''}${d.label} · ${d.cost} ⬡ <small>[${k}]</small></button>`;
     }
     html += '</div>';
   }
@@ -2456,21 +2710,32 @@ elDock.addEventListener('click', (e) => {
     if (b) rushProduction(b, act.slice(5) === 'instant');
     lastCardSig = ''; lastQSig = '';
   }
-  else if (act.startsWith('build:')) { placing = act.slice(6); attackMoveMode = false; setCursor(); lastCardSig = ''; }
+  else if (act.startsWith('build:')) { startPlacing(act.slice(6)); }
   else if (act === 'stop') { for (const s of selection) if (s.kind === 'unit') s.order = { type: 'idle' }; }
   else if (act === 'hunker') { toggleHunker(); }
   else if (act === 'amove') { attackMoveMode = true; setCursor(); lastCardSig = ''; }
 });
 
+let wasLowPower = false;
 function refreshTopbar() {
   elCrystals.textContent = '⬡ ' + Math.floor(teams[1].crystals);
   elSupply.textContent = '☰ ' + supplyUsed(1) + ' / ' + supplyMax(1);
+  const pu = powerUsed(1), pm = powerMax(1), low = pu > pm;
+  const elPower = document.getElementById('res-power');
+  elPower.textContent = '⚡ ' + pu + ' / ' + pm;
+  elPower.className = low ? 'chip warn' : 'chip';
+  if (low && !wasLowPower) { toast('⚡ LOW POWER — production slowed, defenses degraded. Build a Power Plant (O).'); snd.alarm(); }
+  wasLowPower = low;
   // the egg chip only appears once eggs enter your life
   const showEggs = teams[1].eggs > 0 || units.some(u => u.team === 1 && u.eggCarry);
   elEggs.style.display = showEggs ? '' : 'none';
   elEggs.textContent = '🥚 ' + teams[1].eggs;
-  const s = Math.max(0, Math.ceil((waveAt - tick) / 60));
-  elWave.textContent = waveNum === 0 ? `⚔ first assault: ${s}s` : `⚔ next assault: ${s}s`;
+  const noWaves = mission && (mission.noEnemy || mission.noWaves);
+  elWave.style.display = noWaves ? 'none' : '';
+  if (!noWaves) {
+    const s = Math.max(0, Math.ceil((waveAt - tick) / 60));
+    elWave.textContent = waveNum === 0 ? `⚔ first assault: ${s}s` : `⚔ next assault: ${s}s`;
+  }
 }
 function refreshProgressBar() {
   const el = document.getElementById('prog');
@@ -2679,6 +2944,9 @@ function drawBuildingSprite(b, x, y) {
     cx.drawImage(BODY.crate, b.x - 18, b.y - 14, 16, 16);
     cx.drawImage(BODY.crate, b.x + 2, b.y - 14, 16, 16);
     cx.drawImage(BODY.crate, b.x - 8, b.y + 0, 16, 16);
+  } else if (b.type === 'power') {
+    cx.drawImage(teamSprite(BODY.bld_plate, b.team), x, y, b.w, b.h);
+    drawPowerBolt(b);
   } else if (b.type === 'refinery') {
     cx.drawImage(teamSprite(BODY.bld_plate_oct, b.team), x, y, b.w, b.h);
     const r = 11 + Math.sin(tick * 0.06) * 1.5;    // pulsing crystal emblem
@@ -2746,6 +3014,16 @@ function drawBuildingSprite(b, x, y) {
     cx.fillText(Math.floor(b.built * 100) + '%', b.x, b.y - b.h / 2 - 8);
   }
   cx.globalAlpha = 1;
+}
+
+// the plant's humming lightning-bolt emblem (shared by sprite + procedural paths)
+function drawPowerBolt(b) {
+  const hum = 0.8 + Math.sin(tick * 0.12) * 0.2;
+  cx.fillStyle = `rgba(240,200,106,${hum})`;
+  cx.beginPath();
+  cx.moveTo(b.x + 3, b.y - 13); cx.lineTo(b.x - 7, b.y + 2); cx.lineTo(b.x - 1, b.y + 2);
+  cx.lineTo(b.x - 3, b.y + 13); cx.lineTo(b.x + 7, b.y - 2); cx.lineTo(b.x + 1, b.y - 2);
+  cx.closePath(); cx.fill();
 }
 
 // mound + eggs + rib bones; pulses so it reads as alive
@@ -2846,6 +3124,8 @@ function drawBuilding(b) {
     cx.fillRect(b.x - 16, b.y - 12, 13, 13);
     cx.fillRect(b.x + 3, b.y - 12, 13, 13);
     cx.fillRect(b.x - 6, b.y + 3, 13, 13);
+  } else if (b.type === 'power') {
+    drawPowerBolt(b);
   } else if (b.type === 'refinery') {
     cx.fillStyle = CRYSTAL_COLOR;
     cx.beginPath();
@@ -2904,6 +3184,20 @@ function drawBuilding(b) {
       cx.fillStyle = '#8fd8cf';
       cx.beginPath(); cx.arc(b.rally.x, b.rally.y, 4, 0, Math.PI * 2); cx.fill();
     }
+    // repair field ring on a selected depot
+    if (b.type === 'supply' && b.built >= 1) {
+      cx.strokeStyle = 'rgba(140,230,160,0.35)';
+      cx.setLineDash([4, 6]);
+      cx.beginPath(); cx.arc(b.x, b.y, DEPOT_HEAL_RADIUS, 0, Math.PI * 2); cx.stroke();
+      cx.setLineDash([]);
+    }
+  }
+  // browned-out consumers wave a blinking bolt so the shortage is visible on the map
+  if (BLD[b.type].pow && b.built >= 1 && tick % 50 < 30 && lowPower(b.team)) {
+    cx.fillStyle = '#f0c86a';
+    cx.font = 'bold 14px -apple-system, sans-serif';
+    cx.textAlign = 'center';
+    cx.fillText('⚡', b.x, y - 16);
   }
   if (sel || b.hp < b.maxHp) drawHpBar(b.x, y - 12, b.w * 0.8, b.hp, b.maxHp);
   if (b.queue && b.queue.length) {
@@ -2984,6 +3278,12 @@ function drawUnitSprite(u) {
   } else if (u.type === 'raider') {
     cx.drawImage(teamSprite(BODY.tank_body, u.team), -10, -13, 20, 26);
     cx.drawImage(teamSprite(BODY.raider_barrel, u.team), -2.5, -22, 5, 24);
+  } else if (u.type === 'rig') {
+    // harvester chassis with a containment cage bolted on the bed
+    const hv = opt('unit_harvester');
+    if (hv) { const s = u.r * 2.7; cx.drawImage(teamSprite(hv, u.team), -s / 2, -s / 2, s, s); }
+    else cx.drawImage(teamSprite(BODY.tank_body, u.team), -13, -12, 26, 24);
+    drawRigCage(u);
   } else { // harvester
     cx.drawImage(teamSprite(BODY.tank_body, u.team), -13, -12, 26, 24);
     cx.drawImage(BODY.crate, -7, -7, 14, 14);
@@ -2995,6 +3295,25 @@ function drawUnitSprite(u) {
       cx.fillRect(-4, -4, 8, 8);
     }
   }
+}
+
+// the rig's cage, drawn in the unit's rotated frame (+y = rear of the truck
+// after the vehicle-sprite rotate). Glows green with a specimen inside.
+function drawRigCage(u) {
+  if (u.captive) {
+    cx.fillStyle = 'rgba(143,201,74,0.5)';
+    rr(cx, -7, -3, 14, 12, 3); cx.fill();
+    cx.fillStyle = '#8fc94a';
+    cx.beginPath(); cx.ellipse(0, 3, 4.5, 3.2, 0, 0, Math.PI * 2); cx.fill();
+  }
+  cx.strokeStyle = u.captive ? '#c7f08a' : '#e8e2cc';
+  cx.lineWidth = 1.5;
+  rr(cx, -7, -3, 14, 12, 3); cx.stroke();
+  cx.beginPath();
+  cx.moveTo(-7, 3); cx.lineTo(7, 3);
+  cx.moveTo(-2.5, -3); cx.lineTo(-2.5, 9);
+  cx.moveTo(2.5, -3); cx.lineTo(2.5, 9);
+  cx.stroke();
 }
 
 // procedural dino — drawn inside the unit's translate+rotate frame, +x forward.
@@ -3152,6 +3471,7 @@ function drawUnit(u) {
     if (sel || u.hp < u.maxHp) drawHpBar(u.x, u.y - u.r - 10, u.r * 2.4, u.hp, u.maxHp);
     drawRank(u);
     drawCargoPips(u);
+    drawCapRing(u);
     return;
   }
   if (u.type === 'marine') {
@@ -3238,6 +3558,14 @@ function drawUnit(u) {
     cx.beginPath(); cx.moveTo(-2, 0); cx.lineTo(28, 0); cx.stroke();   // long siege tube
     cx.strokeStyle = C.light; cx.lineWidth = 1.5;
     cx.beginPath(); cx.moveTo(24, -3); cx.lineTo(24, 3); cx.stroke();  // muzzle brake
+  } else if (u.type === 'rig') {
+    cx.fillStyle = C.dark;
+    rr(cx, -12, -9, 24, 18, 5); cx.fill();
+    cx.strokeStyle = C.main; cx.lineWidth = 1.5;
+    rr(cx, -12, -9, 24, 18, 5); cx.stroke();
+    cx.rotate(Math.PI / 2);   // cage helper expects the vehicle-sprite frame
+    drawRigCage(u);
+    cx.rotate(-Math.PI / 2);
   } else { // harvester
     cx.fillStyle = C.dark;
     rr(cx, -12, -9, 24, 18, 5); cx.fill();
@@ -3257,6 +3585,17 @@ function drawUnit(u) {
   if (sel || u.hp < u.maxHp) drawHpBar(u.x, u.y - u.r - 10, u.r * 2.4, u.hp, u.maxHp);
   drawRank(u);
   drawCargoPips(u);
+  drawCapRing(u);
+}
+
+// capture channel progress — a green arc closing around the rig
+function drawCapRing(u) {
+  if (!u.capT) return;
+  cx.strokeStyle = '#8fc94a';
+  cx.lineWidth = 3;
+  cx.beginPath();
+  cx.arc(u.x, u.y, u.r + 7, -Math.PI / 2, -Math.PI / 2 + (u.capT / RIG_CAP_TIME) * Math.PI * 2);
+  cx.stroke();
 }
 
 function drawBullet(p) {
@@ -3407,6 +3746,26 @@ function render() {
     cx.fillText('☢ ' + Math.ceil((n.max - n.t) / 60), n.x, n.y - spec.radius - 10);
   }
 
+  // mission objective beacons: pulsing markers, visible through fog
+  if (mission && ms) {
+    for (const o of ms.objectives) {
+      if (!o.active || o.done || !o.mark) continue;
+      const [mx, my] = o.mark;
+      if (!inView(mx, my, 120)) continue;
+      const k = Math.abs(Math.sin(tick * 0.06));
+      const rad = 24 + 9 * k;
+      cx.strokeStyle = `rgba(111,227,208,${0.4 + 0.4 * k})`;
+      cx.lineWidth = 2.5;
+      cx.beginPath(); cx.arc(mx, my, rad, 0, Math.PI * 2); cx.stroke();
+      cx.lineWidth = 1.5;
+      cx.beginPath(); cx.arc(mx, my, 5, 0, Math.PI * 2); cx.stroke();
+      cx.fillStyle = `rgba(159,232,239,${0.6 + 0.35 * k})`;
+      cx.font = 'bold 13px -apple-system, sans-serif';
+      cx.textAlign = 'center';
+      cx.fillText('◈', mx, my - rad - 8);
+    }
+  }
+
   // nuke targeting ghost
   if (nukeTargeting && mouse.overCanvas && nukeTargeting.warhead) {
     const spec = NUKE[nukeTargeting.warhead];
@@ -3442,10 +3801,13 @@ function render() {
     cx.fillStyle = ok ? '#3fb9c9' : '#e0564a';
     rr(cx, mouse.wx - d.w / 2, mouse.wy - d.h / 2, d.w, d.h, 6); cx.fill();
     cx.globalAlpha = 1;
-    if (BLD[placing].range) {
-      cx.strokeStyle = ok ? 'rgba(63,185,201,0.35)' : 'rgba(224,86,74,0.35)';
+    const ringR = BLD[placing].range || (placing === 'supply' ? DEPOT_HEAL_RADIUS : 0);
+    if (ringR) {
+      cx.strokeStyle = placing === 'supply'
+        ? (ok ? 'rgba(140,230,160,0.35)' : 'rgba(224,86,74,0.35)')
+        : (ok ? 'rgba(63,185,201,0.35)' : 'rgba(224,86,74,0.35)');
       cx.setLineDash([4, 6]);
-      cx.beginPath(); cx.arc(mouse.wx, mouse.wy, BLD[placing].range, 0, Math.PI * 2); cx.stroke();
+      cx.beginPath(); cx.arc(mouse.wx, mouse.wy, ringR, 0, Math.PI * 2); cx.stroke();
       cx.setLineDash([]);
     }
   }
@@ -3494,6 +3856,14 @@ function renderMinimap() {
     mcx.lineWidth = 1.5;
     mcx.beginPath(); mcx.arc(a.x * sx, a.y * sy, 2 + k * 8, 0, Math.PI * 2); mcx.stroke();
   }
+  if (mission && ms) {                            // objective beacons blink teal over the fog
+    for (const o of ms.objectives) {
+      if (!o.active || o.done || !o.mark || tick % 40 >= 28) continue;
+      mcx.strokeStyle = '#6fe3d0';
+      mcx.lineWidth = 1.5;
+      mcx.beginPath(); mcx.arc(o.mark[0] * sx, o.mark[1] * sy, 4, 0, Math.PI * 2); mcx.stroke();
+    }
+  }
   mcx.strokeStyle = 'rgba(255,255,255,0.7)';
   mcx.lineWidth = 1;
   mcx.strokeRect(cam.x * sx, cam.y * sy, view.w * sx, view.h * sy);
@@ -3513,6 +3883,7 @@ function update() {
   updateNukes();
   aiUpdate();
   waveUpdate();
+  missionUpdate();
 
   const anyDead = units.some(u => u.hp <= 0) || buildings.some(b => b.hp <= 0);
   if (anyDead) {
@@ -3540,6 +3911,175 @@ function frame(now) {
   render();
 }
 
+// ---------------- Mission engine ----------------
+// mission = the static MISSIONS entry; ms = this run's cloned state, so specs
+// stay pristine across restarts. All timing rides the sim tick, so pause and
+// the help modal freeze dialogue and triggers along with the world.
+let mission = null, ms = null;
+const elObjectives = document.getElementById('objectives');
+const elObjTitle = document.getElementById('obj-title');
+const elObjList = document.getElementById('obj-list');
+const elDialogue = document.getElementById('dialogue');
+const elDlgName = document.getElementById('dlg-name');
+const elDlgText = document.getElementById('dlg-text');
+const CAMPAIGN_KEY = 'cc.campaign';
+const campaignDone = () => parseInt(localStorage.getItem(CAMPAIGN_KEY) || '0', 10) || 0;
+
+function missionInit(idx) {
+  mission = MISSIONS[idx];
+  ms = {
+    idx,
+    // reach objectives mark their own spot; anything else can set an explicit mark
+    objectives: mission.objectives.map(o => ({
+      ...o, done: false, active: !o.hidden,
+      mark: o.mark || (o.type === 'reach' ? [o.x, o.y] : null),
+    })),
+    triggers: (mission.triggers || []).map(t => ({ ...t, fired: false, armedAt: -1 })),
+    groups: {}, flags: {}, winAt: 0, outroDone: false,
+  };
+}
+
+// dialogue: a queue of speaker lines, revealed typewriter-style on the sim tick
+let dlgQueue = [], dlgCur = null, dlgStart = 0, dlgUntil = 0;
+const dlgDur = (text) => Math.min(9 * 60, Math.floor((2.6 + text.length * 0.045) * 60));
+function say(who, text) { dlgQueue.push({ who, text }); }
+function dlgUpdate() {
+  if (!dlgCur && dlgQueue.length) {
+    dlgCur = dlgQueue.shift();
+    dlgStart = tick; dlgUntil = tick + dlgDur(dlgCur.text);
+    const c = CAST[dlgCur.who];
+    elDlgName.textContent = c.name; elDlgName.style.color = c.color;
+    elDlgText.textContent = '';
+    elDialogue.classList.remove('hidden');
+  }
+  if (!dlgCur) return;
+  const chars = Math.floor((tick - dlgStart) * 1.4);
+  if (chars <= dlgCur.text.length + 2) elDlgText.textContent = dlgCur.text.slice(0, chars);
+  if (tick >= dlgUntil) {
+    dlgCur = null;
+    if (!dlgQueue.length) elDialogue.classList.add('hidden');
+  }
+}
+
+let lastObjSig = '';
+function refreshObjectives() {
+  if (!mission || !ms) { elObjectives.classList.add('hidden'); lastObjSig = ''; return; }
+  const objs = ms.objectives.filter(o => o.active);
+  const sig = objs.map(o => o.id + (o.done ? '1' : '0')).join(',');
+  if (sig === lastObjSig) return;
+  lastObjSig = sig;
+  elObjTitle.textContent = `Mission ${ms.idx + 1} — ${mission.title}`;
+  elObjList.innerHTML = objs.map(o =>
+    `<div class="obj${o.done ? ' done' : ''}">${o.done ? '✔' : '◈'} ${o.text}</div>`).join('');
+  elObjectives.classList.remove('hidden');
+}
+
+function objMet(o) {
+  switch (o.type) {
+    case 'unitCount': return units.filter(u => u.team === 1 && u.type === o.unit).length >= o.count;
+    case 'built': return buildings.filter(b => b.team === 1 && b.type === o.bld && b.built >= 1).length >= o.count;
+    case 'mined': return stats.mined >= o.amount;
+    case 'reach': return units.some(u => u.team === 1 && dist2(u.x, u.y, o.x, o.y) < o.r * o.r);
+    case 'captive': return teams[1].captives >= o.count;
+    case 'flag': return !!ms.flags[o.id];
+  }
+  return false;
+}
+function condMet(w) {
+  if (!w) return true;
+  if (w.time != null && tick < w.time * 60) return false;
+  if (w.done) for (const id of w.done) {
+    const o = ms.objectives.find(o => o.id === id);
+    if (!o || !o.done) return false;
+  }
+  if (w.notDone) for (const id of w.notDone) {
+    const o = ms.objectives.find(o => o.id === id);
+    if (o && o.done) return false;
+  }
+  // "no specimen in play" — guards respawn triggers while a rig is mid-haul
+  if (w.noCaptive && units.some(u => u.team === 1 && u.captive)) return false;
+  if (w.mined != null && stats.mined < w.mined) return false;
+  if (w.groupDead) {
+    const g = ms.groups[w.groupDead];
+    if (!g || g.some(id => units.some(u => u.id === id && u.hp > 0))) return false;
+  }
+  return true;
+}
+function activateObjective(id) {
+  const o = ms.objectives.find(o => o.id === id);
+  if (!o || o.active) return;
+  o.active = true;
+  toast('◈ New objective: ' + o.text); snd.ready();
+}
+function doSpawn(sp) {
+  const ids = ms.groups[sp.group] = ms.groups[sp.group] || [];
+  const hq = buildings.find(b => b.team === 1 && b.type === 'hq');
+  for (let i = 0; i < sp.n; i++) {
+    const u = makeUnit(sp.unit, sp.team || 3,
+      clamp(sp.at[0] + (i % 3) * 30 - 30, 20, W - 20),
+      clamp(sp.at[1] + ((i / 3) | 0) * 30 - i * 10, 20, H - 20));
+    if (sp.order === 'attackhq' && hq) u.order = { type: 'attackmove', x: hq.x, y: hq.y };
+    else if (sp.order === 'guard') u.order = { type: 'guard', hx: u.x, hy: u.y };
+    ids.push(u.id);
+  }
+}
+function fireTrigger(t) {
+  if (t.say) for (const [who, line] of t.say) say(who, line);
+  if (t.objective) for (const id of [].concat(t.objective)) activateObjective(id);
+  if (t.complete) ms.flags[t.complete] = true;
+  if (t.spawn) for (const sp of [].concat(t.spawn)) doSpawn(sp);
+  if (t.alarm) { toast(t.alarm); snd.alarm(); }
+  if (t.crystals) teams[1].crystals += t.crystals;
+}
+
+function missionUpdate() {
+  if (!mission || gameOver) return;
+  dlgUpdate();
+  if (tick % 10 !== 0) return;
+  for (const o of ms.objectives) {
+    if (!o.active || o.done || !objMet(o)) continue;
+    o.done = true;
+    toast('✔ ' + o.text); snd.ready();
+  }
+  for (const t of ms.triggers) {
+    if (t.fired) continue;
+    if (t.armedAt < 0 && condMet(t.when)) t.armedAt = tick;
+    if (t.armedAt >= 0 && tick >= t.armedAt + (t.delay || 0) * 60) {
+      if (t.repeat) {
+        // repeatables re-verify at fire time — the world may have moved on
+        t.armedAt = -1;
+        if (condMet(t.when)) fireTrigger(t);
+      } else { t.fired = true; fireTrigger(t); }
+    }
+  }
+  if (!ms.outroDone && mission.winWhen.every(id => {
+    const o = ms.objectives.find(o => o.id === id);
+    return o && o.done;
+  })) {
+    ms.outroDone = true;
+    let wait = 90;
+    for (const [who, line] of (mission.outro || [])) { say(who, line); wait += dlgDur(line); }
+    ms.winAt = tick + wait;
+  }
+  if (ms.outroDone && ms.winAt && tick >= ms.winAt) missionEnd(true);
+  refreshObjectives();
+}
+
+function missionEnd(win) {
+  if (gameOver) return;
+  gameOver = win ? 'win' : 'lose';
+  if (win) localStorage.setItem(CAMPAIGN_KEY, String(Math.max(campaignDone(), ms.idx + 1)));
+  setTimeout(() => {
+    elOvTitle.textContent = win ? 'MISSION COMPLETE' : 'MISSION FAILED';
+    elOvTitle.className = win ? 'win' : 'lose';
+    elOvSub.textContent = (win ? mission.winText : mission.loseText) || '';
+    overlayStats();
+    document.getElementById('btn-again').textContent = win ? '▶ Continue' : '↻ Back to base';
+    elOverlay.classList.remove('hidden');
+    beep(win ? 520 : 220, 0.5, 'sine', 0.06, win ? 1040 : 80);
+  }, win ? 600 : 1400);
+}
+
 // ---------------- Start menu ----------------
 let started = false;
 const elMenu = document.getElementById('menu');
@@ -3558,10 +4098,93 @@ function menuButtons(el, table, chosen, pick) {
     el.appendChild(b);
   }
 }
+const MENU_MODES = {
+  skirmish: { label: 'Skirmish', desc: 'One map, one enemy, no script. Pick your battlefield.' },
+  campaign: { label: 'Campaign', desc: 'The story of the expedition, one mission at a time.' },
+};
+let chosenMode = localStorage.getItem('cc.mode') || 'skirmish';
+if (!MENU_MODES[chosenMode]) chosenMode = 'skirmish';
 function renderMenu() {
-  menuButtons(document.getElementById('menu-maps'), MAPS, chosenMap, k => { chosenMap = k; renderMenu(); });
-  menuButtons(document.getElementById('menu-diffs'), DIFFS, chosenDiff, k => { chosenDiff = k; renderMenu(); });
+  menuButtons(document.getElementById('menu-modes'), MENU_MODES, chosenMode, k => {
+    chosenMode = k; localStorage.setItem('cc.mode', k); renderMenu();
+  });
+  document.getElementById('menu-skirmish').classList.toggle('hidden', chosenMode !== 'skirmish');
+  document.getElementById('menu-campaign').classList.toggle('hidden', chosenMode !== 'campaign');
+  if (chosenMode === 'skirmish') {
+    menuButtons(document.getElementById('menu-maps'), MAPS, chosenMap, k => { chosenMap = k; renderMenu(); });
+    menuButtons(document.getElementById('menu-diffs'), DIFFS, chosenDiff, k => { chosenDiff = k; renderMenu(); });
+  } else {
+    renderMissionList();
+  }
 }
+function renderMissionList() {
+  const el = document.getElementById('menu-missions');
+  el.innerHTML = '';
+  const doneN = campaignDone();
+  MISSIONS.forEach((m, i) => {
+    const locked = i > doneN;
+    const b = document.createElement('button');
+    b.className = 'mrow' + (locked ? ' locked' : '');
+    b.innerHTML =
+      `<span class="mnum">${String(i + 1).padStart(2, '0')}</span>` +
+      `<span class="mtitle"><b>${m.title}</b><span>${m.act}</span></span>` +
+      `<span class="mstat">${locked ? '🔒' : i < doneN ? '✔' : '▶'}</span>`;
+    if (!locked) b.onclick = () => { audioInit(); openBriefing(i); };
+    el.appendChild(b);
+  });
+}
+
+// ---------------- Briefing screen ----------------
+const elBriefing = document.getElementById('briefing');
+let briefIdx = null, briefTimer = null;
+function briefLineHtml(who, text) {
+  const c = CAST[who];
+  return `<p><b style="color:${c.color}">${c.name}</b><span>${text}</span></p>`;
+}
+function openBriefing(idx) {
+  briefIdx = idx;
+  const m = MISSIONS[idx];
+  document.getElementById('brief-kicker').textContent = `${m.act} · Mission ${idx + 1}`;
+  document.getElementById('brief-title').textContent = m.title;
+  document.getElementById('brief-objs').innerHTML =
+    m.objectives.filter(o => !o.hidden).map(o => `<li>${o.text}</li>`).join('');
+  // typewriter reveal, one line at a time; click the text to skip ahead
+  const box = document.getElementById('brief-lines');
+  box.innerHTML = '';
+  clearInterval(briefTimer);
+  let li = 0, ci = 0, span = null;
+  briefTimer = setInterval(() => {
+    if (li >= m.brief.length) { clearInterval(briefTimer); briefTimer = null; return; }
+    const [who, text] = m.brief[li];
+    if (!span) {
+      const c = CAST[who];
+      const p = document.createElement('p');
+      const name = document.createElement('b');
+      name.textContent = c.name; name.style.color = c.color;
+      span = document.createElement('span');
+      p.appendChild(name); p.appendChild(span); box.appendChild(p);
+    }
+    ci += 2;
+    span.textContent = text.slice(0, ci);
+    if (ci >= text.length) { li++; ci = 0; span = null; }
+  }, 16);
+  box.onclick = () => {
+    clearInterval(briefTimer); briefTimer = null;
+    box.innerHTML = m.brief.map(([who, text]) => briefLineHtml(who, text)).join('');
+  };
+  elBriefing.classList.remove('hidden');
+}
+function closeBriefing() {
+  clearInterval(briefTimer); briefTimer = null;
+  elBriefing.classList.add('hidden');
+}
+document.getElementById('btn-brief-back').addEventListener('click', () => { audioInit(); closeBriefing(); });
+document.getElementById('btn-deploy').addEventListener('click', () => {
+  audioInit();
+  const idx = briefIdx;
+  closeBriefing();
+  startMission(idx);
+});
 // wipe the world so startGame can never stack two setups (also enables restarts)
 function resetWorld() {
   units = []; buildings = []; crystals = []; bullets = []; fxs = []; eggs = []; alerts = []; rocks = [];
@@ -3571,17 +4194,23 @@ function resetWorld() {
   stats = { built: 0, lost: 0, kills: 0, mined: 0 };
   selection = [];
   for (const k in groups) delete groups[k];
-  teams[1] = { crystals: 180, eggs: 0, up: newUp() };
-  teams[2] = { crystals: 180, eggs: 0, up: newUp() };
-  teams[3] = { crystals: 0, eggs: 0, up: newUp() };
+  teams[1] = { crystals: 180, eggs: 0, captives: 0, up: newUp() };
+  teams[2] = { crystals: 180, eggs: 0, captives: 0, up: newUp() };
+  teams[3] = { crystals: 0, eggs: 0, captives: 0, up: newUp() };
   tick = 0; gameOver = null; waveNum = 0; shakeAmp = 0;
   placing = null; attackMoveMode = false; setCursor();
   explored.fill(0); visible.fill(0);
   elOverlay.classList.add('hidden');
   lastCardSig = '';
+  mission = null; ms = null;
+  wasLowPower = false;
+  dlgQueue = []; dlgCur = null;
+  elDialogue.classList.add('hidden');
+  refreshObjectives();
 }
-function startGame(mapKey, diffKey) {
+function startGame(mapKey, diffKey, missionIdx) {
   resetWorld();
+  if (missionIdx != null) missionInit(missionIdx);
   diff = DIFFS[diffKey] || DIFFS.normal;
   waveAt = diff.firstWave * 60;
   setup(mapKey);
@@ -3594,7 +4223,17 @@ function startGame(mapKey, diffKey) {
   refreshCard();
   refreshQueue();
   setHelp(true);   // show the controls first — closing them starts the clock
-  toast('Your harvesters are mining. Select the Barracks and press Q to train Marines!');
+  if (mission) {
+    for (const [who, line] of (mission.intro || [])) say(who, line);
+    refreshObjectives();
+  } else {
+    toast('Your harvesters are mining. Select the Barracks and press Q to train Marines!');
+  }
+}
+function startMission(idx) {
+  const m = MISSIONS[idx];
+  if (!m) return;
+  startGame(m.map, m.diff || 'normal', idx);
 }
 renderMenu();
 document.getElementById('btn-start').addEventListener('click', () => {
@@ -3602,6 +4241,13 @@ document.getElementById('btn-start').addEventListener('click', () => {
   localStorage.setItem('cc.map', chosenMap);
   localStorage.setItem('cc.diff', chosenDiff);
   startGame(chosenMap, chosenDiff);
+});
+// end-of-match button: skirmish restarts fresh; campaign returns to the mission list
+document.getElementById('btn-again').addEventListener('click', () => {
+  if (!mission) { location.reload(); return; }
+  audioInit();
+  chosenMode = 'campaign'; localStorage.setItem('cc.mode', 'campaign');
+  quitToMenu();
 });
 
 requestAnimationFrame(frame);
@@ -3631,6 +4277,10 @@ window.CC = {
   damage, trainUnit, commandMove, fxExplosion,
   canPlaceBuilding, tryPlaceBuilding, makeBuilding, makeUnit, makeNest, makeEgg, startResearch,
   hatchSpitter, rankOf, startGame, MAPS, DIFFS,
+  startMission, MISSIONS, CAST,
+  get mission() { return mission; },
+  get missionState() { return ms; },
+  unlockAll() { localStorage.setItem(CAMPAIGN_KEY, String(MISSIONS.length)); renderMenu(); },
   buyNuke, launchNuke, unloadAPC, NUKE,
   get nukes() { return nukes; },
   get started() { return started; },
