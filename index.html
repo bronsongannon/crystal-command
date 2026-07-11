@@ -49,33 +49,38 @@
      screen edge — buttons flow sideways so the bar never hides the map */
   #dock {
     position: fixed; left: 220px; right: 10px; bottom: 10px;
-    display: flex; flex-direction: row; align-items: flex-end; gap: 8px;
+    display: flex; flex-direction: row; align-items: stretch; gap: 8px;
     font-size: 13px;
   }
+  /* FIXED geometry: the queue panel always occupies its slot and both panels
+     have a constant height, so nothing on the bar ever moves (playtest feedback) */
   #qpanel, #card {
     background: rgba(14, 18, 15, 0.9);
     border: 1px solid rgba(120, 200, 190, 0.25);
     border-radius: 10px;
     padding: 8px 12px;
+    height: 118px;
   }
-  #qpanel { width: 216px; flex-shrink: 0; }
-  #qpanel.hidden { display: none; }
+  #qpanel { width: 216px; flex-shrink: 0; overflow: hidden; }
+  #qpanel .idle-note { color: #55635b; font-size: 11px; margin-top: 4px; }
   #card {
     flex: 1; min-width: 0;
-    display: flex; flex-direction: row; flex-wrap: wrap; align-items: center;
+    display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-start;
+    align-content: flex-start;
     column-gap: 12px; row-gap: 4px;
+    overflow-y: auto;
   }
-  #card .hd { width: 170px; flex-shrink: 0; }
+  #card .hd { width: 140px; flex-shrink: 0; }
   #dock h3 { font-size: 13px; margin: 0 0 2px; color: #8fd8cf; font-weight: 700; }
   #dock .sub { color: #9aa89e; font-size: 10.5px; margin: 0; line-height: 1.35; }
-  #dock .row { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; flex: 0 1 auto; }
+  #dock .row { display: flex; flex-wrap: wrap; gap: 3px; margin: 0; flex: 0 1 auto; }
   #dock button {
     background: #17251f;
     border: 1px solid rgba(120, 200, 190, 0.35);
     color: #d8e0d8;
     border-radius: 7px;
-    padding: 6px 8px;
-    font-size: 11.5px; font-weight: 600;
+    padding: 5px 7px;
+    font-size: 11px; font-weight: 600;
     cursor: pointer;
     font-family: inherit;
     display: flex; justify-content: space-between; align-items: center; gap: 6px;
@@ -248,7 +253,7 @@
 
   <canvas id="minimap" width="200" height="150"></canvas>
   <div id="dock">
-    <div id="qpanel" class="hidden"></div>
+    <div id="qpanel"><div class="queue">Production</div><div class="idle-note">nothing in the works</div></div>
     <div id="card"></div>
   </div>
   <div id="toast"></div>

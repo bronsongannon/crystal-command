@@ -315,6 +315,8 @@ let bodiesReady = false;
 const OPT = {};
 (function loadOptional() {
   const names = ['dino_spitter', 'dino_nest', 'gunship', 'artillery', 'egg', 'medic', 'rocket_trooper', 'apc', 'harrier'];
+  for (const k in UNIT) names.push('unit_' + k);   // unit_marine.png, unit_tank.png, …
+  for (const k in BLD) if (k !== 'nest') names.push('bld_' + k);   // bld_hq.png, …
   for (const n of names) {
     const i = new Image();
     OPT[n] = { img: i, ok: false };
@@ -2344,8 +2346,10 @@ function refreshQueue() {
   const sig = b ? b.id + '|' + b.queue.join('.') + '|' + b.boost + '|' + Math.floor(teams[1].crystals / 25) : '';
   if (sig === lastQSig) return;
   lastQSig = sig;
-  if (!b) { elQpanel.classList.add('hidden'); return; }
-  elQpanel.classList.remove('hidden');
+  if (!b) {
+    elQpanel.innerHTML = '<div class="queue">Production</div><div class="idle-note">nothing in the works — select a building and queue something up</div>';
+    return;
+  }
   let html = `<div class="queue">Building: ${b.queue.map(queueLabel).join(' → ')}</div>`;
   html += '<div class="prog-wrap"><div class="prog" id="prog"></div></div>';
   const base = queueItemCost(b);
@@ -2533,6 +2537,38 @@ function drawEgg(e) {
 // sprite bodies for buildings; keeps the shared selection/hp/queue drawing in drawBuilding
 function drawBuildingSprite(b, x, y) {
   const C = COLORS[b.team];
+  const whole = opt('bld_' + b.type);
+  if (whole) {
+    if (b.built < 1) {
+      cx.globalAlpha = 0.55;
+      cx.strokeStyle = 'rgba(200,220,210,0.5)';
+      cx.lineWidth = 2;
+      cx.setLineDash([6, 5]);
+      rr(cx, x, y, b.w, b.h, 8); cx.stroke();
+      cx.setLineDash([]);
+    }
+    cx.drawImage(teamSprite(whole, b.team), x, y, b.w, b.h);
+    if (b.type === 'turret' || b.type === 'flak') {   // rotating gun stays game-drawn
+      cx.save();
+      cx.translate(b.x, b.y);
+      cx.rotate(b.faceA + Math.PI / 2);
+      cx.drawImage(BODY.turret_gun, -14, -19, 28, 28);
+      cx.restore();
+    }
+    if (b.type === 'silo' && b.warhead) {
+      cx.fillStyle = '#e0564a';
+      cx.beginPath(); cx.ellipse(b.x, b.y, 5, 11, 0, 0, Math.PI * 2); cx.fill();
+    }
+    if (b.built < 1) {
+      cx.globalAlpha = 1;
+      cx.fillStyle = 'rgba(255,255,255,0.8)';
+      cx.font = '11px -apple-system, sans-serif';
+      cx.textAlign = 'center';
+      cx.fillText(Math.floor(b.built * 100) + '%', b.x, b.y - b.h / 2 - 8);
+    }
+    cx.globalAlpha = 1;
+    return;
+  }
   if (b.built < 1) {
     cx.globalAlpha = 0.55;
     cx.strokeStyle = 'rgba(200,220,210,0.5)';
@@ -2802,6 +2838,13 @@ function drawBuilding(b) {
 // called inside a translate(u.x,u.y)+rotate(u.faceA) transform, so +x is forward.
 // Infantry art faces right (no extra rotation); vehicle art points up (rotate +90°).
 function drawUnitSprite(u) {
+  const whole = opt('unit_' + u.type);
+  if (whole) {
+    cx.rotate(Math.PI / 2);              // generated art faces up
+    const s = u.r * 2.7;
+    cx.drawImage(teamSprite(whole, u.team), -s / 2, -s / 2, s, s);
+    return;
+  }
   if (u.type === 'medic') {
     const img = opt('medic');
     if (img) {
@@ -2877,7 +2920,7 @@ function drawUnitSprite(u) {
 // Team-colored: wild ones are acid green, hatched player dinos wear teal.
 // No sprite art yet; when dino sprites land they slot in via drawUnitSprite.
 function drawDino(u) {
-  const img = opt('dino_spitter');
+  const img = opt('unit_spitter') || opt('dino_spitter');
   if (img) {
     cx.rotate(Math.PI / 2);   // art faces up
     cx.drawImage(teamSprite(img, u.team), -13, -13, 26, 26);
@@ -2903,7 +2946,7 @@ function drawDino(u) {
 
 // gunship — drawn inside translate+rotate, +x forward. Procedural (no air art yet).
 function drawGunship(u) {
-  const img = opt('gunship');
+  const img = opt('unit_gunship') || opt('gunship');
   if (img) {
     cx.rotate(Math.PI / 2);   // art faces up
     cx.drawImage(teamSprite(img, u.team), -17, -17, 34, 34);
@@ -2949,7 +2992,7 @@ function drawGunship(u) {
 // delta-wing strike jet — +x forward. Red belly light = bomb still aboard.
 function drawJet(u) {
   const C = COLORS[u.team];
-  const img = opt('harrier');
+  const img = opt('unit_harrier') || opt('harrier');
   if (img) {
     cx.rotate(Math.PI / 2);
     cx.drawImage(teamSprite(img, u.team), -16, -16, 32, 32);
