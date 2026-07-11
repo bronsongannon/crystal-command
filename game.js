@@ -2593,7 +2593,7 @@ function drawBuildingSprite(b, x, y) {
       cx.translate(b.x, b.y);
       cx.rotate(b.faceA + Math.PI / 2);
       if (b.recoil) cx.translate(0, b.recoil);        // gun art points up: recoil = slide back
-      cx.drawImage(BODY.turret_gun, -14, -19, 28, 28);
+      cx.drawImage(teamSprite(BODY.turret_gun, b.team), -14, -19, 28, 28);
       cx.restore();
     }
     if (b.type === 'silo' && b.warhead) {
