@@ -317,6 +317,8 @@ const OPT = {};
   const names = ['dino_spitter', 'dino_nest', 'gunship', 'artillery', 'egg', 'medic', 'rocket_trooper', 'apc', 'harrier'];
   for (const k in UNIT) names.push('unit_' + k);   // unit_marine.png, unit_tank.png, …
   for (const k in BLD) if (k !== 'nest') names.push('bld_' + k);   // bld_hq.png, …
+  names.push('unit_marine_hunker', 'unit_sniper_hunker', 'unit_artillery_hunker');   // dug-in poses
+  names.push('rock', 'crystal');   // terrain art (natural colors, not tinted)
   for (const n of names) {
     const i = new Image();
     OPT[n] = { img: i, ok: false };
@@ -566,6 +568,7 @@ function makeUnit(type, team, x, y) {
     carry: 0, mineT: 0, lastCrystal: null,
     kills: 0, eggCarry: false, fly: !!d.fly, stuckT: 0, ghostT: 0,
     cargo: d.cargo ? [] : null, armed: !!d.bomb,
+    walkT: 0, moving: false, recoil: 0,
     order: { type: 'idle' },
   };
   units.push(u);
@@ -1124,6 +1127,8 @@ function updateNukes() {
 // ---------------- Combat ----------------
 function fire(src, target) {
   src.cool = src.cooldown;
+  src.recoil = src.type === 'tank' || src.type === 'artillery' ? 6
+    : src.type === 'turret' || src.type === 'flak' ? 4 : 2.5;
   src.faceA = Math.atan2(target.y - src.y, target.x - src.x);
   const kind = src.type === 'artillery' ? 'arc' : src.type === 'tank' ? 'shell'
     : src.type === 'sniper' ? 'snipe' : src.type === 'spitter' ? 'spit'
@@ -1255,12 +1260,27 @@ function moveToward(u, tx, ty) {
   const step = Math.min(effSpeed(u), d);
   u.x += Math.cos(a) * step;
   u.y += Math.sin(a) * step;
+  if (step > 0.2) {
+    u.walkT += step;
+    u.moving = true;
+    // ground vehicles kick up dust while driving
+    if (spritesReady && step > 0.6 && !IS_INF[u.type] && u.type !== 'spitter' && (tick + u.id) % 8 === 0) {
+      fxSprite({
+        img: pick(SPR.puff),
+        x: u.x - Math.cos(a) * u.r, y: u.y - Math.sin(a) * u.r,
+        vx: -Math.cos(a) * 0.25, vy: -Math.sin(a) * 0.25,
+        s0: 5, s1: 14, a0: 0.22, max: 22,
+      });
+    }
+  }
   return d - step < 5;
 }
 
 function updateUnit(u) {
   if (u.cool > 0) u.cool--;
   if (u.ghostT > 0) u.ghostT--;
+  u.moving = false;
+  if (u.recoil) { u.recoil *= 0.78; if (u.recoil < 0.3) u.recoil = 0; }
   // pathing watchdog: while following a path, require steady progress toward
   // the goal. No progress for 2.5s = orbiting or wedged on a rock face —
   // re-route and briefly ghost through the obstacle lip to break the cycle.
@@ -1611,6 +1631,7 @@ function updateBuilding(b) {
     return;
   }
   if (b.cool > 0) b.cool--;
+  if (b.recoil) { b.recoil *= 0.78; if (b.recoil < 0.3) b.recoil = 0; }
   if (b.dmg > 0) {
     const t = BLD[b.type].airOnly
       ? nearestEnemyUnit(b.x, b.y, b.team, b.range, true, true)
@@ -1885,7 +1906,7 @@ function setCursor() {
 function pruneSelection() {
   selection = selection.filter(e => e.hp > 0 && (e.kind !== 'unit' || units.includes(e)));
 }
-const canHunker = (u) => u.type === 'marine' || u.type === 'artillery';
+const canHunker = (u) => u.type === 'marine' || u.type === 'artillery' || u.type === 'sniper';
 function toggleHunker() {
   const diggers = selection.filter(s => s.kind === 'unit' && canHunker(s) && s.hp > 0);
   if (!diggers.length) return;
@@ -1893,7 +1914,8 @@ function toggleHunker() {
   for (const m of diggers) m.order = allDown ? { type: 'idle' } : { type: 'hunker' };
   if (!allDown) {
     const label = diggers.every(d => d.type === 'artillery') ? 'Artillery dug in'
-      : diggers.every(d => d.type === 'marine') ? 'Marines hunkered down' : 'Troops dug in';
+      : diggers.every(d => d.type === 'marine') ? 'Marines hunkered down'
+      : diggers.every(d => d.type === 'sniper') ? 'Snipers gone prone' : 'Troops dug in';
     toast(label + ' — half damage, holding position');
   }
   beep(allDown ? 500 : 380, 0.07, 'triangle', 0.04);
@@ -2426,6 +2448,16 @@ groundCv.width = W; groundCv.height = H;
 function paintRock(g, rk) {
   g.fillStyle = 'rgba(0,0,0,0.35)';   // ground shadow
   g.beginPath(); g.ellipse(rk.x + 5, rk.y + 7, rk.r * 1.02, rk.r * 0.88, 0, 0, Math.PI * 2); g.fill();
+  const img = opt('rock');
+  if (img) {
+    const s = rk.r * 2.3;
+    g.save();
+    g.translate(rk.x, rk.y);
+    g.rotate((rk.x * 7.3 + rk.y * 13.7) % (Math.PI * 2));   // stable variety per rock
+    g.drawImage(img, -s / 2, -s / 2, s, s);
+    g.restore();
+    return;
+  }
   const blob = (rad, fill, ox, oy) => {
     g.fillStyle = fill;
     g.beginPath();
@@ -2504,6 +2536,14 @@ function drawCrystal(c) {
   cx.translate(c.x, c.y);
   cx.fillStyle = 'rgba(111,227,208,0.14)';
   cx.beginPath(); cx.arc(0, 0, r + 6, 0, Math.PI * 2); cx.fill();
+  const img = opt('crystal');
+  if (img) {
+    const s = (r + 4) * 2.3;
+    cx.rotate((c.id * 2.399) % (Math.PI * 2));
+    cx.drawImage(img, -s / 2, -s / 2, s, s);
+    cx.restore();
+    return;
+  }
   cx.fillStyle = CRYSTAL_COLOR;
   cx.beginPath();
   cx.moveTo(0, -r); cx.lineTo(r * 0.7, 0); cx.lineTo(0, r); cx.lineTo(-r * 0.7, 0);
@@ -2552,6 +2592,7 @@ function drawBuildingSprite(b, x, y) {
       cx.save();
       cx.translate(b.x, b.y);
       cx.rotate(b.faceA + Math.PI / 2);
+      if (b.recoil) cx.translate(0, b.recoil);        // gun art points up: recoil = slide back
       cx.drawImage(BODY.turret_gun, -14, -19, 28, 28);
       cx.restore();
     }
@@ -2838,7 +2879,10 @@ function drawBuilding(b) {
 // called inside a translate(u.x,u.y)+rotate(u.faceA) transform, so +x is forward.
 // Infantry art faces right (no extra rotation); vehicle art points up (rotate +90°).
 function drawUnitSprite(u) {
-  const whole = opt('unit_' + u.type);
+  // dug-in units swap to their hunker pose; a missing standing sprite falls
+  // back to the hunker art so partial art sets never break
+  const hk = opt('unit_' + u.type + '_hunker');
+  const whole = (u.order.type === 'hunker' && hk) || opt('unit_' + u.type) || hk;
   if (whole) {
     cx.rotate(Math.PI / 2);              // generated art faces up
     const s = u.r * 2.7;
@@ -3045,6 +3089,7 @@ function drawUnit(u) {
     cx.save();
     cx.translate(u.x, u.y);
     cx.rotate(u.faceA);
+    if (u.moving) cx.rotate(Math.sin(u.walkT * 0.55) * 0.09);     // scurry wiggle
     drawDino(u);
     cx.restore();
     if (sel || u.hp < u.maxHp) drawHpBar(u.x, u.y - u.r - 10, u.r * 2.4, u.hp, u.maxHp);
@@ -3062,6 +3107,8 @@ function drawUnit(u) {
   cx.save();
   cx.translate(u.x, u.y);
   cx.rotate(u.faceA);
+  if (u.recoil) cx.translate(-u.recoil, 0);                       // gun kick
+  if ((IS_INF[u.type]) && u.moving) cx.rotate(Math.sin(u.walkT * 0.4) * 0.07);   // walk sway
   if (bodiesReady) {
     drawUnitSprite(u);
     cx.restore();

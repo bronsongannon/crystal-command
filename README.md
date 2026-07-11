@@ -69,7 +69,7 @@ fight) · **Hard** (early pressure, relentless waves, a rich enemy, nukes) ·
 | Right-click (two-finger tap) | Move / attack / harvest |
 | A, then click | Attack-move (fight everything on the way) |
 | S | Stop |
-| H | Marines & artillery hunker down — half damage, hold position (press again to release) |
+| H | Marines, snipers & artillery hunker down — half damage, hold position (snipers go prone) |
 | Q / W / E / R / D | Train units & research upgrades (select a production building first) |
 | T / B / V / C / G / X / Y, then click | Place a Turret / Barracks / Factory / Supply Depot / Refinery / Airpad / Flak Turret |
 | Arrow keys / screen edge / minimap | Move the camera |
@@ -88,7 +88,7 @@ map/difficulty select.
 - **Engineer** (90) — repairs damaged buildings **and vehicles**; right-click a
   target, or leave him near the base and he'll fix things on his own
 - **Marine** (80) — fast, cheap ranged infantry; can hunker down to hold ground (Barracks)
-- **Sniper** (130) — fragile, but huge range and the best eyesight in the game (Barracks)
+- **Sniper** (130) — fragile, but huge range and the best eyesight in the game; press `H` to go prone (Barracks)
 - **Medic** (100) — unarmed. Automatically heals nearby wounded infantry and
   dinos, and follows the fight; right-click a hurt friend to assign her. Keep
   one behind your marine line and it lives twice as long (Barracks)
