@@ -541,20 +541,57 @@ function beep(freq, dur, type, vol, slideTo) {
     o.start(); o.stop(actx.currentTime + dur);
   } catch (e) { /* ignore */ }
 }
+// Sample sfx (optional, like the OPT sprite slots): drop assets/sfx/<name>.wav|ogg|mp3 and it
+// plays instead of the procedural beep. Each file independent; missing file = beep fallback.
+const SFX_NAMES = ['shot', 'shell', 'thump', 'spit', 'rocket', 'launch', 'snipe', 'boom',
+                   'deposit', 'repair', 'ready', 'error', 'alarm', 'select'];
+const SFX_EXTS = ['wav', 'ogg', 'mp3'];
+const SFX_VOL = { shot: 0.16, shell: 0.3, thump: 0.35, spit: 0.2, rocket: 0.25, snipe: 0.2,
+                  launch: 0.6, boom: 0.45, deposit: 0.2, repair: 0.15, ready: 0.3,
+                  error: 0.3, alarm: 0.4, select: 0.12 };
+const SFX_POOL = 4;   // simultaneous overlapping plays per sound
+const sfx = {};       // name -> { pool: [HTMLAudio...], i }
+(function loadSfx() {
+  for (const name of SFX_NAMES) tryExt(name, 0);
+  function tryExt(name, i) {
+    if (i >= SFX_EXTS.length) return;
+    const el = new Audio();
+    el.preload = 'auto';
+    el.oncanplaythrough = () => {
+      if (sfx[name]) return;
+      const pool = [el];
+      for (let k = 1; k < SFX_POOL; k++) pool.push(el.cloneNode());
+      sfx[name] = { pool, i: 0 };
+    };
+    el.onerror = () => tryExt(name, i + 1);
+    el.src = 'assets/sfx/' + name + '.' + SFX_EXTS[i];
+  }
+})();
+function playSfx(name) {
+  const s = sfx[name];
+  if (!s) return false;   // no sample loaded — caller falls back to beep
+  if (!muted) {
+    const el = s.pool[s.i = (s.i + 1) % s.pool.length];
+    el.volume = SFX_VOL[name] !== undefined ? SFX_VOL[name] : 0.3;
+    try { el.currentTime = 0; el.play().catch(() => { /* pre-gesture autoplay block */ }); } catch (e) { /* ignore */ }
+  }
+  return true;
+}
 const snd = {
-  shot()    { if (tick - lastShotSound < 4) return; lastShotSound = tick; beep(880, 0.05, 'square', 0.018); },
-  shell()   { if (tick - lastShotSound < 4) return; lastShotSound = tick; beep(170, 0.16, 'sawtooth', 0.05, 60); },
-  thump()   { if (tick - lastShotSound < 4) return; lastShotSound = tick; beep(90, 0.24, 'sawtooth', 0.07, 30); },
-  spit()    { if (tick - lastShotSound < 4) return; lastShotSound = tick; beep(340, 0.09, 'triangle', 0.035, 120); },
-  rocket()  { if (tick - lastShotSound < 4) return; lastShotSound = tick; beep(420, 0.18, 'sawtooth', 0.04, 90); },
-  launch()  { beep(60, 0.9, 'sawtooth', 0.09, 400); setTimeout(() => beep(52, 0.9, 'sawtooth', 0.08, 300), 350); },
-  snipe()   { if (tick - lastShotSound < 4) return; lastShotSound = tick; beep(1600, 0.09, 'square', 0.03, 220); },
-  boom()    { beep(95, 0.32, 'sawtooth', 0.07, 28); },
-  deposit() { beep(1240, 0.07, 'sine', 0.035); },
-  repair()  { beep(760, 0.05, 'triangle', 0.03, 980); },
-  ready()   { beep(620, 0.07, 'sine', 0.045); setTimeout(() => beep(880, 0.09, 'sine', 0.045), 80); },
-  error()   { beep(170, 0.11, 'square', 0.045); },
-  alarm()   { beep(520, 0.14, 'square', 0.06, 320); setTimeout(() => beep(520, 0.14, 'square', 0.06, 320), 200); },
+  shot()    { if (tick - lastShotSound < 4) return; lastShotSound = tick; if (!playSfx('shot')) beep(880, 0.05, 'square', 0.018); },
+  shell()   { if (tick - lastShotSound < 4) return; lastShotSound = tick; if (!playSfx('shell')) beep(170, 0.16, 'sawtooth', 0.05, 60); },
+  thump()   { if (tick - lastShotSound < 4) return; lastShotSound = tick; if (!playSfx('thump')) beep(90, 0.24, 'sawtooth', 0.07, 30); },
+  spit()    { if (tick - lastShotSound < 4) return; lastShotSound = tick; if (!playSfx('spit')) beep(340, 0.09, 'triangle', 0.035, 120); },
+  rocket()  { if (tick - lastShotSound < 4) return; lastShotSound = tick; if (!playSfx('rocket')) beep(420, 0.18, 'sawtooth', 0.04, 90); },
+  launch()  { if (playSfx('launch')) return; beep(60, 0.9, 'sawtooth', 0.09, 400); setTimeout(() => beep(52, 0.9, 'sawtooth', 0.08, 300), 350); },
+  snipe()   { if (tick - lastShotSound < 4) return; lastShotSound = tick; if (!playSfx('snipe')) beep(1600, 0.09, 'square', 0.03, 220); },
+  boom()    { if (!playSfx('boom')) beep(95, 0.32, 'sawtooth', 0.07, 28); },
+  deposit() { if (!playSfx('deposit')) beep(1240, 0.07, 'sine', 0.035); },
+  repair()  { if (!playSfx('repair')) beep(760, 0.05, 'triangle', 0.03, 980); },
+  ready()   { if (playSfx('ready')) return; beep(620, 0.07, 'sine', 0.045); setTimeout(() => beep(880, 0.09, 'sine', 0.045), 80); },
+  error()   { if (!playSfx('error')) beep(170, 0.11, 'square', 0.045); },
+  alarm()   { if (playSfx('alarm')) return; beep(520, 0.14, 'square', 0.06, 320); setTimeout(() => beep(520, 0.14, 'square', 0.06, 320), 200); },
+  select()  { if (!playSfx('select')) beep(540, 0.035, 'sine', 0.02); },
 };
 
 // ---------------- Factories ----------------
@@ -1967,7 +2004,7 @@ window.addEventListener('mouseup', (e) => {
       selection = b ? [b] : [];
     }
   }
-  if (selection.length) beep(540, 0.035, 'sine', 0.02);   // soft select blip
+  if (selection.length) snd.select();   // soft select blip
 });
 cv.addEventListener('contextmenu', (e) => {
   e.preventDefault();
