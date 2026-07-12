@@ -351,11 +351,14 @@ const techLabel = (type) => (BLD[type].req || []).map(r => BLD[r].label).join(' 
 // bld: optional darker tint for STRUCTURES (red's identity touch — Rubicon
 // architecture reads heavier than its vehicles). Wild dinos read as *nature*,
 // not a faction: bone hide, moss darks. Broodfallen (corrupted red) comes in Act 3.
+// Five-role palettes (assets/sprites/STYLE-GUIDE.md): main=hull, trim=panels,
+// accent=lights/tips (the 5% that pops), bld=structures, fx=projectiles/glow.
 const COLORS = {
-  1: { main: '#3fb9c9', dark: '#1e6570', light: '#9fe8ef' },
-  2: { main: '#e0564a', dark: '#7c2a24', light: '#f5a89a', bld: '#b8443a' },
-  3: { main: '#c2bb96', dark: '#5f5c3e', light: '#eae4cb' },   // dinos: bone hide, moss shadow
+  1: { main: '#3fb9c9', dark: '#1e6570', light: '#9fe8ef', trim: '#e8e4d8', accent: '#f0c86a', bld: '#2f97a6', fx: '#9fe8ef' },
+  2: { main: '#e0564a', dark: '#7c2a24', light: '#f5a89a', trim: '#3a3f45', accent: '#f2b63d', bld: '#b8443a', fx: '#f5a89a' },
+  3: { main: '#c2bb96', dark: '#5f5c3e', light: '#eae4cb', trim: '#5f5c3e', accent: '#a8d060', bld: '#c2bb96', fx: '#b6e06a' },   // dinos: bone hide, moss, venom
 };
+const HAZARD_YELLOW = '#f2b63d';   // industrial hazard striping is universal, not a team color
 const CRYSTAL_COLOR = '#6fe3d0';
 
 // ---------------- State ----------------
@@ -3067,6 +3070,56 @@ function drawBuildingSprite(b, x, y) {
   cx.globalAlpha = 1;
 }
 
+// industrial hazard striping: yellow band with dark diagonals, clipped to a rect
+function drawHazardBand(x, y, w, h) {
+  cx.save();
+  cx.beginPath(); cx.rect(x, y, w, h); cx.clip();
+  cx.fillStyle = HAZARD_YELLOW;
+  cx.fillRect(x, y, w, h);
+  cx.strokeStyle = '#26241f';
+  cx.lineWidth = 3;
+  cx.beginPath();
+  for (let i = -h; i < w + h; i += 8) { cx.moveTo(x + i, y + h + 2); cx.lineTo(x + i + h + 4, y - 2); }
+  cx.stroke();
+  cx.restore();
+}
+
+// Phase B accent overlays (STYLE-GUIDE.md): each building's signature detail,
+// drawn over the tinted body so sprite and procedural paths both get it
+function drawBuildingDecor(b) {
+  if (b.built < 1) return;
+  const C = COLORS[b.team];
+  const x = b.x - b.w / 2, y = b.y - b.h / 2;
+  if (b.type === 'barracks') {
+    // awning stripes over the door
+    for (let i = 0; i < 5; i++) {
+      cx.fillStyle = i % 2 ? C.trim : C.accent;
+      cx.fillRect(b.x - 15 + i * 6, y + b.h - 27, 6, 5);
+    }
+  } else if (b.type === 'factory') {
+    drawHazardBand(b.x - 17, y + b.h - 23, 34, 5);   // hazard-striped bay door lintel
+  } else if (b.type === 'supply') {
+    cx.fillStyle = C.trim;
+    cx.globalAlpha = 0.75;
+    cx.fillRect(x + 7, y + 5, b.w - 14, 3);          // one trim band across the pad
+    cx.globalAlpha = 1;
+  } else if (b.type === 'turret' || b.type === 'flak') {
+    // status light: steady blink while the grid holds (brownout swaps it for the ⚡)
+    if (tick % 70 < 45 && !lowPower(b.team)) {
+      cx.fillStyle = C.accent;
+      cx.beginPath(); cx.arc(x + b.w - 5, y + 5, 2, 0, Math.PI * 2); cx.fill();
+    }
+  } else if (b.type === 'silo') {
+    cx.strokeStyle = C.accent;
+    cx.globalAlpha = 0.7;
+    cx.setLineDash([5, 4]);
+    cx.lineWidth = 2;
+    cx.beginPath(); cx.arc(b.x, b.y, 20, 0, Math.PI * 2); cx.stroke();
+    cx.setLineDash([]);
+    cx.globalAlpha = 1;
+  }
+}
+
 // Rubicon Mining's pennant: dark-red flag on a pole at the HQ's corner, waving
 // on the sim tick, with the company's diamond sigil. Cheap, reads at a glance.
 function drawRubiconBanner(b) {
@@ -3239,8 +3292,9 @@ function drawBuilding(b) {
   }
   }
 
-  // Rubicon corporate banner on red's HQ — identity touch, not "evil": a rival
-  // company flies its flag (drawn here so sprite AND procedural paths get it)
+  // Phase B signature details + Rubicon's flag (drawn here so sprite AND
+  // procedural paths both get them)
+  drawBuildingDecor(b);
   if (b.type === 'hq' && b.team === 2 && b.built >= 1) drawRubiconBanner(b);
 
   if (sel) {
@@ -3419,7 +3473,7 @@ function drawDino(u) {
   cx.beginPath(); cx.ellipse(9, 0, 4.5, 3.4, 0, 0, Math.PI * 2); cx.fill();
   cx.fillStyle = '#a8d060';                         // throat sac — venom is biology, not faction
   cx.beginPath(); cx.arc(7, 0, 2, 0, Math.PI * 2); cx.fill();
-  cx.fillStyle = '#1a200e';                         // eyes
+  cx.fillStyle = '#e0a43c';                         // amber predator eyeshine
   cx.beginPath(); cx.arc(9.5, -2.2, 1, 0, Math.PI * 2); cx.arc(9.5, 2.2, 1, 0, Math.PI * 2); cx.fill();
 }
 
@@ -3516,6 +3570,7 @@ function drawUnit(u) {
     cx.rotate(u.faceA);
     if (u.type === 'gunship') drawGunship(u); else drawJet(u);
     cx.restore();
+    drawUnitDecor(u);
     if (sel || u.hp < u.maxHp) drawHpBar(u.x, u.y - u.r - 12, u.r * 2.4, u.hp, u.maxHp);
     drawRank(u);
     return;
@@ -3555,6 +3610,7 @@ function drawUnit(u) {
   if (bodiesReady) {
     drawUnitSprite(u);
     cx.restore();
+    drawUnitDecor(u);
     if (sel || u.hp < u.maxHp) drawHpBar(u.x, u.y - u.r - 10, u.r * 2.4, u.hp, u.maxHp);
     drawRank(u);
     drawCargoPips(u);
@@ -3669,10 +3725,100 @@ function drawUnit(u) {
     }
   }
   cx.restore();
+  drawUnitDecor(u);
   if (sel || u.hp < u.maxHp) drawHpBar(u.x, u.y - u.r - 10, u.r * 2.4, u.hp, u.maxHp);
   drawRank(u);
   drawCargoPips(u);
   drawCapRing(u);
+}
+
+// Phase B accent overlays (STYLE-GUIDE.md): tiny signature details drawn over
+// the tinted body — 5% of the pixels, most of the identity. Own transform so it
+// works over sprite AND procedural bodies. Local frame: +x = facing.
+function drawUnitDecor(u) {
+  const C = COLORS[u.team];
+  cx.save();
+  cx.translate(u.x, u.y);
+  cx.rotate(u.faceA);
+  switch (u.type) {
+    case 'marine':      // accent visor strip across the helmet
+      cx.strokeStyle = C.accent;
+      cx.lineWidth = 2;
+      cx.beginPath(); cx.arc(1, 0, 4.5, -0.65, 0.65); cx.stroke();
+      break;
+    case 'sniper':      // scope glint — one blinking pixel of menace
+      if (tick % 60 < 26) {
+        cx.fillStyle = C.accent;
+        cx.beginPath(); cx.arc(7, -2, 1.4, 0, Math.PI * 2); cx.fill();
+      }
+      break;
+    case 'rocket':      // red warhead tip peeking from the tube
+      cx.fillStyle = '#e0564a';
+      cx.beginPath(); cx.arc(8, -5, 1.8, 0, Math.PI * 2); cx.fill();
+      break;
+    case 'harvester':
+    case 'rig': {       // hazard ticks on the scoop; cargo state readable on any art
+      cx.strokeStyle = HAZARD_YELLOW;
+      cx.lineWidth = 2;
+      cx.beginPath();
+      for (const oy of [-6, -1, 4]) { cx.moveTo(9, oy); cx.lineTo(12, oy + 3); }
+      cx.stroke();
+      if (u.type === 'harvester') {
+        if (u.eggCarry) {
+          cx.fillStyle = '#e8e2cc';
+          cx.beginPath(); cx.ellipse(-2, 0, 3.5, 4.5, 0, 0, Math.PI * 2); cx.fill();
+        } else if (u.carry > 0) {
+          cx.fillStyle = CRYSTAL_COLOR;
+          cx.fillRect(-5, -3.5, 7, 7);
+        }
+      }
+      break;
+    }
+    case 'raider':      // racing stripe + headlight
+      cx.strokeStyle = C.trim;
+      cx.globalAlpha = 0.85;
+      cx.lineWidth = 2;
+      cx.beginPath(); cx.moveTo(-9, 0); cx.lineTo(9, 0); cx.stroke();
+      cx.globalAlpha = 1;
+      cx.fillStyle = C.accent;
+      cx.beginPath(); cx.arc(11, 0, 1.6, 0, Math.PI * 2); cx.fill();
+      break;
+    case 'tank':        // muzzle band
+      cx.strokeStyle = C.accent;
+      cx.lineWidth = 2;
+      cx.beginPath(); cx.moveTo(14, -2.2); cx.lineTo(14, 2.2); cx.stroke();
+      break;
+    case 'apc':         // hazard chevrons on the rear ramp
+      cx.strokeStyle = HAZARD_YELLOW;
+      cx.lineWidth = 1.8;
+      cx.beginPath();
+      cx.moveTo(-8, -4); cx.lineTo(-11, 0); cx.lineTo(-8, 4);
+      cx.moveTo(-5, -4); cx.lineTo(-8, 0); cx.lineTo(-5, 4);
+      cx.stroke();
+      break;
+    case 'artillery':   // bands ringing the long barrel
+      cx.strokeStyle = C.accent;
+      cx.lineWidth = 1.8;
+      cx.beginPath();
+      cx.moveTo(17, -2); cx.lineTo(17, 2);
+      cx.moveTo(22, -1.8); cx.lineTo(22, 1.8);
+      cx.stroke();
+      break;
+    case 'gunship':     // nose sensor ball
+      cx.fillStyle = C.accent;
+      cx.beginPath(); cx.arc(9, 0, 1.8, 0, Math.PI * 2); cx.fill();
+      break;
+    case 'harrier':     // engine intake glow
+      cx.fillStyle = C.accent;
+      cx.globalAlpha = 0.9;
+      cx.beginPath();
+      cx.arc(2, -3.5, 1.4, 0, Math.PI * 2);
+      cx.arc(2, 3.5, 1.4, 0, Math.PI * 2);
+      cx.fill();
+      cx.globalAlpha = 1;
+      break;
+  }
+  cx.restore();
 }
 
 // capture channel progress — a green arc closing around the rig
@@ -3723,7 +3869,7 @@ function drawBullet(p) {
     cx.stroke();
   } else {
     const C = COLORS[p.team];
-    cx.strokeStyle = C.light;
+    cx.strokeStyle = C.fx || C.light;   // team FX role: tracers wear the faction's glow
     cx.lineWidth = 2;
     cx.beginPath();
     cx.moveTo(p.x, p.y);

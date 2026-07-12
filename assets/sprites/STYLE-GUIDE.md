@@ -118,10 +118,15 @@ survive at 30px; procedural overlays can draw these today, art bakes them later)
 - **Phase A — SHIPPED (2026-07-12):** single tint + per-team structure tint
   (`bldSprite`, `COLORS[team].bld`) + Rubicon banner + bone/moss dinos + pinned
   venom accents.
-- **Phase B — code-only (next):** extend `COLORS` with `trim`/`accent`/`fx`
-  roles; per-class procedural overlays drawn after the sprite (visor strips,
-  racing stripes, hazard chevrons, muzzle bands, awnings, bay doors) — the
-  medic-cross/rig-cage pattern, systematized. Per-team FX colors on bullets.
+- **Phase B — SHIPPED (2026-07-12):** `COLORS` gained `trim`/`accent`/`fx`
+  roles (+ `bld` for all teams — player structures now deep teal); per-class
+  overlays in `drawUnitDecor` (visor strips, scope glint, warhead tips, hazard
+  scoop ticks + cargo state, racing stripes, muzzle/barrel bands, APC chevrons,
+  aircraft sensor/intake dots) and `drawBuildingDecor` (barracks awning, factory
+  hazard bay door, depot trim band, turret/flak status light, silo hazard ring)
+  — drawn over BOTH sprite and procedural bodies via their own transform.
+  `HAZARD_YELLOW` is universal industrial, not a team color. Tracers wear the
+  team `fx` role; spitter eyes went amber (predator eyeshine).
 - **Phase C — art pipeline:** optional `unit_<type>_trim.png` mask per sprite
   (same OPT philosophy: missing = skip). The mask is tinted with the TRIM color
   and composited over the hull-tinted base — true two-tone sprites without
