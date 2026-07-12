@@ -269,7 +269,12 @@ can pad the late acts cheaply.
    base-build, scripted spitter probe, scouting the mid-map fields, and capturing a live
    spitter for Dr. Lin with the new **Capture Rig** unit (~10–15 min).
    Cast established: Cpt. Vega (ops), Dr. Lin (xenobiology), Cdr. Krauss (Rubicon — unused yet).
-2. **Team color pass** — small, and Act 1 needs it
+2. ✅ DONE 2026-07-12: **Team color pass** — wild dinos now bone hide / moss shadow
+   (COLORS[3]), red structures run a darker corporate tint than red units
+   (`COLORS[2].bld` via `bldSprite`), red HQ flies the Rubicon pennant
+   (`drawRubiconBanner`), spitter throat sac pinned venom-green (biology, not
+   faction). Colorblind rule enforced by luminance ladder: bone .72 / teal .59 /
+   red .49 (structures .40).
 3. **Raptor + Raptor Den** — Act 1's finale wants the swarm tease
 
 ### Engine work implied by Acts 2–3 (rollup, in rough build order)

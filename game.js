@@ -345,10 +345,16 @@ function hasTech(team, type) {
   return !req || req.every(r => buildings.some(b => b.team === team && b.type === r && b.built >= 1));
 }
 const techLabel = (type) => (BLD[type].req || []).map(r => BLD[r].label).join(' + ');
+// Team color schemes (CAMPAIGN.md). Colorblind rule: the three teams separate
+// by BRIGHTNESS, not just hue — teal mid (lum ~.59), red dark (~.49), wild
+// dinos pale bone (~.72) — so minimap dots stay readable under any color vision.
+// bld: optional darker tint for STRUCTURES (red's identity touch — Rubicon
+// architecture reads heavier than its vehicles). Wild dinos read as *nature*,
+// not a faction: bone hide, moss darks. Broodfallen (corrupted red) comes in Act 3.
 const COLORS = {
   1: { main: '#3fb9c9', dark: '#1e6570', light: '#9fe8ef' },
-  2: { main: '#e0564a', dark: '#7c2a24', light: '#f5a89a' },
-  3: { main: '#8fc94a', dark: '#48661f', light: '#d6f0a0' },   // dinos: acid green
+  2: { main: '#e0564a', dark: '#7c2a24', light: '#f5a89a', bld: '#b8443a' },
+  3: { main: '#c2bb96', dark: '#5f5c3e', light: '#eae4cb' },   // dinos: bone hide, moss shadow
 };
 const CRYSTAL_COLOR = '#6fe3d0';
 
@@ -439,10 +445,11 @@ const OPT = {};
 })();
 const opt = (n) => (OPT[n] && OPT[n].ok) ? OPT[n].img : null;
 
-// team-color tinted copies, built once per (sprite, team) on first use
+// team-color tinted copies, built once per (sprite, tint) on first use
 const tintCache = new Map();
-function teamSprite(img, team) {
-  const key = img.src + '|' + team;
+function teamSprite(img, team, tint) {
+  tint = tint || COLORS[team].main;
+  const key = img.src + '|' + tint;
   let c = tintCache.get(key);
   if (!c) {
     c = document.createElement('canvas');
@@ -450,7 +457,7 @@ function teamSprite(img, team) {
     const g = c.getContext('2d');
     g.drawImage(img, 0, 0);
     g.globalCompositeOperation = 'multiply';          // team color, keeps shading
-    g.fillStyle = COLORS[team].main;
+    g.fillStyle = tint;
     g.fillRect(0, 0, c.width, c.height);
     g.globalCompositeOperation = 'destination-in';    // restore transparency
     g.drawImage(img, 0, 0);
@@ -458,6 +465,8 @@ function teamSprite(img, team) {
   }
   return c;
 }
+// structures can run a darker tint than the team's vehicles (red's identity touch)
+const bldSprite = (img, team) => teamSprite(img, team, COLORS[team].bld || COLORS[team].main);
 
 // distance from unit/building center to the muzzle tip of its drawn barrel
 const MUZZLE_LEN = { marine: 15, sniper: 24, rocket: 16, raider: 17, tank: 22, artillery: 28, gunship: 13, turret: 22, flak: 20, engineer: 11, harvester: 12 };
@@ -2911,7 +2920,7 @@ function drawEgg(e) {
   cx.beginPath(); cx.arc(0, 0, e.r + 5, 0, Math.PI * 2); cx.fill();
   cx.fillStyle = '#e8e2cc';
   cx.beginPath(); cx.ellipse(0, 0, e.r * 0.72, e.r, 0.15, 0, Math.PI * 2); cx.fill();
-  cx.fillStyle = COLORS[3].main;             // speckles
+  cx.fillStyle = COLORS[3].dark;             // moss speckles on bone shell
   cx.beginPath(); cx.arc(-2, -3, 1.2, 0, Math.PI * 2); cx.fill();
   cx.beginPath(); cx.arc(2, 1, 1, 0, Math.PI * 2); cx.fill();
   cx.beginPath(); cx.arc(-1, 3.5, 0.9, 0, Math.PI * 2); cx.fill();
@@ -2931,13 +2940,13 @@ function drawBuildingSprite(b, x, y) {
       rr(cx, x, y, b.w, b.h, 8); cx.stroke();
       cx.setLineDash([]);
     }
-    cx.drawImage(teamSprite(whole, b.team), x, y, b.w, b.h);
+    cx.drawImage(bldSprite(whole, b.team), x, y, b.w, b.h);
     if (b.type === 'turret' || b.type === 'flak') {   // rotating gun stays game-drawn
       cx.save();
       cx.translate(b.x, b.y);
       cx.rotate(b.faceA + Math.PI / 2);
       if (b.recoil) cx.translate(0, b.recoil);        // gun art points up: recoil = slide back
-      cx.drawImage(teamSprite(BODY.turret_gun, b.team), -14, -19, 28, 28);
+      cx.drawImage(bldSprite(BODY.turret_gun, b.team), -14, -19, 28, 28);
       cx.restore();
     }
     if (b.type === 'silo' && b.warhead) {
@@ -2963,7 +2972,7 @@ function drawBuildingSprite(b, x, y) {
     cx.setLineDash([]);
   }
   if (b.type === 'hq') {
-    cx.drawImage(teamSprite(BODY.bld_plate_oct, b.team), x, y, b.w, b.h);
+    cx.drawImage(bldSprite(BODY.bld_plate_oct, b.team), x, y, b.w, b.h);
     cx.drawImage(BODY.bld_vent_a, b.x - 15, b.y - 15, 30, 30);
     const pulse = 8 + Math.sin(tick * 0.08) * 2;
     cx.fillStyle = C.main;
@@ -2971,33 +2980,33 @@ function drawBuildingSprite(b, x, y) {
     cx.fillRect(-pulse / 2, -pulse / 2, pulse, pulse);
     cx.restore();
   } else if (b.type === 'barracks') {
-    cx.drawImage(teamSprite(BODY.bld_plate, b.team), x, y, b.w, b.h);
+    cx.drawImage(bldSprite(BODY.bld_plate, b.team), x, y, b.w, b.h);
     cx.drawImage(BODY.bld_vent_b, b.x - 12, y + 10, 24, 24);
     cx.fillStyle = C.dark;
     cx.fillRect(b.x - 12, y + b.h - 22, 24, 22);
   } else if (b.type === 'factory') {
-    cx.drawImage(teamSprite(BODY.bld_plate, b.team), x, y, b.w, b.h);
+    cx.drawImage(bldSprite(BODY.bld_plate, b.team), x, y, b.w, b.h);
     cx.drawImage(BODY.bld_vent_b, x + 8, b.y - 14, 24, 24);
     cx.drawImage(BODY.bld_vent_b, x + b.w - 32, b.y - 14, 24, 24);
     cx.fillStyle = C.dark;
     cx.fillRect(b.x - 17, y + b.h - 20, 34, 20);   // vehicle bay door
   } else if (b.type === 'supply') {
-    cx.drawImage(teamSprite(BODY.bld_plate, b.team), x, y, b.w, b.h);
+    cx.drawImage(bldSprite(BODY.bld_plate, b.team), x, y, b.w, b.h);
     cx.drawImage(BODY.crate, b.x - 18, b.y - 14, 16, 16);
     cx.drawImage(BODY.crate, b.x + 2, b.y - 14, 16, 16);
     cx.drawImage(BODY.crate, b.x - 8, b.y + 0, 16, 16);
   } else if (b.type === 'power') {
-    cx.drawImage(teamSprite(BODY.bld_plate, b.team), x, y, b.w, b.h);
+    cx.drawImage(bldSprite(BODY.bld_plate, b.team), x, y, b.w, b.h);
     drawPowerBolt(b);
   } else if (b.type === 'refinery') {
-    cx.drawImage(teamSprite(BODY.bld_plate_oct, b.team), x, y, b.w, b.h);
+    cx.drawImage(bldSprite(BODY.bld_plate_oct, b.team), x, y, b.w, b.h);
     const r = 11 + Math.sin(tick * 0.06) * 1.5;    // pulsing crystal emblem
     cx.fillStyle = CRYSTAL_COLOR;
     cx.beginPath();
     cx.moveTo(b.x, b.y - r); cx.lineTo(b.x + r * 0.7, b.y); cx.lineTo(b.x, b.y + r); cx.lineTo(b.x - r * 0.7, b.y);
     cx.closePath(); cx.fill();
   } else if (b.type === 'silo') {
-    cx.drawImage(teamSprite(BODY.bld_plate_oct, b.team), x, y, b.w, b.h);
+    cx.drawImage(bldSprite(BODY.bld_plate_oct, b.team), x, y, b.w, b.h);
     cx.strokeStyle = C.dark; cx.lineWidth = 3;     // blast doors
     cx.beginPath(); cx.arc(b.x, b.y, 17, 0, Math.PI * 2); cx.stroke();
     cx.fillStyle = '#141a15';
@@ -3017,7 +3026,7 @@ function drawBuildingSprite(b, x, y) {
       cx.beginPath(); cx.moveTo(b.x + 9, b.y - 9); cx.lineTo(b.x - 9, b.y + 9); cx.stroke();
     }
   } else if (b.type === 'airpad') {
-    cx.drawImage(teamSprite(BODY.bld_plate, b.team), x, y, b.w, b.h);
+    cx.drawImage(bldSprite(BODY.bld_plate, b.team), x, y, b.w, b.h);
     cx.strokeStyle = C.light; cx.lineWidth = 2;    // helipad ring + H
     cx.beginPath(); cx.arc(b.x, b.y, 16, 0, Math.PI * 2); cx.stroke();
     cx.lineWidth = 3;
@@ -3031,7 +3040,7 @@ function drawBuildingSprite(b, x, y) {
       cx.beginPath(); cx.arc(x + b.w - 8, y + 8, 2.5, 0, Math.PI * 2); cx.fill();
     }
   } else if (b.type === 'flak') {
-    cx.drawImage(teamSprite(BODY.bld_plate, b.team), b.x - 22, b.y - 22, 44, 44);
+    cx.drawImage(bldSprite(BODY.bld_plate, b.team), b.x - 22, b.y - 22, 44, 44);
     cx.save();
     cx.translate(b.x, b.y);
     cx.rotate(b.faceA + Math.PI / 2);   // twin AA guns, splayed
@@ -3041,7 +3050,7 @@ function drawBuildingSprite(b, x, y) {
     cx.fillStyle = C.light;             // sky-watch radar dot
     cx.beginPath(); cx.arc(b.x, b.y - 14, 2.5 + Math.sin(tick * 0.15) * 1, 0, Math.PI * 2); cx.fill();
   } else { // turret
-    cx.drawImage(teamSprite(BODY.bld_plate, b.team), b.x - 22, b.y - 22, 44, 44);
+    cx.drawImage(bldSprite(BODY.bld_plate, b.team), b.x - 22, b.y - 22, 44, 44);
     cx.save();
     cx.translate(b.x, b.y);
     cx.rotate(b.faceA + Math.PI / 2);   // gun art points up
@@ -3056,6 +3065,30 @@ function drawBuildingSprite(b, x, y) {
     cx.fillText(Math.floor(b.built * 100) + '%', b.x, b.y - b.h / 2 - 8);
   }
   cx.globalAlpha = 1;
+}
+
+// Rubicon Mining's pennant: dark-red flag on a pole at the HQ's corner, waving
+// on the sim tick, with the company's diamond sigil. Cheap, reads at a glance.
+function drawRubiconBanner(b) {
+  const px = b.x - b.w / 2 + 12, py = b.y - b.h / 2 + 6;
+  cx.strokeStyle = '#22201d';
+  cx.lineWidth = 2;
+  cx.beginPath(); cx.moveTo(px, py); cx.lineTo(px, py + 28); cx.stroke();
+  const wave = Math.sin(tick * 0.06) * 2;
+  cx.fillStyle = '#8f2f27';
+  cx.beginPath();
+  cx.moveTo(px, py);
+  cx.lineTo(px + 21 + wave, py + 3);
+  cx.lineTo(px + 15 + wave * 0.6, py + 6);
+  cx.lineTo(px + 21 + wave, py + 9);
+  cx.lineTo(px, py + 12);
+  cx.closePath(); cx.fill();
+  cx.fillStyle = '#f5a89a';   // diamond sigil
+  cx.save();
+  cx.translate(px + 7, py + 6);
+  cx.rotate(Math.PI / 4);
+  cx.fillRect(-2.5, -2.5, 5, 5);
+  cx.restore();
 }
 
 // the plant's humming lightning-bolt emblem (shared by sprite + procedural paths)
@@ -3205,6 +3238,10 @@ function drawBuilding(b) {
     cx.stroke();
   }
   }
+
+  // Rubicon corporate banner on red's HQ — identity touch, not "evil": a rival
+  // company flies its flag (drawn here so sprite AND procedural paths get it)
+  if (b.type === 'hq' && b.team === 2 && b.built >= 1) drawRubiconBanner(b);
 
   if (sel) {
     cx.strokeStyle = 'rgba(255,255,255,0.85)';
@@ -3380,7 +3417,7 @@ function drawDino(u) {
   cx.beginPath(); cx.ellipse(-1, 0, 4.5, 2.5, 0, 0, Math.PI * 2); cx.fill();
   cx.fillStyle = C.main;                            // head
   cx.beginPath(); cx.ellipse(9, 0, 4.5, 3.4, 0, 0, Math.PI * 2); cx.fill();
-  cx.fillStyle = C.light;                           // throat sac — the spitter bit
+  cx.fillStyle = '#a8d060';                         // throat sac — venom is biology, not faction
   cx.beginPath(); cx.arc(7, 0, 2, 0, Math.PI * 2); cx.fill();
   cx.fillStyle = '#1a200e';                         // eyes
   cx.beginPath(); cx.arc(9.5, -2.2, 1, 0, Math.PI * 2); cx.arc(9.5, 2.2, 1, 0, Math.PI * 2); cx.fill();

@@ -25,7 +25,7 @@ file and the widget's task lists in sync.
 - [x] Mission framework + Mission 1 "Landfall" (briefings, objectives, capture op)
 - [x] Tech tree, power grid, depot repair field, factory/airpad repair bays
 - [ ] Playtest Landfall — does it land in the 15-minute window?
-- [ ] Team color pass — wild dino bone/moss, red identity touches
+- [x] Team color pass — wild dino bone/moss, red identity touches (2026-07-12)
 - [ ] Raptor + Raptor Den — the Act 1 finale swarm tease
 - [ ] Missions 2–3: harvester convoy escort, first nest crack
 - [ ] Pacing pass toward 20–30 minute matches
