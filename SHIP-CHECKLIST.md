@@ -1,8 +1,12 @@
 # Ship checklist — Mac App Store by July 31, 2026
 
-Working checklist (2026-07-11). Goal: submit a v1 (skirmish + Mission 1) to Apple
-by end of month. Apple Developer membership already covered by the existing
-account (one membership, unlimited apps) — no enrollment wait.
+Working checklist (updated 2026-07-12). Goal: submit a v1 (skirmish + Mission 1)
+to Apple by end of month. Apple Developer membership already covered by the
+existing account (one membership, unlimited apps) — no enrollment wait.
+
+Interactive version: `.claude/ship-widget.html` renders as a widget at the start
+of every Claude session (SessionStart hook in `.claude/settings.json`). Keep this
+file and the widget's task lists in sync.
 
 ## Apple submission track (critical path, in order)
 
@@ -32,3 +36,15 @@ account (one membership, unlimited apps) — no enrollment wait.
 - [ ] Generate unit_rig.png and bld_power.png (prompts in assets/sprites/ART-WANTED.md)
 - [ ] Dino art hunt — itch.io CC0 packs first, AI-generate if nothing fits
 - [ ] Standing sniper art (only the prone pose exists today)
+
+## Shipped — playtest round + full code audit (Jul 11–12)
+
+- [x] Mission 1 reworked: exploration first — dinos only retaliate after your patrol is spotted
+- [x] Specimen weapons-lock: player fire (including splash) physically can't hurt the capture target
+- [x] Progressive build menu: locked buildings hidden, unlock toasts; Depot is the true tier-0
+- [x] Dialogue backlog fast-forward — tutorial commentary drains in ~16s instead of ~45s
+- [x] Constructing buildings no longer heal away combat damage (were nearly unkillable mid-build)
+- [x] Interrupted specimen/egg hauls auto-resume — killed a tutorial soft-lock
+- [x] Units killed mid-tick can no longer act or count toward mission objectives
+- [x] Nuke safety: no dead-silo launches, no mode-stacking accidental launches, no overlay race on quit
+- [x] Menu hotkeys gated off, mission rig costs no supply, enemy plant can't spawn on crystals, AI refineries obey the tech tree

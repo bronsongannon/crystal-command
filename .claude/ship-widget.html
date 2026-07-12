@@ -1,0 +1,170 @@
+<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Checklist of tasks to submit Crystal Command to the Mac App Store by July 31, a log of shipped fixes, and a lettered button per task that starts a working session on it.</h2>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:0 0 1.5rem">
+  <div style="background:var(--surface-1);border-radius:var(--radius);padding:1rem">
+    <p style="font-size:13px;color:var(--text-secondary);margin:0 0 4px">Days to deadline</p>
+    <p style="font-size:24px;font-weight:500;margin:0" id="days-left">–</p>
+  </div>
+  <div style="background:var(--surface-1);border-radius:var(--radius);padding:1rem">
+    <p style="font-size:13px;color:var(--text-secondary);margin:0 0 4px">Submit by</p>
+    <p style="font-size:24px;font-weight:500;margin:0">Jul 31</p>
+  </div>
+  <div style="background:var(--surface-1);border-radius:var(--radius);padding:1rem">
+    <p style="font-size:13px;color:var(--text-secondary);margin:0 0 4px">Progress</p>
+    <p style="font-size:24px;font-weight:500;margin:0"><span id="done-n">0</span> / <span id="total-n">0</span></p>
+  </div>
+</div>
+
+<p style="font-size:13px;color:var(--text-secondary);margin:0 0 1rem">Tick boxes as you finish; click a letter chip to start working on that task with me right here.</p>
+
+<div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem;margin:0 0 1rem">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+    <i class="ti ti-brand-apple" style="font-size:20px" aria-hidden="true"></i>
+    <p style="font-weight:500;font-size:15px;margin:0">Apple submission track</p>
+    <span style="margin-left:auto;background:var(--bg-accent);color:var(--text-accent);font-size:12px;padding:3px 10px;border-radius:var(--radius)">critical path</span>
+  </div>
+  <p style="font-size:13px;color:var(--text-secondary);margin:0 0 10px">Membership already covered by your existing developer account — the wait is gone.</p>
+  <div id="track-apple"></div>
+</div>
+
+<div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem;margin:0 0 1rem">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    <i class="ti ti-device-gamepad-2" style="font-size:20px" aria-hidden="true"></i>
+    <p style="font-weight:500;font-size:15px;margin:0">Game build roadmap</p>
+  </div>
+  <div id="track-game"></div>
+</div>
+
+<div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem;margin:0 0 1rem">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    <i class="ti ti-palette" style="font-size:20px" aria-hidden="true"></i>
+    <p style="font-weight:500;font-size:15px;margin:0">Art and audio</p>
+  </div>
+  <div id="track-art"></div>
+</div>
+
+<div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem;margin:0 0 1.5rem">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+    <i class="ti ti-checklist" style="font-size:20px" aria-hidden="true"></i>
+    <p style="font-weight:500;font-size:15px;margin:0">Shipped — playtest round + full code audit</p>
+    <span style="margin-left:auto;background:var(--bg-success);color:var(--text-success);font-size:12px;padding:3px 10px;border-radius:var(--radius)">Jul 11–12</span>
+  </div>
+  <p style="font-size:13px;color:var(--text-secondary);margin:0 0 10px">Playtest notes plus a two-agent audit of all ~4,300 lines. Everything below is fixed, verified, and pushed.</p>
+  <div id="shipped"></div>
+</div>
+
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+  <button onclick="sendPrompt('Walk me through creating the Crystal Command app record in App Store Connect under my existing developer account')">Start App Store record ↗</button>
+  <button onclick="sendPrompt('Let\'s build the WKWebView Mac wrapper for Crystal Command step by step')">Start the Mac wrapper ↗</button>
+  <button onclick="sendPrompt('What should I work on next from the Crystal Command ship checklist?')">What's next? ↗</button>
+</div>
+
+<script>
+const TRACKS = {
+  apple: [
+    ['ap1','Developer Program membership — covered by your existing account','done',
+      'My Apple Developer membership already exists. What exactly do I do in App Store Connect to add Crystal Command as a second app — app record, bundle ID, and anything that could trip me up?'],
+    ['ap2','Create the app record + bundle ID in App Store Connect','Jul 14',
+      'Walk me through creating the Crystal Command app record in App Store Connect: reserving the name, picking a bundle ID, category, and age rating for a cartoon RTS.'],
+    ['ap3','Build the Mac wrapper — WKWebView shell in Xcode loading the game locally','Jul 18',
+      'Let\'s build the WKWebView Mac wrapper for Crystal Command step by step: Xcode project, loading the game from the app bundle, fullscreen, menu bar, and quit handling so it feels native enough for review.'],
+    ['ap4','App icon + 1024px store icon (the ~$100 art budget goes here)','Jul 22',
+      'Help me art-direct the Crystal Command app icon: generation prompts and a Fiverr brief, the required macOS icon sizes, and how to build the .icns.'],
+    ['ap5','Store listing: screenshots, description, keywords, $9.99 price','Jul 25',
+      'Draft the full App Store listing for Crystal Command: description, subtitle, keywords, promo text, and a shot list for the required Mac screenshots.'],
+    ['ap6','Privacy policy page — the game collects nothing, one static page','Jul 25',
+      'Write the privacy policy page for Crystal Command (it collects no data) and set it up on GitHub Pages so I have the URL App Store Connect asks for.'],
+    ['ap7','Sandbox entitlements, code signing, notarize, test on a clean Mac','Jul 27',
+      'Guide me through sandbox entitlements, code signing, and notarization for the Crystal Command Mac app, plus how to test the built .app cleanly and dodge the guideline 4.2 thin-wrapper flag.'],
+    ['ap8','Archive, upload, submit for review — 2-day buffer before the 31st','Jul 29',
+      'Walk me through archiving Crystal Command in Xcode, uploading to App Store Connect, filling out the review form, and submitting.'],
+  ],
+  game: [
+    ['g1','Mission framework + Mission 1 "Landfall" (briefings, objectives, capture op)','',
+      'Show me how to author a new Crystal Command mission with the MISSIONS framework — walk through the spec format so we can bang out missions fast.'],
+    ['g2','Tech tree, power grid, depot repair field, factory/airpad repair bays','',
+      'Recap the tech tree and power grid knobs in Crystal Command and where to tune them if playtests say the brownout or repair costs feel off.'],
+    ['g3','Playtest Landfall again — does it land in the 15-minute window now?','',
+      'I\'m replaying Mission 1 Landfall after the exploration-first rework. Give me a short list of what to watch for (pacing, capture feel, tutorial clarity) so my feedback is useful.'],
+    ['g4','Team color pass — wild dino bone/moss, red identity touches','',
+      'Let\'s do the Crystal Command team color pass from CAMPAIGN.md: bone/moss wild dinos, red team identity touches, and colorblind-safe brightness separation.'],
+    ['g5','Raptor + Raptor Den — the Act 1 finale swarm tease','',
+      'Let\'s build the Raptor and Raptor Den for Crystal Command: fast melee pack hunter (short-range fake melee) and a den that sends periodic hunting packs.'],
+    ['g6','Missions 2–3: harvester convoy escort, first nest crack','',
+      'Let\'s design and build Crystal Command missions 2 and 3: the harvester convoy escort and the first nest crack, using the existing mission framework.'],
+    ['g7','Pacing pass toward 20–30 minute matches','',
+      'Let\'s start the Crystal Command pacing pass toward 20-30 minute matches: what levers exist (HP, patch sizes, wave cadence, map size) and a tuning plan.'],
+  ],
+  art: [
+    ['a1','Source the 14 sound-effect slots (Kenney / Freesound CC0)','',
+      'Help me fill Crystal Command\'s 14 sound-effect slots: point me at exact Kenney/CC0 packs and files for each slot in assets/sfx/README.md.'],
+    ['a2','Generate unit_rig.png and bld_power.png (prompts in ART-WANTED.md)','',
+      'Give me the image-generation prompts for Crystal Command\'s unit_rig.png and bld_power.png sprites and how to process and drop them into assets/sprites.'],
+    ['a3','Dino art hunt — itch.io CC0 packs first, AI-generate if nothing fits','',
+      'Let\'s hunt for CC0 top-down dinosaur sprites for Crystal Command (spitter, nest, future raptor) — search itch.io and OpenGameArt, and fall back to generation prompts.'],
+    ['a4','Standing sniper art (only the prone pose exists today)','',
+      'Help me create the standing sniper sprite for Crystal Command to pair with the existing prone hunker art — generation prompt and drop-in steps.'],
+  ],
+};
+const SHIPPED = [
+  'Mission 1 reworked: exploration first — dinos only retaliate after your patrol is spotted',
+  'Specimen weapons-lock: player fire (including splash) physically can\'t hurt the capture target',
+  'Progressive build menu: locked buildings hidden, unlock toasts; Depot is the true tier-0',
+  'Dialogue backlog fast-forward — tutorial commentary drains in ~16s instead of ~45s',
+  'Constructing buildings no longer heal away combat damage (were nearly unkillable mid-build)',
+  'Interrupted specimen/egg hauls auto-resume — killed a tutorial soft-lock',
+  'Units killed mid-tick can no longer act or count toward mission objectives',
+  'Nuke safety: no launching from dead silos, no mode-stacking accidental launches, no overlay race on quit',
+  'Menu hotkeys gated off, mission rig costs no supply, enemy plant can\'t spawn on crystals, AI refineries obey the tech tree',
+];
+const PRE = { ap1: 1, g1: 1, g2: 1 };
+const KEY = 'cc-ship-checklist-v1';
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
+const state = { ...PRE, ...saved };
+let letter = 65;
+const PROMPTS = {};
+function row(id, label, due, prompt) {
+  const on = !!state[id];
+  const L = String.fromCharCode(letter++);
+  PROMPTS[id] = prompt;
+  return '<div style="display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-top:0.5px solid var(--border)">' +
+    '<input type="checkbox" data-k="' + id + '"' + (on ? ' checked' : '') + ' style="margin-top:3px">' +
+    '<span style="flex:1;font-size:14px;line-height:1.5;' + (on ? 'color:var(--text-muted);text-decoration:line-through' : '') + '">' + label + '</span>' +
+    (due ? '<span style="font-size:12px;color:var(--text-secondary);white-space:nowrap;padding-top:4px">' + (due === 'done' ? '' : 'by ' + due) + '</span>' : '') +
+    '<button data-p="' + id + '" aria-label="Work on this task with Claude" title="Work on this with Claude" ' +
+    'style="width:26px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;border-radius:6px;flex-shrink:0">' + L + '</button>' +
+  '</div>';
+}
+let total = 0;
+for (const [track, items] of Object.entries(TRACKS)) {
+  total += items.length;
+  document.getElementById('track-' + track).innerHTML = items.map(i => row(...i)).join('');
+}
+document.getElementById('shipped').innerHTML = SHIPPED.map(s =>
+  '<div style="display:flex;align-items:flex-start;gap:10px;padding:6px 0;border-top:0.5px solid var(--border)">' +
+  '<i class="ti ti-check" style="font-size:16px;margin-top:2px;color:var(--text-success)" aria-hidden="true"></i>' +
+  '<span style="flex:1;font-size:14px;line-height:1.5;color:var(--text-secondary)">' + s + '</span></div>').join('');
+document.getElementById('total-n').textContent = total;
+function refresh() {
+  document.getElementById('done-n').textContent = Object.keys(state).filter(k => state[k]).length;
+  document.querySelectorAll('input[data-k]').forEach(cb => {
+    const span = cb.nextElementSibling;
+    span.style.color = cb.checked ? 'var(--text-muted)' : '';
+    span.style.textDecoration = cb.checked ? 'line-through' : '';
+  });
+}
+document.querySelectorAll('input[data-k]').forEach(cb => {
+  cb.addEventListener('change', () => {
+    state[cb.dataset.k] = cb.checked;
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+    refresh();
+  });
+});
+document.querySelectorAll('button[data-p]').forEach(btn => {
+  btn.addEventListener('click', () => sendPrompt(PROMPTS[btn.dataset.p]));
+});
+const days = Math.max(0, Math.ceil((new Date('2026-07-31T23:59:00') - new Date()) / 86400000));
+document.getElementById('days-left').textContent = days;
+refresh();
+</script>
