@@ -113,6 +113,17 @@ survive at 30px; procedural overlays can draw these today, art bakes them later)
 - **Missile Silo** — structure ring — *red warhead + hazard ring around the doors*
 - **Airpad** — structure pad — *white pad markings (exists) + accent landing beacon*
 
+## Death animation sheets (2026-07-12, rocket trooper pilot)
+
+The game plays a sliced death animation when `unit_<type>_death1..4_<colorway>.png`
+exist: the unit falls over, the body lingers ~2s and fades — instead of the
+fireball. When asking Gemini for a sheet, request ONLY IDLE and DEATH sections,
+strict top-down facing up. TURNING and FIRING sections can't be used (the
+engine rotates sprites freely and draws its own muzzle fx), and WALKING frames
+were tried and rejected in playtest — movement keeps the engine's procedural
+sway, so don't generate walk cycles. Recolor whole sheets image-to-image for
+the second team. Slicing/normalizing is automated (ask Claude).
+
 ## Implementation phases
 
 - **Phase A — SHIPPED (2026-07-12):** single tint + per-team structure tint

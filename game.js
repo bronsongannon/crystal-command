@@ -447,6 +447,14 @@ const OPT = {};
     'unit_sniper_hunker_teal', 'unit_sniper_hunker_red',
     'unit_artillery_hunker_teal', 'unit_artillery_hunker_red',
     'unit_spitter_wild', 'turret_gun_teal', 'turret_gun_red');
+  // death animation frame slots (sliced from Gemini spritesheets). Any prefix
+  // of frames works — the game uses however many it finds. (Walk-cycle slots
+  // existed briefly and were reverted: movement keeps the procedural sway.)
+  for (const k in UNIT) {
+    for (const cw of ['_teal', '_red', '_wild']) {
+      for (let i = 1; i <= 4; i++) names.push('unit_' + k + '_death' + i + cw);
+    }
+  }
   for (const n of names) {
     const i = new Image();
     OPT[n] = { img: i, ok: false };
@@ -482,6 +490,21 @@ const bldSprite = (img, team) => teamSprite(img, team, COLORS[team].bld || COLOR
 // the tint entirely. Missing files fall through to tinted neutral art as ever.
 const CW = { 1: '_teal', 2: '_red', 3: '_wild' };
 const optCW = (base, team) => opt(base + (CW[team] || ''));
+// animation frames: consecutive numbered slots, memoized once found (images
+// load async, so an empty result is retried until the files settle)
+const animCache = {};
+function animFrames(type, kind, team, max) {
+  const key = type + kind + team;
+  const hit = animCache[key];
+  if (hit && hit.length) return hit;
+  const a = [];
+  for (let i = 1; i <= max; i++) {
+    const f = optCW('unit_' + type + '_' + kind + i, team);
+    if (f) a.push(f); else break;
+  }
+  if (a.length) animCache[key] = a;
+  return a;
+}
 
 // distance from unit/building center to the muzzle tip of its drawn barrel
 const MUZZLE_LEN = { marine: 15, sniper: 24, rocket: 16, raider: 17, tank: 22, artillery: 28, gunship: 13, turret: 22, flak: 20, engineer: 11, harvester: 12 };
@@ -1409,8 +1432,17 @@ function kill(e) {
     if (e.team === 1) stats.lost += e.cargo.length;   // passengers are lost too
     e.cargo = [];
   }
-  fxs.push({ kind: 'boom', x: e.x, y: e.y, t: 0, max: 26, size: (e.r || 16) * 1.6 });
-  fxExplosion(e.x, e.y, (e.r || 16) * 1.3, e.kind === 'building');
+  // units with sliced death frames fall over and leave a body — a soft ring
+  // instead of the full fireball (vehicles and buildings still explode)
+  const corpse = e.kind === 'unit' ? animFrames(e.type, 'death', e.team, 4) : [];
+  if (corpse.length) {
+    fxs.push({ kind: 'corpse', x: e.x, y: e.y, a: e.faceA, frames: corpse,
+               t: 0, max: corpse.length * 9 + 170, size: e.r * 2.7 });
+    fxs.push({ kind: 'boom', x: e.x, y: e.y, t: 0, max: 16, size: (e.r || 16) * 0.9 });
+  } else {
+    fxs.push({ kind: 'boom', x: e.x, y: e.y, t: 0, max: 26, size: (e.r || 16) * 1.6 });
+    fxExplosion(e.x, e.y, (e.r || 16) * 1.3, e.kind === 'building');
+  }
   if (e.kind === 'building' && e.type === 'nest') {
     // the clutch survives the blast — haul the eggs home to hatch your own brood
     for (let i = 0; i < NEST_EGGS; i++) {
@@ -3357,6 +3389,9 @@ function drawBuilding(b) {
 // called inside a translate(u.x,u.y)+rotate(u.faceA) transform, so +x is forward.
 // Infantry art faces right (no extra rotation); vehicle art points up (rotate +90°).
 function drawUnitSprite(u) {
+  // NOTE: a sliced 6-frame walk cycle was tried here (2026-07-12) and REVERTED
+  // after playtest — the frame-swap looked worse than the subtle procedural
+  // walk-sway all units share (see the marine). Movement stays sway-based.
   // pre-colored colorway art wins outright — drawn as-is, no tint
   const pre = (u.order.type === 'hunker' && optCW('unit_' + u.type + '_hunker', u.team))
     || optCW('unit_' + u.type, u.team);
@@ -3935,6 +3970,16 @@ function drawFx(f) {
     cx.lineWidth = 2;
     cx.beginPath(); cx.arc(f.x, f.y, 16 * (1 - k) + 3, 0, Math.PI * 2); cx.stroke();
     cx.globalAlpha = 1;
+  } else if (f.kind === 'corpse') {
+    // sliced death animation: play the fall, then the body lingers and fades
+    const img = f.frames[Math.min(f.frames.length - 1, Math.floor(f.t / 9))];
+    if (!img.complete || !img.naturalWidth) return;
+    cx.save();
+    cx.globalAlpha = Math.max(0, Math.min(1, (f.max - f.t) / 60));
+    cx.translate(f.x, f.y);
+    cx.rotate(f.a + Math.PI / 2);   // art faces up
+    cx.drawImage(img, -f.size / 2, -f.size / 2, f.size, f.size);
+    cx.restore();
   } else if (f.kind === 'sprite') {
     if (f.t < f.delay) return;
     const img = f.img;
@@ -3983,7 +4028,7 @@ function render() {
   for (const p of bullets) if (inView(p.x, p.y, 60) && (p.team === 1 || isVisibleAt(p.x, p.y))) drawBullet(p);
   for (const f of fxs) {
     if (!inView(f.x, f.y, 260)) continue;
-    const worldFx = f.kind === 'boom' || f.kind === 'sprite' || f.kind === 'muzzle';
+    const worldFx = f.kind === 'boom' || f.kind === 'sprite' || f.kind === 'muzzle' || f.kind === 'corpse';
     if (!worldFx || isVisibleAt(f.x, f.y)) drawFx(f);
   }
 
