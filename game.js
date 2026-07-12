@@ -439,6 +439,14 @@ const OPT = {};
   for (const k in BLD) if (k !== 'nest') names.push('bld_' + k);   // bld_hq.png, …
   names.push('unit_marine_hunker', 'unit_sniper_hunker', 'unit_artillery_hunker');   // dug-in poses
   names.push('rock', 'crystal');   // terrain art (natural colors, not tinted)
+  // pre-colored colorway slots (STYLE-GUIDE.pdf / Gemini pipeline): drawn AS-IS,
+  // no team tint. _teal = team 1, _red = team 2, _wild = untamed dinos.
+  for (const k in UNIT) names.push('unit_' + k + '_teal', 'unit_' + k + '_red');
+  for (const k in BLD) if (k !== 'nest') names.push('bld_' + k + '_teal', 'bld_' + k + '_red');
+  names.push('unit_marine_hunker_teal', 'unit_marine_hunker_red',
+    'unit_sniper_hunker_teal', 'unit_sniper_hunker_red',
+    'unit_artillery_hunker_teal', 'unit_artillery_hunker_red',
+    'unit_spitter_wild', 'turret_gun_teal', 'turret_gun_red');
   for (const n of names) {
     const i = new Image();
     OPT[n] = { img: i, ok: false };
@@ -470,6 +478,10 @@ function teamSprite(img, team, tint) {
 }
 // structures can run a darker tint than the team's vehicles (red's identity touch)
 const bldSprite = (img, team) => teamSprite(img, team, COLORS[team].bld || COLORS[team].main);
+// pre-colored colorway art (Gemini pipeline): full-color sprites that bypass
+// the tint entirely. Missing files fall through to tinted neutral art as ever.
+const CW = { 1: '_teal', 2: '_red', 3: '_wild' };
+const optCW = (base, team) => opt(base + (CW[team] || ''));
 
 // distance from unit/building center to the muzzle tip of its drawn barrel
 const MUZZLE_LEN = { marine: 15, sniper: 24, rocket: 16, raider: 17, tank: 22, artillery: 28, gunship: 13, turret: 22, flak: 20, engineer: 11, harvester: 12 };
@@ -2933,7 +2945,8 @@ function drawEgg(e) {
 // sprite bodies for buildings; keeps the shared selection/hp/queue drawing in drawBuilding
 function drawBuildingSprite(b, x, y) {
   const C = COLORS[b.team];
-  const whole = opt('bld_' + b.type);
+  const pre = optCW('bld_' + b.type, b.team);   // pre-colored colorway art: no tint
+  const whole = pre || opt('bld_' + b.type);
   if (whole) {
     if (b.built < 1) {
       cx.globalAlpha = 0.55;
@@ -2943,13 +2956,14 @@ function drawBuildingSprite(b, x, y) {
       rr(cx, x, y, b.w, b.h, 8); cx.stroke();
       cx.setLineDash([]);
     }
-    cx.drawImage(bldSprite(whole, b.team), x, y, b.w, b.h);
+    cx.drawImage(pre ? whole : bldSprite(whole, b.team), x, y, b.w, b.h);
     if (b.type === 'turret' || b.type === 'flak') {   // rotating gun stays game-drawn
       cx.save();
       cx.translate(b.x, b.y);
       cx.rotate(b.faceA + Math.PI / 2);
       if (b.recoil) cx.translate(0, b.recoil);        // gun art points up: recoil = slide back
-      cx.drawImage(bldSprite(BODY.turret_gun, b.team), -14, -19, 28, 28);
+      const gunCW = optCW('turret_gun', b.team);
+      cx.drawImage(gunCW || bldSprite(BODY.turret_gun, b.team), -14, -19, 28, 28);
       cx.restore();
     }
     if (b.type === 'silo' && b.warhead) {
@@ -3343,6 +3357,15 @@ function drawBuilding(b) {
 // called inside a translate(u.x,u.y)+rotate(u.faceA) transform, so +x is forward.
 // Infantry art faces right (no extra rotation); vehicle art points up (rotate +90°).
 function drawUnitSprite(u) {
+  // pre-colored colorway art wins outright — drawn as-is, no tint
+  const pre = (u.order.type === 'hunker' && optCW('unit_' + u.type + '_hunker', u.team))
+    || optCW('unit_' + u.type, u.team);
+  if (pre) {
+    cx.rotate(Math.PI / 2);              // generated art faces up
+    const s = u.r * 2.7;
+    cx.drawImage(pre, -s / 2, -s / 2, s, s);
+    return;
+  }
   // dug-in units swap to their hunker pose; a missing standing sprite falls
   // back to the hunker art so partial art sets never break
   const hk = opt('unit_' + u.type + '_hunker');
@@ -3453,6 +3476,13 @@ function drawRigCage(u) {
 // Team-colored: wild ones are acid green, hatched player dinos wear teal.
 // No sprite art yet; when dino sprites land they slot in via drawUnitSprite.
 function drawDino(u) {
+  // pre-colored colorway first (wild bone/moss art, or teal for tamed)
+  const pre = optCW('unit_spitter', u.team);
+  if (pre) {
+    cx.rotate(Math.PI / 2);   // art faces up
+    cx.drawImage(pre, -13, -13, 26, 26);
+    return;
+  }
   const img = opt('unit_spitter') || opt('dino_spitter');
   if (img) {
     cx.rotate(Math.PI / 2);   // art faces up
