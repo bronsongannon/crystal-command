@@ -30,22 +30,64 @@ not just hue, so minimap dots stay readable.
 table + objectives/triggers system, same data-driven style as `MAPS`. Twenty missions
 only work if missions are cheap to author.
 
-### Act 1 — The Crystal War (missions 1–7)
+### Act 1 — The Crystal War (missions 1–7) — detailed design (2026-07-12)
 
-Teal vs red, pure human RTS. You land, establish mining, red contests the crystal
-fields. Dinos are background wildlife — the nest problem, scary but neutral.
+Teal vs red, pure human RTS — **this is the act that ships in v1**, so it earns
+the same depth as the others. Dinos are background wildlife: the nest problem,
+scary but neutral. Escalation lever: red mines *recklessly* — strip-mining
+nests, tactical nukes — and Lin's warnings accumulate mission by mission so the
+Act 2 turn is paid for, not announced. Design bonus: Act 1 doubles as the
+systems tutorial — each mission teaches exactly one system that already exists,
+so the act needs almost no new engine work.
 
-**Escalation lever:** red mines *recklessly* — strip-mining nests, using nukes —
-and briefings drop hints the planet is reacting.
+**M1 — "Landfall."** ✅ BUILT (2026-07-11, reworked 2026-07-12). Establish the
+outpost, scout the fields, survive the retaliation probe, capture a live
+spitter for Lin. Rubicon's survey fleet burns for the planet in the debrief.
 
-Mission variety across the act:
-1. Tutorial base-build
-2. Harvester convoy escort
-3. First nest crack
-4. Base defense
-5. Commando raid (no base, one squad)
-6. Nuke race
-7. Set-piece assault on a red outpost (finale should include a taste of the raptor swarm)
+**M2 — "Claim Jumpers."** First contact with red. Escort your harvester convoy
+between two outposts while Krauss's raiders hit-and-run the line — his voice
+debut is a *mining claim dispute*, corporate and smug, not military. The war
+starts as paperwork with guns. Teaches escorting, raider counters, and reading
+the minimap under harassment. *needs: convoy/keepAlive logic — the same tech
+M12 "Exodus" reuses in Act 2, so it pays twice.*
+
+**M3 — "The Nest Problem."** The signature mechanic gets its mission. A rich
+field sits under nest guard between your claim and Krauss's; crack it with your
+first artillery battery (sight < range — spotters!) while he bulldozes his side
+with brute infantry losses broadcast on open comms. Lin objects ON THE RECORD:
+"we don't know what these are connected to" — the first seed of Act 2. Egg
+salvage introduces hatching your own spitters. *needs: nothing — artillery,
+nests, eggs, and capture all exist today.*
+
+**M4 — "Dig In."** Red's answer: his first real offensive. Hold your expansion
+through escalating assault waves — and his raiders target your POWER PLANTS
+first, teaching the brownout lesson from the receiving end while turrets slow
+to half rate. Turrets, flak, repair bays, depot fields, grid discipline: the
+whole defensive toolkit in one siege. *needs: survive-N-waves objective
+(timer + wave-count trigger).*
+
+**M5 — "Ghost Survey."** The commando raid: no base, one APC of infantry and a
+medic, deep in red territory through heavy fog. Destroy three survey relays and
+steal Krauss's geological data from his field lab — data that reveals what he's
+REALLY drilling toward: a crystal signal too deep and too big to be a deposit.
+The Heart Crystal enters the story fifteen missions before anyone sees it.
+Teaches APC micro, hunker, medics, and fighting without an economy. *needs:
+destroy-tagged-buildings objective (bldGroup dead — small).*
+
+**M6 — "Countdown."** Krauss builds a silo with your HQ's name on it. Kill it
+before the launch clock runs out — punching through a defense line built to buy
+that clock time. Meanwhile his tac nukes are strip-mining nest fields off-map
+and Lin's seismographs are screaming: the direct fuse for M8. Teaches the nuke
+endgame from both sides + deadline pressure. *needs: deadline timer objective,
+scripted enemy launch event (trigger-driven launchNuke).*
+
+**M7 — "High Water Mark."** The set-piece: break red's forward fortress and win
+the war. And you DO — the fortress falls, Vega starts the victory speech… and a
+den erupts under the ruins mid-sentence. A raptor pack sweeps the wreckage of
+the base you just conquered, and the act ends on Lin, quietly: "They waited
+until you were done." Cliffhanger straight into Act 2 — and the v1 cliffhanger
+that sells the free update. *needs: Raptor + Raptor Den — already roadmap
+item 3.*
 
 ### Act 2 — The Awakening (missions 8–13) — detailed design (2026-07-12)
 
