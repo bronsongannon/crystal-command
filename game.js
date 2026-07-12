@@ -80,7 +80,9 @@ const UNIT = {
   // Xenobiology field unit: unarmed harvester chassis with a containment cage.
   // Right-click a spitter to capture it (short channel at contact range), then
   // haul it back to the HQ lab. Campaign-granted for now — not in any trains list.
-  rig:       { label: 'Capture Rig', cost: 140, supply: 1, hp: 150, speed: 2.0, r: 11, dmg: 0, range: 0, cooldown: 0, buildTime: 8 * 60, sight: 210, noAA: 1 },
+  // supply 0: mission-granted drops must never push a capped player over the
+  // limit and silently stall every production queue
+  rig:       { label: 'Capture Rig', cost: 140, supply: 0, hp: 150, speed: 2.0, r: 11, dmg: 0, range: 0, cooldown: 0, buildTime: 8 * 60, sight: 210, noAA: 1 },
 };
 const RIG_CAP_RANGE = 40;        // capture channel starts at contact range
 const RIG_CAP_TIME = 3 * 60;     // seconds of channeling to bag a specimen
@@ -99,8 +101,8 @@ const BLD = {
   supply:   { label: 'Supply Depot', hp: 500,  w: 56, h: 56, supply: 8,  sight: 180, cost: 100, buildTime: 10 * 60 },
   // Cheap and fragile — the classic raid target. The HQ's reactor covers a
   // small base; every plant past that buys 10 more grid capacity.
-  power:    { label: 'Power Plant',  hp: 400,  w: 60, h: 60, supply: 0,  sight: 180, cost: 120, buildTime: 9 * 60, gen: 10 },
-  refinery: { label: 'Refinery',     hp: 700,  w: 70, h: 70, supply: 0,  sight: 240, cost: 175, buildTime: 12 * 60 },
+  power:    { label: 'Power Plant',  hp: 400,  w: 60, h: 60, supply: 0,  sight: 180, cost: 120, buildTime: 9 * 60, gen: 10, req: ['supply'] },
+  refinery: { label: 'Refinery',     hp: 700,  w: 70, h: 70, supply: 0,  sight: 240, cost: 175, buildTime: 12 * 60, req: ['supply'] },
   airpad:   { label: 'Airpad',       hp: 600,  w: 62, h: 62, supply: 2,  sight: 220, trains: ['gunship', 'harrier'], cost: 175, buildTime: 12 * 60, req: ['factory'], pow: 3 },
   // Endgame. Buy warheads here; the defender gets 30 loud seconds to react.
   silo:     { label: 'Missile Silo', hp: 900,  w: 70, h: 70, supply: 0,  sight: 200, cost: 500, buildTime: 20 * 60, req: ['airpad'], pow: 6 },
@@ -258,44 +260,46 @@ const MISSIONS = [
       { id: 'rax',     text: 'Build a Barracks (B)',                   type: 'built', bld: 'barracks', count: 1, hidden: true },
       { id: 'marines', text: 'Train 4 Marines (Barracks — Q)',         type: 'unitCount', unit: 'marine', count: 4, hidden: true },
       { id: 'turret',  text: 'Build a Turret on the perimeter (T)',    type: 'built', bld: 'turret', count: 1, hidden: true },
-      { id: 'repel',   text: 'Repel the spitter pack',                 type: 'flag', hidden: true },
       { id: 'scout1',  text: 'Scout the northern crystal field',       type: 'reach', x: W / 2, y: H / 2 - 200, r: 250, hidden: true },
       { id: 'scout2',  text: 'Scout the southern crystal field',       type: 'reach', x: W / 2, y: H / 2 + 200, r: 250, hidden: true },
-      { id: 'capture', text: 'Capture a spitter with the Capture Rig (right-click it) and haul it to the HQ', type: 'captive', count: 1, hidden: true, mark: [1050, 1650] },
+      { id: 'repel',   text: 'Repel the spitter pack',                 type: 'flag', hidden: true },
+      { id: 'capture', text: 'Capture the marked spitter with the Capture Rig (right-click it) and haul it to the HQ', type: 'captive', count: 1, hidden: true, mark: [1050, 1650] },
       { id: 'mine',    text: 'Mine 600 crystals',                      type: 'mined', amount: 600 },
     ],
-    winWhen: ['harv', 'depot', 'rax', 'marines', 'turret', 'repel', 'scout1', 'scout2', 'capture', 'mine'],
+    winWhen: ['harv', 'depot', 'rax', 'marines', 'turret', 'scout1', 'scout2', 'repel', 'capture', 'mine'],
+    // The wildlife never hunts what it hasn't seen: the retaliation probe only
+    // comes AFTER your patrol is spotted at the fields (playtest feedback).
     triggers: [
       { when: { done: ['harv'] }, objective: 'depot',
         say: [['ops', 'Good. Now stretch our supply line — press C and place a Supply Depot near the base. Nothing else goes up without logistics.']] },
       { when: { done: ['depot'] }, objective: 'rax',
-        say: [['ops', 'Depot is up — its crews will quietly patch any building standing near it. That unlocks the Barracks: press B. No outpost of mine goes unguarded.']] },
+        say: [['ops', 'Depot is up — its crews will quietly patch nearby buildings, and new construction is unlocking. Next: a Barracks, key B.']] },
       { when: { done: ['rax'] }, objective: ['marines', 'turret'],
-        say: [['ops', 'Barracks online. Train four Marines — select it and press Q — and anchor a Turret to the perimeter with T.']] },
-      { when: { done: ['marines', 'turret'] },
-        say: [['sci', 'Commander — seismic sensors show movement near your mining site. The wildlife is… agitated by the drilling.']] },
-      { when: { done: ['marines', 'turret'] }, delay: 14, objective: 'repel', alarm: '⚠ Wildlife closing on the perimeter!',
-        spawn: { group: 'probe', unit: 'spitter', team: 3, n: 3, at: [1050, H - 130], order: 'attackhq' },
-        say: [['ops', 'Contacts! Spitter pack inbound — marines, weapons free!']] },
-      { when: { groupDead: 'probe' }, complete: 'repel', objective: ['scout1', 'scout2'],
-        say: [['ops', 'Clean work. The perimeter holds.'],
-              ['sci', 'Curious. They went straight for the harvesters — it\'s the mining they answered, not us.'],
-              ['ops', 'Push a patrol out to the big fields mid-valley. I want eyes on what we\'re sharing this basin with — the beacons are on your map.']] },
+        say: [['ops', 'Barracks online. Train four Marines — select it and press Q — and anchor a Turret to the perimeter with T. Standard doctrine, even on a quiet world.']] },
+      { when: { done: ['marines', 'turret'] }, objective: ['scout1', 'scout2'],
+        say: [['ops', 'Perimeter is set. Time to learn the neighborhood — push a patrol out to the two marked crystal fields mid-valley.'],
+              ['sci', 'Quietly, Commander. The wildlife hasn\'t noticed us yet — observe them, don\'t provoke them. They only defend what they can see.']] },
       { when: { done: ['scout1', 'scout2'] },
-        say: [['sci', 'Nesting colonies. Live broods. Commander, readings this strong change the whole mission — I need a specimen. A living one.']] },
-      { when: { done: ['scout1', 'scout2'] }, delay: 8, objective: 'capture',
+        say: [['sci', 'Nesting colonies, live broods… magnificent. Ah — Commander, they\'ve spotted your patrol. Seismic contacts converging on your base. Fast.']] },
+      { when: { done: ['scout1', 'scout2'] }, delay: 12, objective: 'repel', alarm: '⚠ Wildlife closing on the perimeter!',
+        spawn: { group: 'probe', unit: 'spitter', team: 3, n: 3, at: [1050, H - 130], order: 'attackhq' },
+        say: [['ops', 'Contacts! They followed the patrol home — marines, weapons free!']] },
+      { when: { groupDead: 'probe' }, complete: 'repel',
+        say: [['ops', 'Clean work. The perimeter holds.'],
+              ['sci', 'They only came because we were seen. Noted. Now — before anything else, I need one alive. A living specimen changes everything.']] },
+      { when: { groupDead: 'probe' }, delay: 10, objective: 'capture',
         spawn: [
           { group: 'rig',   unit: 'rig',     team: 1, n: 1, at: [380, H - 340] },
-          { group: 'scout', unit: 'spitter', team: 3, n: 1, at: [1050, 1650], order: 'guard' },
+          { group: 'scout', unit: 'spitter', team: 3, n: 1, at: [1050, 1650], order: 'guard', specimen: true },
         ],
-        say: [['ops', 'Orbital just dropped Lin\'s Capture Rig at the base. A lone spitter is prowling the flats — it\'s marked on your map. Right-click it with the rig… and keep your marines\' rifles OFF the merchandise.']] },
-      // safety nets: the tutorial can't dead-end — lost rig or dead specimen respawns
+        say: [['ops', 'Lin\'s Capture Rig just dropped at the base, and a lone spitter is prowling the flats — marked on your map. Right-click it with the rig. Small-arms are LOCKED around protected specimens — the rig does the work, your marines physically can\'t ruin this one.']] },
+      // safety nets: the tutorial can't dead-end — a lost rig (or specimen) respawns
       { when: { groupDead: 'scout', notDone: ['capture'], noCaptive: true }, delay: 10, repeat: true,
-        spawn: { group: 'scout', unit: 'spitter', team: 3, n: 1, at: [1050, 1650], order: 'guard' },
-        say: [['sci', 'That one is no longer viable. Another is prowling the same ground — and this time, kindly keep the bullets out of my specimen.']] },
+        spawn: { group: 'scout', unit: 'spitter', team: 3, n: 1, at: [1050, 1650], order: 'guard', specimen: true },
+        say: [['sci', 'We lost track of that one. Another is prowling the same ground — send the rig, Commander.']] },
       { when: { groupDead: 'rig', notDone: ['capture'] }, delay: 8, repeat: true,
         spawn: { group: 'rig', unit: 'rig', team: 1, n: 1, at: [380, H - 340] },
-        say: [['ops', 'We lost the rig. Orbital is dropping another — they are not cheap, Commander. Bring an escort this time.']] },
+        say: [['ops', 'We lost the rig. Orbital is dropping another — they are not cheap, Commander. Patch the next one with an engineer.']] },
     ],
     outro: [
       ['ops', 'Specimen crated, walls manned, stockpile growing. Textbook landfall, Commander.'],
@@ -902,7 +906,11 @@ function placeBase(team, M) {
     makeBuilding('airpad', 2, ...M.eAir);
     for (const s of M.eSup) makeBuilding('supply', 2, ...s);
     for (const t of M.eTur) makeBuilding('turret', 2, ...t);
-    // one starting plant keeps the enemy base on the grid (HQ 8 + plant 10 ≥ its 14 draw)
+  }
+  const patch = addPatch(...(p ? M.pPatch : M.ePatch), 7, 1700);
+  if (!p) {
+    // one starting plant keeps the enemy base on the grid (HQ 8 + plant 10 ≥ its 14
+    // draw). Placed AFTER the home patch exists so aiSpotFree can dodge the crystals.
     for (let i = 0; i < 24; i++) {
       const a = Math.random() * Math.PI * 2, r = 120 + Math.random() * 160;
       const x = clamp(hq.x + Math.cos(a) * r, 60, W - 60);
@@ -910,7 +918,6 @@ function placeBase(team, M) {
       if (aiSpotFree('power', x, y)) { makeBuilding('power', 2, x, y); break; }
     }
   }
-  const patch = addPatch(...(p ? M.pPatch : M.ePatch), 7, 1700);
   hq.rally = { x: patch[0].x, y: patch[0].y };               // fresh harvesters auto-mine
   for (let i = 0; i < 3; i++) {
     // string the starting harvesters out along the HQ→patch line
@@ -1029,6 +1036,7 @@ function nearestEnemyUnit(x, y, team, range, aa, airOnly) {
   let best = null, bd = 1e18;
   for (const u of units) {
     if (u.team === team) continue;
+    if (u.specimen && team === 1) continue;               // protected specimen: player weapons are locked
     if (airOnly && !UNIT[u.type].fly) continue;           // flak ignores the ground war
     if (aa === false && UNIT[u.type].fly) continue;       // gun can't elevate — skip flyers
     if (team === 1 && !isVisibleAt(u.x, u.y)) continue;   // player can't target into the fog
@@ -1104,6 +1112,7 @@ function commandMove(sel, wx, wy, attackMove) {
 function commandAttack(sel, target) {
   for (const e of sel) {
     if (e.kind !== 'unit') continue;
+    if (target.specimen && e.team === 1) continue;   // weapons locked around protected specimens
     e.order = e.type === 'harrier'
       ? { type: 'strike', target }
       : { type: 'attack', target, resume: null };
@@ -1247,7 +1256,7 @@ function buyNuke(b, tier) {
 }
 function launchNuke(b, wx, wy) {
   const tier = b.warhead;
-  if (!tier) return false;
+  if (!tier || b.hp <= 0 || !buildings.includes(b)) return false;   // silo must be standing
   if (lowPower(b.team)) {
     if (b.team === 1) { toast('⚡ LOW POWER — the silo can\'t launch. Build a Power Plant.'); snd.error(); }
     return false;
@@ -1345,8 +1354,9 @@ function damage(e, d, src) {
     if (e.kind === 'building') raiseAlert(e.x, e.y, '⚠ Your base is under attack!');
     else if (e.type === 'harvester' || e.type === 'engineer') raiseAlert(e.x, e.y, '⚠ Your workers are under attack!');
   }
-  // fight back if idle
-  if (e.kind === 'unit' && isCombat(e) && e.order.type === 'idle' && src && src.hp > 0) {
+  // fight back if idle — but never against a protected specimen (weapons are locked)
+  if (e.kind === 'unit' && isCombat(e) && e.order.type === 'idle' && src && src.hp > 0
+      && !(src.specimen && e.team === 1)) {
     e.order = { type: 'attack', target: src, resume: null };
   }
   if (e.hp <= 0) {
@@ -1370,6 +1380,7 @@ function damage(e, d, src) {
 }
 function kill(e) {
   e.hp = 0;
+  if (nukeTargeting === e) { nukeTargeting = null; setCursor(); }   // no launching from rubble
   if (e.kind === 'unit' && e.cargo && e.cargo.length) {
     if (e.team === 1) stats.lost += e.cargo.length;   // passengers are lost too
     e.cargo = [];
@@ -1450,6 +1461,7 @@ function moveToward(u, tx, ty) {
 }
 
 function updateUnit(u) {
+  if (u.hp <= 0) return;   // killed earlier this tick (splash, capture) — the dead don't act
   if (u.cool > 0) u.cool--;
   if (u.ghostT > 0) u.ghostT--;
   u.moving = false;
@@ -1472,6 +1484,10 @@ function updateUnit(u) {
 
   switch (o.type) {
     case 'idle': {
+      // undelivered cargo always resumes its run — a move/stop order mid-haul
+      // must never strand a specimen or egg (soft-locked the tutorial once)
+      if (u.captive) { u.order = { type: 'returnCaptive' }; break; }
+      if (u.eggCarry) { u.order = { type: 'returnEgg' }; break; }
       if (u.type === 'medic') {
         const w = nearestWoundedAlly(u, 260);
         if (w) u.order = { type: 'heal', target: w };
@@ -1607,6 +1623,7 @@ function updateUnit(u) {
       const D = UNIT.harrier;
       for (const e of units.slice()) {
         if (e.team === u.team || e.hp <= 0) continue;
+        if (e.specimen && u.team === 1) continue;   // protected specimens shrug off player splash
         if (dist(t.x, t.y, e.x, e.y) <= D.bombSplash + e.r) damage(e, D.bomb * weaponMult(u), u);
       }
       for (const b of buildings.slice()) {
@@ -1821,8 +1838,11 @@ function separation() {
 function updateBuilding(b) {
   if (b.hp <= 0) return;   // dead this tick — no healing, firing, or spawning from the grave
   if (b.built < 1) {
-    b.built = Math.min(1, b.built + 1 / (BLD[b.type].buildTime || BLD.turret.buildTime));
-    b.hp = Math.min(b.maxHp, Math.max(b.hp, b.maxHp * b.built));
+    const bt = BLD[b.type].buildTime || BLD.turret.buildTime;
+    b.built = Math.min(1, b.built + 1 / bt);
+    // hp accrues incrementally so combat damage during construction STICKS —
+    // the old max(hp, maxHp*built) floor silently healed any non-lethal hit
+    b.hp = Math.min(b.maxHp, b.hp + b.maxHp / bt);
     if (b.built >= 1 && b.type === 'refinery') {
       // refineries come online with a free harvester, C&C style
       const u = makeUnit('harvester', b.team, b.x, b.y + b.h / 2 + 16);
@@ -1900,6 +1920,7 @@ function updateBullets() {
         // radius; buildings eat the siege bonus on top
         for (const u of units) {
           if (u.team === p.team || u.hp <= 0) continue;
+          if (u.specimen && p.team === 1) continue;   // protected specimens shrug off player splash
           if (dist(p.tx, p.ty, u.x, u.y) <= p.splash + u.r) damage(u, p.dmg, p.src);
         }
         for (const b of buildings) {
@@ -2065,7 +2086,9 @@ function aiUpdate() {
       aiBuild('silo', hq.x, hq.y);
     } else if (t.crystals > 400 && have('refinery') < 3 && tick > 4 * 3600) {
       const spot = aiExpansionSpot();
-      if (spot) aiPlace('refinery', spot.x + 60, spot.y + 60);
+      // aiBuild, not aiPlace: refineries need a depot now — if the AI somehow lost
+      // every depot, this builds one at the expansion (an outpost wants supply anyway)
+      if (spot) aiBuild('refinery', spot.x + 60, spot.y + 60);
     }
   }
   // nuclear ambitions (Hard / Spec Ops only)
@@ -2124,6 +2147,9 @@ function waveUpdate() {
 }
 
 // ---------------- End condition ----------------
+// the verdict overlay is delayed so the HQ explosion can play out — but the
+// pending timeout must die with the world, or it fires over the menu / next game
+let overlayTimer = null;
 function overlayStats() {
   const mins = Math.floor(tick / 3600), secs = Math.floor((tick % 3600) / 60);
   document.getElementById('ov-stats').innerHTML =
@@ -2145,7 +2171,7 @@ function checkEnd() {
   if (!pAlive || !eAlive) {
     gameOver = pAlive ? 'win' : 'lose';
     // let the HQ explosion play out before the verdict drops
-    setTimeout(() => {
+    overlayTimer = setTimeout(() => {
       elOvTitle.textContent = pAlive ? 'VICTORY' : 'DEFEAT';
       elOvTitle.className = pAlive ? 'win' : 'lose';
       elOvSub.textContent = pAlive
@@ -2287,6 +2313,11 @@ cv.addEventListener('contextmenu', (e) => {
     }
     fxs.push({ kind: 'ping', x: t.x, y: t.y, t: 0, max: 22, color: '#8fc94a' });
   }
+  else if (t && t.kind === 'unit' && t.specimen) {
+    // no rig in the selection: a protected specimen can't be attacked — walk over instead
+    commandMove(selection, wx, wy, false);
+    fxs.push({ kind: 'ping', x: wx, y: wy, t: 0, max: 22, color: '#8fc94a' });
+  }
   else if (t && t.kind === 'building' && t.team === 1 && selection.some(s => s.kind === 'unit' && s.type === 'engineer')) {
     commandRepair(selection, t);
     fxs.push({ kind: 'ping', x: t.x, y: t.y, t: 0, max: 22, color: '#8ce6a0' });
@@ -2325,6 +2356,7 @@ window.addEventListener('keydown', (e) => {
   keys[e.code] = true;
   if (e.code.startsWith('Arrow')) e.preventDefault();
   audioInit();
+  if (!started) return;   // menu / briefing on screen — gameplay hotkeys stay cold
 
   if (e.code === 'Escape') {
     if (!elHelp.classList.contains('hidden')) { setHelp(false); return; }
@@ -2342,7 +2374,7 @@ window.addEventListener('keydown', (e) => {
   if (gameOver) return;
 
   pruneSelection();
-  if (e.code === 'KeyA' && selection.some(s => s.kind === 'unit' && isCombat(s))) { attackMoveMode = true; placing = null; setCursor(); return; }
+  if (e.code === 'KeyA' && selection.some(s => s.kind === 'unit' && isCombat(s))) { attackMoveMode = true; placing = null; nukeTargeting = null; setCursor(); return; }
   if (e.code === 'KeyS') { for (const s of selection) if (s.kind === 'unit') s.order = { type: 'idle' }; return; }
   if (e.code === 'KeyH' && selection.some(s => s.kind === 'unit' && canHunker(s))) { toggleHunker(); return; }
   if (e.code === 'KeyU' && selection.some(s => s.kind === 'unit' && s.cargo && s.cargo.length)) {
@@ -2443,7 +2475,7 @@ function startPlacing(type) {
     snd.error();
     return;
   }
-  placing = type; attackMoveMode = false; setCursor(); lastCardSig = '';
+  placing = type; attackMoveMode = false; nukeTargeting = null; setCursor(); lastCardSig = '';
 }
 function canPlaceBuilding(type, wx, wy) {
   const d = BLD[type];
@@ -2636,11 +2668,10 @@ function refreshCard() {
   if (!placing && !attackMoveMode) {
     html += '<div class="row">';
     for (const [t, k] of BUILD_MENU) {
+      if (!hasTech(1, t)) continue;   // progressive disclosure — locked buildings stay hidden
       const d = BLD[t];
-      const locked = !hasTech(1, t);
-      const dim = locked || teams[1].crystals < d.cost ? ' class="dim"' : '';
-      const title = locked ? ` title="Requires ${techLabel(t)}"` : '';
-      html += `<button data-act="build:${t}"${dim}${title}>${locked ? '🔒 ' : ''}${d.label} · ${d.cost} ⬡ <small>[${k}]</small></button>`;
+      const dim = teams[1].crystals < d.cost ? ' class="dim"' : '';
+      html += `<button data-act="build:${t}"${dim}>${d.label} · ${d.cost} ⬡ <small>[${k}]</small></button>`;
     }
     html += '</div>';
   }
@@ -2713,11 +2744,22 @@ elDock.addEventListener('click', (e) => {
   else if (act.startsWith('build:')) { startPlacing(act.slice(6)); }
   else if (act === 'stop') { for (const s of selection) if (s.kind === 'unit') s.order = { type: 'idle' }; }
   else if (act === 'hunker') { toggleHunker(); }
-  else if (act === 'amove') { attackMoveMode = true; setCursor(); lastCardSig = ''; }
+  else if (act === 'amove') { attackMoveMode = true; placing = null; nukeTargeting = null; setCursor(); lastCardSig = ''; }
 });
 
 let wasLowPower = false;
+let lastAvail = null;   // build-menu availability — announces newly unlocked buildings
 function refreshTopbar() {
+  const avail = BUILD_MENU.filter(([t]) => hasTech(1, t)).map(([t]) => t);
+  if (lastAvail) {
+    const fresh = avail.filter(t => !lastAvail.includes(t));
+    if (fresh.length) {
+      toast('🔓 Construction unlocked: ' + fresh.map(t => BLD[t].label).join(', '));
+      snd.ready();
+      lastCardSig = '';
+    }
+  }
+  lastAvail = avail;
   elCrystals.textContent = '⬡ ' + Math.floor(teams[1].crystals);
   elSupply.textContent = '☰ ' + supplyUsed(1) + ' / ' + supplyMax(1);
   const pu = powerUsed(1), pm = powerMax(1), low = pu > pm;
@@ -3442,6 +3484,14 @@ function drawUnit(u) {
     return;
   }
   if (u.type === 'spitter') {
+    if (u.specimen) {
+      // protected specimen: pulsing field ring so "don't shoot" reads at a glance
+      cx.strokeStyle = `rgba(143,201,74,${0.5 + 0.3 * Math.sin(tick * 0.1)})`;
+      cx.lineWidth = 2;
+      cx.setLineDash([4, 5]);
+      cx.beginPath(); cx.arc(u.x, u.y, u.r + 7, 0, Math.PI * 2); cx.stroke();
+      cx.setLineDash([]);
+    }
     cx.save();
     cx.translate(u.x, u.y);
     cx.rotate(u.faceA);
@@ -3590,7 +3640,7 @@ function drawUnit(u) {
 
 // capture channel progress — a green arc closing around the rig
 function drawCapRing(u) {
-  if (!u.capT) return;
+  if (!u.capT || u.order.type !== 'capture') return;   // ring only while actually channeling
   cx.strokeStyle = '#8fc94a';
   cx.lineWidth = 3;
   cx.beginPath();
@@ -3939,9 +3989,11 @@ function missionInit(idx) {
   };
 }
 
-// dialogue: a queue of speaker lines, revealed typewriter-style on the sim tick
+// dialogue: a queue of speaker lines, revealed typewriter-style on the sim tick.
+// When lines back up (fast players out-build the script), the current line types
+// faster and holds shorter so the commentary catches up instead of lagging.
 let dlgQueue = [], dlgCur = null, dlgStart = 0, dlgUntil = 0;
-const dlgDur = (text) => Math.min(9 * 60, Math.floor((2.6 + text.length * 0.045) * 60));
+const dlgDur = (text) => Math.min(7 * 60, Math.floor((2.2 + text.length * 0.035) * 60));
 function say(who, text) { dlgQueue.push({ who, text }); }
 function dlgUpdate() {
   if (!dlgCur && dlgQueue.length) {
@@ -3953,9 +4005,14 @@ function dlgUpdate() {
     elDialogue.classList.remove('hidden');
   }
   if (!dlgCur) return;
-  const chars = Math.floor((tick - dlgStart) * 1.4);
-  if (chars <= dlgCur.text.length + 2) elDlgText.textContent = dlgCur.text.slice(0, chars);
-  if (tick >= dlgUntil) {
+  const rush = dlgQueue.length > 0;
+  const rate = rush ? 2.6 : 1.4;
+  const chars = Math.floor((tick - dlgStart) * rate);
+  if (chars <= dlgCur.text.length + 3) elDlgText.textContent = dlgCur.text.slice(0, chars);
+  const until = rush
+    ? Math.min(dlgUntil, dlgStart + Math.ceil(dlgCur.text.length / rate) + 60)
+    : dlgUntil;
+  if (tick >= until) {
     dlgCur = null;
     if (!dlgQueue.length) elDialogue.classList.add('hidden');
   }
@@ -3976,10 +4033,10 @@ function refreshObjectives() {
 
 function objMet(o) {
   switch (o.type) {
-    case 'unitCount': return units.filter(u => u.team === 1 && u.type === o.unit).length >= o.count;
-    case 'built': return buildings.filter(b => b.team === 1 && b.type === o.bld && b.built >= 1).length >= o.count;
+    case 'unitCount': return units.filter(u => u.team === 1 && u.hp > 0 && u.type === o.unit).length >= o.count;
+    case 'built': return buildings.filter(b => b.team === 1 && b.hp > 0 && b.type === o.bld && b.built >= 1).length >= o.count;
     case 'mined': return stats.mined >= o.amount;
-    case 'reach': return units.some(u => u.team === 1 && dist2(u.x, u.y, o.x, o.y) < o.r * o.r);
+    case 'reach': return units.some(u => u.team === 1 && u.hp > 0 && dist2(u.x, u.y, o.x, o.y) < o.r * o.r);
     case 'captive': return teams[1].captives >= o.count;
     case 'flag': return !!ms.flags[o.id];
   }
@@ -4020,6 +4077,7 @@ function doSpawn(sp) {
       clamp(sp.at[1] + ((i / 3) | 0) * 30 - i * 10, 20, H - 20));
     if (sp.order === 'attackhq' && hq) u.order = { type: 'attackmove', x: hq.x, y: hq.y };
     else if (sp.order === 'guard') u.order = { type: 'guard', hx: u.x, hy: u.y };
+    if (sp.specimen) u.specimen = true;   // protected: player weapons won't track it
     ids.push(u.id);
   }
 }
@@ -4069,7 +4127,7 @@ function missionEnd(win) {
   if (gameOver) return;
   gameOver = win ? 'win' : 'lose';
   if (win) localStorage.setItem(CAMPAIGN_KEY, String(Math.max(campaignDone(), ms.idx + 1)));
-  setTimeout(() => {
+  overlayTimer = setTimeout(() => {
     elOvTitle.textContent = win ? 'MISSION COMPLETE' : 'MISSION FAILED';
     elOvTitle.className = win ? 'win' : 'lose';
     elOvSub.textContent = (win ? mission.winText : mission.loseText) || '';
@@ -4201,9 +4259,10 @@ function resetWorld() {
   placing = null; attackMoveMode = false; setCursor();
   explored.fill(0); visible.fill(0);
   elOverlay.classList.add('hidden');
+  clearTimeout(overlayTimer); overlayTimer = null;
   lastCardSig = '';
   mission = null; ms = null;
-  wasLowPower = false;
+  wasLowPower = false; lastAvail = null;
   dlgQueue = []; dlgCur = null;
   elDialogue.classList.add('hidden');
   refreshObjectives();

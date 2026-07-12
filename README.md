@@ -22,10 +22,11 @@ and an objectives panel that tracks your progress. Beat a mission to unlock the
 next — progress is saved in your browser.
 
 **Mission 1 — Landfall** is live: establish the expedition's first outpost,
-survive first contact with the wildlife, scout the crystal fields, and capture
-a live spitter for Dr. Lin with the unarmed **Capture Rig** (right-click the
-specimen, keep your marines' rifles off it, and haul it home). More of Act I
-is on the way.
+scout the crystal fields (the wildlife won't hunt what it hasn't seen — but it
+notices patrols), survive the retaliation, and capture a live spitter for
+Dr. Lin with the unarmed **Capture Rig**. Your weapons are locked around the
+protected specimen, so bring escorts to soak the hits and haul it home. More
+of Act I is on the way.
 
 ## Dinosaurs 🦖
 
@@ -130,11 +131,12 @@ Buildings unlock in order — each tier opens the next:
 
 **Supply Depot → Barracks → Factory → Airpad → Missile Silo**
 
-Turrets need a Barracks; Flak needs a Factory. The Refinery is pure economy
-and is always available. Locked buildings show a 🔒 on the command card with
-their requirement. Losing a tech building doesn't disable what's already
-standing — but you can't build replacements further up the tree until you
-rebuild it (and neither can the enemy, so their depots are a real target).
+Turrets need a Barracks; Flak needs a Factory; the Power Plant and Refinery
+just need a Depot. Locked buildings stay hidden from the command card until
+you've built what they need — watch for the 🔓 unlock toasts as your base
+grows. Losing a tech building doesn't disable what's already standing — but
+you can't build replacements further up the tree until you rebuild it (and
+neither can the enemy, so their depots are a real target).
 
 - **Supply Depot** (100) — raises your supply cap by 8, unlocks the Barracks,
   **and slowly repairs friendly buildings near it** (a weak, free engineer that
