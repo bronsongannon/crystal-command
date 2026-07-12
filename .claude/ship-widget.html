@@ -53,6 +53,19 @@
   <div id="shipped"></div>
 </div>
 
+<div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem;margin:0 0 1.5rem">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+    <i class="ti ti-map-2" style="font-size:20px" aria-hidden="true"></i>
+    <p style="font-weight:500;font-size:15px;margin:0">Campaign arc — Acts 2 and 3</p>
+    <span style="margin-left:auto;background:var(--bg-warning);color:var(--text-warning);font-size:12px;padding:3px 10px;border-radius:var(--radius)">designed, not built</span>
+  </div>
+  <p style="font-size:13px;color:var(--text-secondary);margin:0 0 10px">Full mission-by-mission design in CAMPAIGN.md — ships as the free update after v1. Click a mission chip to start building it. Biggest engine prerequisite: the allied AI faction (M11, M18).</p>
+  <p style="font-size:13px;font-weight:500;margin:6px 0 2px">Act 2 — The Awakening (red falls to the planet)</p>
+  <div id="act2"></div>
+  <p style="font-size:13px;font-weight:500;margin:12px 0 2px">Act 3 — Broodfall (take it back)</p>
+  <div id="act3"></div>
+</div>
+
 <div style="display:flex;gap:8px;flex-wrap:wrap">
   <button onclick="sendPrompt('Walk me through creating the Crystal Command app record in App Store Connect under my existing developer account')">Start App Store record ↗</button>
   <button onclick="sendPrompt('Let\'s build the WKWebView Mac wrapper for Crystal Command step by step')">Start the Mac wrapper ↗</button>
@@ -163,6 +176,35 @@ document.querySelectorAll('input[data-k]').forEach(cb => {
 });
 document.querySelectorAll('button[data-p]').forEach(btn => {
   btn.addEventListener('click', () => sendPrompt(PROMPTS[btn.dataset.p]));
+});
+const ACTS = {
+  act2: [
+    ['M8','Strip Mine','Krauss nukes a nest field; the first Raptor Den answers — hunting BOTH sides'],
+    ['M9','The Silence','Commando dread mission into a dead red outpost; first Screechers'],
+    ['M10','The Fall','Your final assault on Krauss becomes his base falling to the swarm — the kill objective is cancelled mid-mission: get out alive'],
+    ['M11','Strange Bedfellows','Joint defense beside red AI allies; lose if EITHER HQ falls'],
+    ['M12','Exodus','Escort his civilian convoy past Ironback roadblocks'],
+    ['M13','The Broodmother Wakes','Hold the evac LZ, then watch her walk through the ruins. You leave.'],
+  ],
+  act3: [
+    ['M14','Return to Ruin','Beachhead in the overgrown Act 1 basin; corrupted red buildings are living spawners'],
+    ['M15','The Overgrowth','Dens seed new dens on a timer — kill them all before they hit 12'],
+    ['M16','Lin\'s Gambit','Capture three live raptors + red lab data cores; the Mission 1 rig arc pays off'],
+    ['M17','The Screeching Sky','Air war on cliff roosts strangling your mining economy'],
+    ['M18','Krauss\'s Debt','Joint assault; his last warhead breaches the crater wall'],
+    ['M19','The Mega-Hive','Siege of red\'s old HQ crater — every system in the game at once'],
+    ['M20','Crystal Command','Broodmother + the Heart Crystal: shatter it or take it — your choice IS the ending'],
+  ],
+};
+for (const [act, rows] of Object.entries(ACTS)) {
+  document.getElementById(act).innerHTML = rows.map(([m, title, desc]) =>
+    '<div style="display:flex;align-items:flex-start;gap:10px;padding:6px 0;border-top:0.5px solid var(--border)">' +
+    '<span style="flex:1;font-size:14px;line-height:1.5"><span style="font-weight:500">' + title + '.</span> <span style="color:var(--text-secondary)">' + desc + '</span></span>' +
+    '<button data-m="' + m + '" data-t="' + title + '" aria-label="Start building this mission" title="Build this mission with Claude" ' +
+    'style="min-width:36px;height:26px;padding:0 6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;border-radius:6px;flex-shrink:0">' + m + '</button></div>').join('');
+}
+document.querySelectorAll('button[data-m]').forEach(btn => {
+  btn.addEventListener('click', () => sendPrompt('Let\'s build Crystal Command mission ' + btn.dataset.m.slice(1) + ' "' + btn.dataset.t + '" — pull its design from CAMPAIGN.md, list any engine prerequisites still missing, and start implementing.'));
 });
 const days = Math.max(0, Math.ceil((new Date('2026-07-31T23:59:00') - new Date()) / 86400000));
 document.getElementById('days-left').textContent = days;
