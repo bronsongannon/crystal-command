@@ -33,10 +33,10 @@ so slices are onset-detected, trimmed, faded, peak-normalized to -1dB, 44.1k/16-
 |---|---|
 | shot | Black Powder Guns Library (Pole Position) — flintlock M1820 close, first take |
 | shell | Naval Warfare (Gladestock) — cannon broadside |
-| thump | Detonation (Bluezone) — real mortar |
+| thump | Naval Warfare (Gladestock) — cannonball impact (Bronson pick over the mortar) |
 | spit | Invader Alien Creature (Bluezone) — scifi organic shot |
 | rocket | Laser Guns (RYK) — Laser Rocket 7 |
-| snipe | Black Powder — percussion M1850 at 20m (distant crack) |
+| snipe | Black Powder — flintlock M1820 at 4m (Bronson pick over the 20m take) |
 | launch | Combat Drone (Bluezone) — jet sonic boom, 3.5s |
 | boom | Detonation (Bluezone) — urban explosion |
 | deposit | RPG Audio `handleCoins` (Kenney survivor) |
