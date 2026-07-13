@@ -22,29 +22,32 @@ independent — anything missing keeps its procedural WebAudio beep as fallback)
 | `alarm.wav` | Base under attack / nuke inbound | Klaxon, 0.5–1s |
 | `select.wav` | Units selected | Very short soft click/blip (plays constantly — keep subtle) |
 
-## Current install (2026-07-13) — all 14 slots filled
+## Current install (2026-07-13 PM) — realistic pass, Sonniss GDC 2021-23 bundle
 
-All Kenney CC0 except the alarm. Zips live in `assets/sprites/Source 2/` (untracked).
+Bronson rejected the Kenney set same day ("too toy-like") — weapons/explosions now
+come from real recordings in the Sonniss GDC bundle (royalty-free commercial, no
+attribution). Processed via `process_sfx.py` lessons: pro files hold many takes,
+so slices are onset-detected, trimmed, faded, peak-normalized to -1dB, 44.1k/16-bit mono.
 
 | Slot | Source |
 |---|---|
-| shot | Sci-fi Sounds `laserSmall_004` |
-| shell | Sci-fi Sounds `explosionCrunch_004` |
-| thump | Sci-fi Sounds `lowFrequency_explosion_000` |
-| spit | Sci-fi Sounds `slime_000` |
-| rocket | Sci-fi Sounds `thrusterFire_000`, trimmed 5s -> 0.75s w/ fade |
-| snipe | Sci-fi Sounds `laserRetro_000` |
-| launch | Sci-fi Sounds `spaceEngineLarge_000` (5s — deliberate, nuke drama) |
-| boom | Sci-fi Sounds `explosionCrunch_000` |
-| deposit | RPG Audio `handleCoins` |
-| repair | Impact Sounds `impactMining_001` |
-| ready | Interface Sounds `confirmation_001` |
-| error | Interface Sounds `error_006` (004 was a 0.1s blip) |
-| select | Interface Sounds `click_001` (002 was 10ms — inaudible) |
-| alarm | Freesound #704445 "klaxon-10" by SieuAmThanh (CC0), trimmed 21s -> 1.6s w/ fade |
+| shot | Black Powder Guns Library (Pole Position) — flintlock M1820 close, first take |
+| shell | Naval Warfare (Gladestock) — cannon broadside |
+| thump | Detonation (Bluezone) — real mortar |
+| spit | Invader Alien Creature (Bluezone) — scifi organic shot |
+| rocket | Laser Guns (RYK) — Laser Rocket 7 |
+| snipe | Black Powder — percussion M1850 at 20m (distant crack) |
+| launch | Combat Drone (Bluezone) — jet sonic boom, 3.5s |
+| boom | Detonation (Bluezone) — urban explosion |
+| deposit | RPG Audio `handleCoins` (Kenney survivor) |
+| repair | Impact Sounds `impactMining_001` (Kenney survivor) |
+| ready | Futuristic Interface (JSE) — 'Confirm Access Granted' |
+| error | Interface Sounds `error_006` (Kenney survivor) |
+| select | Interface Sounds `click_001` (Kenney survivor) |
+| alarm | Freesound #704445 klaxon (Bronson's pick), trimmed 1.6s |
 
-Playtest levers: shell/thump have ~2s tails (swap to `_00X` siblings if muddy);
-every Kenney pick has 4 sibling takes in the same pack.
+Alternate takes for every weapon live in the session audition set; GDC source
+libraries (357MB extract) + full 35GB bundle zips: `assets/sprites/Source 2/audio/` (untracked).
 
 Per-slot volumes live in `SFX_VOL` in `game.js` — tweak there, keep source files
 normalized loud.

@@ -3,3 +3,7 @@
 # sound-pack source archives (reproducible from kenney.nl / freesound.org)
 assets/sprites/Source 2/*.zip
 assets/sprites/Source 2/*__*.wav
+assets/sprites/Source 2/audio/
+assets/sprites/Source 2/*.torrent
+.DS_Store
+assets/sprites/Source 2/*.dmg
