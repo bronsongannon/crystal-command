@@ -3692,8 +3692,10 @@ function drawRigCage(u) {
 // Team-colored: wild ones are acid green, hatched player dinos wear teal.
 // No sprite art yet; when dino sprites land they slot in via drawUnitSprite.
 function drawDino(u) {
-  // pre-colored colorway first (wild bone/moss art, or teal for tamed)
-  const half = u.type === 'raptor' ? 12 : 13;
+  // pre-colored colorway first (wild bone/moss art, or teal for tamed).
+  // raptor art is extremely elongated (whip tail) — drawn bigger so the BODY
+  // matches spitter mass while the tail overhangs the hit circle harmlessly
+  const half = u.type === 'raptor' ? 17 : 13;
   const pre = optCW('unit_' + u.type, u.team);
   if (pre) {
     cx.rotate(Math.PI / 2);   // art faces up
