@@ -141,10 +141,12 @@ const SHIPPED = [
   'Nuke safety: no launching from dead silos, no mode-stacking accidental launches, no overlay race on quit',
   'Menu hotkeys gated off, mission rig costs no supply, enemy plant can\'t spawn on crystals, AI refineries obey the tech tree',
   'Full colorway art set live: every unit + building, both teams (Gemini pipeline)',
-  'Death-fall animation system (rocket trooper pilot); walk cycles tried and reverted by playtest',
+  'Death-fall animation system; walk cycles tried and reverted by playtest',
+  'Death frames COMPLETE: all infantry both teams + spitter teal/wild — 48 frames sliced, verified in-game',
+  'Turret gun red colorway — full building set now covered both teams',
   'Missions 2 + 3 built: Claim Jumpers (convoy escort) + The Nest Problem (artillery doctrine)',
 ];
-const PRE = { ap1: 1, g1: 1, g2: 1, g4: 1, g6: 1, a2: 1, a3: 1, a4: 1 };
+const PRE = { ap1: 1, g1: 1, g2: 1, g4: 1, g6: 1, a2: 1, a3: 1, a4: 1, a5: 1, a6: 1, a7: 1, a8: 1 };
 const KEY = 'cc-ship-checklist-v1';
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}

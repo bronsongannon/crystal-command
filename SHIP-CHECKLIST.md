@@ -36,10 +36,10 @@ file and the widget's task lists in sync.
 - [x] Generate unit_rig.png and bld_power.png — superseded by full colorway art set (2026-07-12)
 - [x] Dino art hunt — resolved via Gemini colorway pipeline (2026-07-12)
 - [x] Standing sniper art (2026-07-12)
-- [ ] Turret gun red (30-second Gemini recolor)
-- [ ] Rocket trooper death sheet — red recolor of the existing sheet
-- [ ] Spitter death sheet (wild colorway, IDLE + DEATH only)
-- [ ] Infantry death sheets: marine, sniper, medic, engineer (teal + red)
+- [x] Turret gun red (2026-07-12)
+- [x] Rocket trooper death sheet — red recolor (2026-07-12; teal frames re-sliced too, old grid artifacts fixed)
+- [x] Spitter death sheets — wild AND teal colorways (2026-07-12)
+- [x] Infantry death sheets: marine, sniper, medic, engineer, teal + red (2026-07-12)
       (death frames: infantry + dinos only; vehicles keep the fireball, aircraft skip;
       every future dino sheet includes IDLE + DEATH from day one)
 
