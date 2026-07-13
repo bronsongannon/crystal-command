@@ -818,11 +818,13 @@ function beep(freq, dur, type, vol, slideTo) {
 // Sample sfx (optional, like the OPT sprite slots): drop assets/sfx/<name>.wav|ogg|mp3 and it
 // plays instead of the procedural beep. Each file independent; missing file = beep fallback.
 const SFX_NAMES = ['shot', 'shell', 'thump', 'spit', 'rocket', 'launch', 'snipe', 'boom',
-                   'deposit', 'repair', 'ready', 'error', 'alarm', 'select'];
+                   'deposit', 'repair', 'ready', 'error', 'alarm', 'select',
+                   'bite', 'screech', 'collapse', 'nuke'];
 const SFX_EXTS = ['wav', 'ogg', 'mp3'];
 const SFX_VOL = { shot: 0.16, shell: 0.3, thump: 0.35, spit: 0.2, rocket: 0.25, snipe: 0.2,
                   launch: 0.6, boom: 0.45, deposit: 0.2, repair: 0.15, ready: 0.3,
-                  error: 0.3, alarm: 0.4, select: 0.12 };
+                  error: 0.3, alarm: 0.4, select: 0.12,
+                  bite: 0.25, screech: 0.3, collapse: 0.5, nuke: 0.7 };
 const SFX_POOL = 4;   // simultaneous overlapping plays per sound
 const sfx = {};       // name -> { pool: [HTMLAudio...], i }
 (function loadSfx() {
@@ -866,6 +868,14 @@ const snd = {
   error()   { if (!playSfx('error')) beep(170, 0.11, 'square', 0.045); },
   alarm()   { if (playSfx('alarm')) return; beep(520, 0.14, 'square', 0.06, 320); setTimeout(() => beep(520, 0.14, 'square', 0.06, 320), 200); },
   select()  { if (!playSfx('select')) beep(540, 0.035, 'sine', 0.02); },
+  // raptor claws: sample or a short snap
+  bite()    { if (!playSfx('bite')) beep(220, 0.06, 'square', 0.03, 90); },
+  // dino death cry: organic, no explosion — dinos are meat, not machines
+  screech() { if (!playSfx('screech')) beep(680, 0.12, 'sawtooth', 0.045, 1400); },
+  // building death: rubble if we have it, else the plain boom
+  collapse() { if (!playSfx('collapse')) this.boom(); },
+  // the big one — sample, else the old triple boom
+  nuke()    { if (playSfx('nuke')) return; this.boom(); setTimeout(() => this.boom(), 160); setTimeout(() => this.boom(), 340); },
 };
 
 // ---------------- Factories ----------------
@@ -1477,7 +1487,7 @@ function detonate(n) {
   }
   fxs.push({ kind: 'boom', x: n.x, y: n.y, t: 0, max: 45, size: spec.radius });
   addShake(n.x, n.y, 30);
-  snd.boom(); setTimeout(() => snd.boom(), 160); setTimeout(() => snd.boom(), 340);
+  snd.nuke();
 }
 function updateNukes() {
   for (const n of nukes) {
@@ -1498,7 +1508,7 @@ function fire(src, target) {
     src.recoil = 3;   // the recoil kick reads as a lunge-and-recover
     const infBonus = target.kind === 'unit' && IS_INF[target.type] ? UNIT.raptor.infBonus : 1;
     fxs.push({ kind: 'slash', x: target.x, y: target.y, a: src.faceA, t: 0, max: 12 });
-    if (src.team === 1 || Math.random() < 0.4) snd.spit();
+    if (src.team === 1 || Math.random() < 0.4) snd.bite();
     damage(target, src.dmg * weaponMult(src) * infBonus, src);
     return;
   }
@@ -1606,7 +1616,9 @@ function kill(e) {
     addShake(e.x, e.y, 20);
     snd.boom(); setTimeout(() => snd.boom(), 180);
   }
-  snd.boom();
+  if (e.kind === 'building') snd.collapse();
+  else if (IS_DINO[e.type]) snd.screech();
+  else snd.boom();
 }
 
 // ---------------- Unit update ----------------

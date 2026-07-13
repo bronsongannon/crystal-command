@@ -21,6 +21,10 @@ independent — anything missing keeps its procedural WebAudio beep as fallback)
 | `error.wav` | Can't afford / queue full / bad order | Negative buzz, short |
 | `alarm.wav` | Base under attack / nuke inbound | Klaxon, 0.5–1s |
 | `select.wav` | Units selected | Very short soft click/blip (plays constantly — keep subtle) |
+| `bite.wav` | Raptor melee hit | Short claw slash/impact |
+| `screech.wav` | Dino death (spitter/raptor) | Organic death cry — dinos don't explode |
+| `collapse.wav` | Building destroyed | Rubble/debris crash, ~2s |
+| `nuke.wav` | Nuke detonation | The big one — full explosion with tail, ~4s |
 
 ## Current install (2026-07-13 PM) — realistic pass, Sonniss GDC 2021-23 bundle
 
@@ -45,6 +49,10 @@ so slices are onset-detected, trimmed, faded, peak-normalized to -1dB, 44.1k/16-
 | error | Interface Sounds `error_006` (Kenney survivor) |
 | select | Interface Sounds `click_001` (Kenney survivor) |
 | alarm | Freesound #704445 klaxon (Bronson's pick), trimmed 1.6s |
+| bite | Melee Weapons Pack 1 (D. Dumais) — sword slash impact |
+| screech | Biohazard (Bluezone) — organic creature texture slice |
+| collapse | Building Collapse (Bluezone) — rubble + glass |
+| nuke | Detonation (Bluezone) — full urban explosion, 4s |
 
 Alternate takes for every weapon live in the session audition set; GDC source
 libraries (357MB extract) + full 35GB bundle zips: `assets/sprites/Source 2/audio/` (untracked).
