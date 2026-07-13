@@ -32,7 +32,7 @@ file and the widget's task lists in sync.
 
 ## Art and audio
 
-- [ ] Source the 14 sound-effect slots (Kenney / Freesound CC0 — assets/sfx/README.md)
+- [x] Source the 14 sound-effect slots — all filled, Kenney CC0 + one Freesound klaxon (2026-07-13)
 - [x] Generate unit_rig.png and bld_power.png — superseded by full colorway art set (2026-07-12)
 - [x] Dino art hunt — resolved via Gemini colorway pipeline (2026-07-12)
 - [x] Standing sniper art (2026-07-12)
