@@ -40,6 +40,7 @@
     <i class="ti ti-palette" style="font-size:20px" aria-hidden="true"></i>
     <p style="font-weight:500;font-size:15px;margin:0">Art and audio</p>
   </div>
+  <p style="font-size:13px;color:var(--text-secondary);margin:0 0 10px">Death frames: infantry + dinos only — vehicles keep the fireball, aircraft skip. Standing rule: every future dino sheet includes IDLE + DEATH from day one.</p>
   <div id="track-art"></div>
 </div>
 
@@ -57,7 +58,7 @@
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
     <i class="ti ti-map-2" style="font-size:20px" aria-hidden="true"></i>
     <p style="font-weight:500;font-size:15px;margin:0">Campaign arc — all three acts</p>
-    <span style="margin-left:auto;background:var(--bg-warning);color:var(--text-warning);font-size:12px;padding:3px 10px;border-radius:var(--radius)">designed</span>
+    <span style="margin-left:auto;background:var(--bg-warning);color:var(--text-warning);font-size:12px;padding:3px 10px;border-radius:var(--radius)">3 of 20 built</span>
   </div>
   <p style="font-size:13px;color:var(--text-secondary);margin:0 0 10px">Full mission-by-mission design in CAMPAIGN.md. Act 1 ships in v1; Acts 2–3 are the free update. Click a mission chip to start building it. Biggest engine prerequisite: the allied AI faction (M11, M18).</p>
   <p style="font-size:13px;font-weight:500;margin:6px 0 2px">Act 1 — The Crystal War (ships in v1)</p>
@@ -119,6 +120,14 @@ const TRACKS = {
       'Let\'s hunt for CC0 top-down dinosaur sprites for Crystal Command (spitter, nest, future raptor) — search itch.io and OpenGameArt, and fall back to generation prompts.'],
     ['a4','Standing sniper art (only the prone pose exists today)','',
       'Help me create the standing sniper sprite for Crystal Command to pair with the existing prone hunker art — generation prompt and drop-in steps.'],
+    ['a5','Turret gun red (30-second Gemini recolor)','',
+      'I dropped the red turret gun recolor in Source 2 — process it into turret_gun_red.png and verify it composites on red turret bases in-game.'],
+    ['a6','Rocket trooper death sheet — red recolor of the existing sheet','',
+      'I dropped the red recolor of the rocket trooper spritesheet in Source 2 — slice its death frames into unit_rocket_death1..4_red.png and verify red rocket troopers fall.'],
+    ['a7','Spitter death sheet (wild colorway, IDLE + DEATH only)','',
+      'I dropped the wild spitter IDLE+DEATH sheet in Source 2 — slice the death frames into unit_spitter_death slots and verify dinos leave carcasses. Acts 2-3 will show this constantly.'],
+    ['a8','Infantry death sheets: marine, sniper, medic, engineer (teal + red recolors)','',
+      'I dropped infantry death sheets in Source 2 (marine/sniper/medic/engineer, teal plus red recolors) — slice and install all of them, then show me a battle with bodies.'],
   ],
 };
 const SHIPPED = [
@@ -131,8 +140,11 @@ const SHIPPED = [
   'Units killed mid-tick can no longer act or count toward mission objectives',
   'Nuke safety: no launching from dead silos, no mode-stacking accidental launches, no overlay race on quit',
   'Menu hotkeys gated off, mission rig costs no supply, enemy plant can\'t spawn on crystals, AI refineries obey the tech tree',
+  'Full colorway art set live: every unit + building, both teams (Gemini pipeline)',
+  'Death-fall animation system (rocket trooper pilot); walk cycles tried and reverted by playtest',
+  'Missions 2 + 3 built: Claim Jumpers (convoy escort) + The Nest Problem (artillery doctrine)',
 ];
-const PRE = { ap1: 1, g1: 1, g2: 1, g4: 1, g6: 1 };
+const PRE = { ap1: 1, g1: 1, g2: 1, g4: 1, g6: 1, a2: 1, a3: 1, a4: 1 };
 const KEY = 'cc-ship-checklist-v1';
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}

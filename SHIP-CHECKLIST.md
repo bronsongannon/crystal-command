@@ -33,9 +33,15 @@ file and the widget's task lists in sync.
 ## Art and audio
 
 - [ ] Source the 14 sound-effect slots (Kenney / Freesound CC0 — assets/sfx/README.md)
-- [ ] Generate unit_rig.png and bld_power.png (prompts in assets/sprites/ART-WANTED.md)
-- [ ] Dino art hunt — itch.io CC0 packs first, AI-generate if nothing fits
-- [ ] Standing sniper art (only the prone pose exists today)
+- [x] Generate unit_rig.png and bld_power.png — superseded by full colorway art set (2026-07-12)
+- [x] Dino art hunt — resolved via Gemini colorway pipeline (2026-07-12)
+- [x] Standing sniper art (2026-07-12)
+- [ ] Turret gun red (30-second Gemini recolor)
+- [ ] Rocket trooper death sheet — red recolor of the existing sheet
+- [ ] Spitter death sheet (wild colorway, IDLE + DEATH only)
+- [ ] Infantry death sheets: marine, sniper, medic, engineer (teal + red)
+      (death frames: infantry + dinos only; vehicles keep the fireball, aircraft skip;
+      every future dino sheet includes IDLE + DEATH from day one)
 
 ## Shipped — playtest round + full code audit (Jul 11–12)
 
