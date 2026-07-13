@@ -275,7 +275,7 @@ can pad the late acts cheaply.
    (`drawRubiconBanner`), spitter throat sac pinned venom-green (biology, not
    faction). Colorblind rule enforced by luminance ladder: bone .72 / teal .59 /
    red .49 (structures .40).
-3. **Raptor + Raptor Den** — Act 1's finale wants the swarm tease
+3. ✅ DONE 2026-07-13: **Raptor + Raptor Den** — engine-side complete (melee raptor, hunting-pack den, both-sides targeting, mission bld spawns); M7 scripts the first appearance
 
 ### Engine work implied by Acts 2–3 (rollup, in rough build order)
 

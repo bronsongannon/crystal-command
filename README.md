@@ -39,6 +39,12 @@ Clear the nest or mine poor: the richest expansions are always guarded.
 Artillery is the tool of choice — it outranges the brood's patrol radius
 entirely. A tank push or a big marine squad works too, it just costs blood.
 
+Campaign maps hide something worse: the **Raptor Den**. Dens don't wait to be
+provoked — every ~50 seconds a **hunting pack of Raptors** leaves the burrow
+and charges the nearest base, yours or the enemy's. Raptors are fast melee
+hunters whose claws shred infantry; meet them with turrets and vehicles, or
+put the den itself out of business before the packs bleed you dry.
+
 ### Eggs 🥚
 
 A destroyed nest leaves its **clutch of 3 eggs** behind. Right-click an egg

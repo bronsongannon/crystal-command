@@ -77,6 +77,11 @@ const UNIT = {
   // eggs. Cost 0 because nobody buys them with crystals; supply only bites for
   // player-owned ones (supplyUsed is per-team; wild team-3 dinos aren't counted).
   spitter:   { label: 'Spitter',   cost: 0,   supply: 1, hp: 95,  speed: 2.1,  r: 10, dmg: 11, range: 115, cooldown: 44,  buildTime: 0, sight: 200 },
+  // Fast melee pack hunter, spawned by Raptor Dens. "Melee" is faked with a very
+  // short range (the engine has no melee system and doesn't need one) — fire()
+  // skips the projectile and lands the bite directly. Claws shred infantry
+  // (infBonus, the flesh mirror of the rocket trooper's vehBonus).
+  raptor:    { label: 'Raptor',    cost: 0,   supply: 1, hp: 65,  speed: 3.4,  r: 9,  dmg: 9,  range: 16,  cooldown: 32,  buildTime: 0, sight: 220, noAA: 1, infBonus: 1.5 },
   // Xenobiology field unit: unarmed harvester chassis with a containment cage.
   // Right-click a spitter to capture it (short channel at contact range), then
   // haul it back to the HQ lab. Campaign-granted for now — not in any trains list.
@@ -112,6 +117,11 @@ const BLD = {
   // airOnly: this defense only engages flyers
   flak:     { label: 'Flak Turret',  hp: 420,  w: 40, h: 40, supply: 0,  sight: 280, dmg: 14, range: 240, cooldown: 16, cost: 160, buildTime: 8 * 60, airOnly: 1, req: ['factory'], pow: 2 },
   nest:     { label: 'Dino Nest',    hp: 850,  w: 64, h: 64, supply: 0,  sight: 200 },
+  // Raptor Den (team 3): the nest's evil twin. Where nests defend a patch, the
+  // den HUNTS — periodic raptor packs sent at the nearest structure of ANY
+  // faction (dinos are weather, not a team). Act 2's proactive-dino lever;
+  // no skirmish map places one yet, missions spawn them via bld triggers.
+  den:      { label: 'Raptor Den',   hp: 1100, w: 72, h: 72, supply: 0,  sight: 220 },
 };
 const DEPOT_HEAL_RADIUS = 240;   // the depot's repair field
 const DEPOT_HEAL_RATE = 0.06;    // hp/tick per depot — a fraction of an engineer's 0.55
@@ -123,6 +133,10 @@ const NEST_RESPAWN = 7 * 60;   // one replacement every 7s
 const NEST_LEASH = 360;        // guards give up the chase past this radius from home
 const NEST_EGGS = 3;           // eggs left in the rubble when a nest dies
 const SPITTER_CAP = 5;         // max hatched spitters a side can field at once
+const DEN_GUARDS = 2;          // raptors watching the den door from birth
+const DEN_PACK_SIZE = 3;       // raptors per hunting pack
+const DEN_PACK_EVERY = 50 * 60; // a new hunt leaves the den every 50s
+const DEN_RAPTOR_CAP = 9;      // max living raptors per den — hunts pause at cap
 const HARRIER_CAP = 5;         // max harriers a side can field (alive + queued)
 const HARRIER_REARM = 7 * 60;  // seconds on the pad between sorties
 
@@ -421,8 +435,9 @@ const UPG = {
   harvest:    { label: 'Harvester Systems', at: 'hq',      max: 3, cost: [125, 200, 275], time: [20 * 60, 25 * 60, 30 * 60] },
 };
 const IS_INF = { marine: 1, sniper: 1, engineer: 1, medic: 1, rocket: 1 };
-const isFlesh = (u) => !!IS_INF[u.type] || u.type === 'spitter';   // what a medic can heal: infantry + dinos
-const isVehicle = (u) => u.kind === 'unit' && !IS_INF[u.type] && u.type !== 'spitter';   // what an engineer can repair
+const IS_DINO = { spitter: 1, raptor: 1 };
+const isFlesh = (u) => !!IS_INF[u.type] || !!IS_DINO[u.type];   // what a medic can heal: infantry + dinos
+const isVehicle = (u) => u.kind === 'unit' && !IS_INF[u.type] && !IS_DINO[u.type];   // what an engineer can repair
 // Veterancy: every unit remembers its kills. 2/4/8 kills → +10% damage and
 // −8% damage taken per rank, and Legends (rank 3) slowly self-heal.
 const RANK_AT = [2, 4, 8];
@@ -535,19 +550,19 @@ let bodiesReady = false;
 // until then the procedural drawing stays. See assets/sprites/ART-WANTED.md.
 const OPT = {};
 (function loadOptional() {
-  const names = ['dino_spitter', 'dino_nest', 'gunship', 'artillery', 'egg', 'medic', 'rocket_trooper', 'apc', 'harrier'];
+  const names = ['dino_spitter', 'dino_nest', 'dino_den', 'gunship', 'artillery', 'egg', 'medic', 'rocket_trooper', 'apc', 'harrier'];
   for (const k in UNIT) names.push('unit_' + k);   // unit_marine.png, unit_tank.png, …
-  for (const k in BLD) if (k !== 'nest') names.push('bld_' + k);   // bld_hq.png, …
+  for (const k in BLD) if (k !== 'nest' && k !== 'den') names.push('bld_' + k);   // bld_hq.png, … (dino structures use dino_* slots)
   names.push('unit_marine_hunker', 'unit_sniper_hunker', 'unit_artillery_hunker');   // dug-in poses
   names.push('rock', 'crystal');   // terrain art (natural colors, not tinted)
   // pre-colored colorway slots (STYLE-GUIDE.pdf / Gemini pipeline): drawn AS-IS,
   // no team tint. _teal = team 1, _red = team 2, _wild = untamed dinos.
   for (const k in UNIT) names.push('unit_' + k + '_teal', 'unit_' + k + '_red');
-  for (const k in BLD) if (k !== 'nest') names.push('bld_' + k + '_teal', 'bld_' + k + '_red');
+  for (const k in BLD) if (k !== 'nest' && k !== 'den') names.push('bld_' + k + '_teal', 'bld_' + k + '_red');
   names.push('unit_marine_hunker_teal', 'unit_marine_hunker_red',
     'unit_sniper_hunker_teal', 'unit_sniper_hunker_red',
     'unit_artillery_hunker_teal', 'unit_artillery_hunker_red',
-    'unit_spitter_wild', 'turret_gun_teal', 'turret_gun_red');
+    'unit_spitter_wild', 'unit_raptor_wild', 'turret_gun_teal', 'turret_gun_red');
   // death animation frame slots (sliced from Gemini spritesheets). Any prefix
   // of frames works — the game uses however many it finds. (Walk-cycle slots
   // existed briefly and were reverted: movement keeps the procedural sway.)
@@ -914,6 +929,22 @@ function spawnSpitter(nest) {
 function makeNest(x, y) {
   const b = makeBuilding('nest', 3, x, y);
   for (let i = 0; i < NEST_BROOD; i++) spawnSpitter(b);
+  return b;
+}
+// ---------------- Raptor dens ----------------
+function spawnRaptor(den) {
+  const a = Math.random() * Math.PI * 2;
+  const u = makeUnit('raptor', 3,
+    clamp(den.x + Math.cos(a) * (den.r + 18), 20, W - 20),
+    clamp(den.y + Math.sin(a) * (den.r + 18), 20, H - 20));
+  u.home = den.id;
+  u.order = { type: 'guard', hx: den.x, hy: den.y };
+  return u;
+}
+function makeDen(x, y) {
+  const b = makeBuilding('den', 3, x, y);
+  b.packT = 0;
+  for (let i = 0; i < DEN_GUARDS; i++) spawnRaptor(b);
   return b;
 }
 
@@ -1459,6 +1490,18 @@ function updateNukes() {
 
 // ---------------- Combat ----------------
 function fire(src, target) {
+  if (src.type === 'raptor') {
+    // fake melee: no projectile — the pounce IS the hit. Claws land instantly,
+    // with the infantry bonus for anything made of meat and cloth.
+    src.cool = src.cooldown;
+    src.faceA = Math.atan2(target.y - src.y, target.x - src.x);
+    src.recoil = 3;   // the recoil kick reads as a lunge-and-recover
+    const infBonus = target.kind === 'unit' && IS_INF[target.type] ? UNIT.raptor.infBonus : 1;
+    fxs.push({ kind: 'slash', x: target.x, y: target.y, a: src.faceA, t: 0, max: 12 });
+    if (src.team === 1 || Math.random() < 0.4) snd.spit();
+    damage(target, src.dmg * weaponMult(src) * infBonus, src);
+    return;
+  }
   // browned-out towers still shoot, just half as often
   src.cool = src.cooldown * (src.kind === 'building' && lowPower(src.team) ? 2 : 1);
   src.recoil = src.type === 'tank' || src.type === 'artillery' ? 6
@@ -2025,6 +2068,34 @@ function updateBuilding(b) {
     }
     return;
   }
+  if (b.type === 'den') {
+    // the den HUNTS. Every DEN_PACK_EVERY it births a raptor pack and sends it
+    // at the nearest standing structure of ANY faction — dens don't pick sides.
+    // Survivors that finish a hunt trot home and thicken the door guard.
+    const pack = units.filter(u => u.team === 3 && u.home === b.id);
+    for (const u of pack) {
+      if (u.order.type === 'idle') u.order = { type: 'guard', hx: b.x, hy: b.y };
+    }
+    if (pack.length >= DEN_RAPTOR_CAP) return;   // hunts pause at cap, clock and all
+    b.packT = (b.packT || 0) + 1;
+    if (b.packT >= DEN_PACK_EVERY) {
+      b.packT = 0;
+      let t = null, bd = 1e18;
+      for (const o of buildings) {
+        if (o.team === 3 || o.hp <= 0 || o.built < 1) continue;
+        const d = dist2(b.x, b.y, o.x, o.y);
+        if (d < bd) { bd = d; t = o; }
+      }
+      for (let i = 0; i < DEN_PACK_SIZE; i++) {
+        const u = spawnRaptor(b);
+        if (t) u.order = { type: 'attackmove', x: t.x + (i - 1) * 26, y: t.y + 26 };
+      }
+      // warn at the TARGET, not the den — pinging the den would leak its
+      // location through the fog before the player has ever seen it
+      if (t && t.team === 1) raiseAlert(t.x, t.y, '🦖 A raptor pack is on the hunt — it smells your base!');
+    }
+    return;
+  }
   if (b.type === 'supply') {
     // logistics field: the depot slowly patches up nearby friendly buildings —
     // a weak, free engineer that never wanders off (fields from several depots stack)
@@ -2171,7 +2242,7 @@ function aiExpansionSpot() {
   for (const c of crystals) {
     if (c.amount <= 0 || c.amount <= bestAmt) continue;
     if (buildings.some(b => b.team === 2 && (b.type === 'hq' || b.type === 'refinery') && dist2(b.x, b.y, c.x, c.y) < 500 ** 2)) continue;
-    if (buildings.some(b => b.type === 'nest' && dist2(b.x, b.y, c.x, c.y) < 420 ** 2)) continue;
+    if (buildings.some(b => (b.type === 'nest' || b.type === 'den') && dist2(b.x, b.y, c.x, c.y) < 420 ** 2)) continue;
     bestAmt = c.amount; best = c;
   }
   return best;
@@ -3350,6 +3421,11 @@ function drawBuilding(b) {
     if (b.hp < b.maxHp) drawHpBar(b.x, y - 10, b.w * 0.8, b.hp, b.maxHp);
     return;
   }
+  if (b.type === 'den') {
+    drawDen(b);
+    if (b.hp < b.maxHp) drawHpBar(b.x, y - 10, b.w * 0.8, b.hp, b.maxHp);
+    return;
+  }
   if (bodiesReady) {
     drawBuildingSprite(b, x, y);
   } else {
@@ -3617,19 +3693,45 @@ function drawRigCage(u) {
 // No sprite art yet; when dino sprites land they slot in via drawUnitSprite.
 function drawDino(u) {
   // pre-colored colorway first (wild bone/moss art, or teal for tamed)
-  const pre = optCW('unit_spitter', u.team);
+  const half = u.type === 'raptor' ? 12 : 13;
+  const pre = optCW('unit_' + u.type, u.team);
   if (pre) {
     cx.rotate(Math.PI / 2);   // art faces up
-    cx.drawImage(pre, -13, -13, 26, 26);
+    cx.drawImage(pre, -half, -half, half * 2, half * 2);
     return;
   }
-  const img = opt('unit_spitter') || opt('dino_spitter');
+  const img = opt('unit_' + u.type) || (u.type === 'spitter' && opt('dino_spitter'));
   if (img) {
     cx.rotate(Math.PI / 2);   // art faces up
-    cx.drawImage(teamSprite(img, u.team), -13, -13, 26, 26);
+    cx.drawImage(teamSprite(img, u.team), -half, -half, half * 2, half * 2);
     return;
   }
   const C = COLORS[u.team];
+  if (u.type === 'raptor') {
+    // sleek pack hunter: whip tail, coiled haunches, head low and forward
+    const wag = Math.sin(tick * 0.35 + u.id) * 3.5;
+    cx.fillStyle = C.dark;                            // whip tail
+    cx.beginPath();
+    cx.moveTo(-3, -2); cx.lineTo(-16, wag); cx.lineTo(-3, 2);
+    cx.closePath(); cx.fill();
+    cx.fillStyle = C.main;                            // low lean body
+    cx.beginPath(); cx.ellipse(0, 0, 8, 3.8, 0, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = C.dark;                            // back stripes
+    cx.beginPath(); cx.ellipse(-1.5, 0, 3.5, 1.8, 0, 0, Math.PI * 2); cx.fill();
+    const gait = u.moving ? Math.sin(u.walkT * 0.7) * 2.5 : 0;
+    cx.strokeStyle = C.dark; cx.lineWidth = 2;        // sickle-claw legs
+    cx.beginPath();
+    cx.moveTo(1, -3); cx.lineTo(4 + gait, -6);
+    cx.moveTo(1, 3); cx.lineTo(4 - gait, 6);
+    cx.stroke();
+    cx.fillStyle = C.main;                            // narrow snout
+    cx.beginPath(); cx.ellipse(9.5, 0, 4.5, 2.4, 0, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = '#e0a43c';                         // amber predator eyeshine
+    cx.beginPath(); cx.arc(8.5, -1.7, 0.9, 0, Math.PI * 2); cx.arc(8.5, 1.7, 0.9, 0, Math.PI * 2); cx.fill();
+    cx.strokeStyle = '#cfc5a8'; cx.lineWidth = 1;     // bared teeth at the jaw line
+    cx.beginPath(); cx.moveTo(11, -1); cx.lineTo(13.5, 0); cx.lineTo(11, 1); cx.stroke();
+    return;
+  }
   const wag = Math.sin(tick * 0.25 + u.id) * 3;    // tail sway
   cx.fillStyle = C.dark;                            // tail
   cx.beginPath();
@@ -3645,6 +3747,43 @@ function drawDino(u) {
   cx.beginPath(); cx.arc(7, 0, 2, 0, Math.PI * 2); cx.fill();
   cx.fillStyle = '#e0a43c';                         // amber predator eyeshine
   cx.beginPath(); cx.arc(9.5, -2.2, 1, 0, Math.PI * 2); cx.arc(9.5, 2.2, 1, 0, Math.PI * 2); cx.fill();
+}
+
+// raptor den — a burrow torn into the dirt, ringed by kill-trophies. Where the
+// nest reads "clutch to defend", the den reads "something lives here and leaves".
+function drawDen(b) {
+  const img = opt('dino_den');
+  if (img) {
+    const pulse = 1 + Math.sin(tick * 0.05) * 0.02;
+    const w = b.w * 1.15 * pulse, h = b.h * 1.15 * pulse;
+    cx.drawImage(img, b.x - w / 2, b.y - h / 2, w, h);
+    return;
+  }
+  const C = COLORS[3];
+  cx.save();
+  cx.translate(b.x, b.y);
+  cx.fillStyle = '#3a3226';                                  // torn-earth mound
+  cx.beginPath(); cx.ellipse(0, 0, b.w / 2, b.h / 2 * 0.85, 0, 0, Math.PI * 2); cx.fill();
+  cx.fillStyle = C.dark;                                     // trampled moss ring
+  cx.beginPath(); cx.ellipse(0, 1, b.w / 2 * 0.82, b.h / 2 * 0.66, 0, 0, Math.PI * 2); cx.fill();
+  const breathe = 1 + Math.sin(tick * 0.05) * 0.05;
+  cx.fillStyle = '#171310';                                  // the burrow mouth — deep and dark
+  cx.beginPath(); cx.ellipse(2, 3, b.w / 2 * 0.42 * breathe, b.h / 2 * 0.3 * breathe, 0.3, 0, Math.PI * 2); cx.fill();
+  cx.strokeStyle = '#cfc5a8'; cx.lineWidth = 2.5;            // kill-trophy ribs staked around the rim
+  for (const a of [0.9, 2.1, 3.4, 4.6, 5.6]) {
+    const rx = Math.cos(a) * b.w * 0.38, ry = Math.sin(a) * b.h * 0.3;
+    cx.beginPath(); cx.moveTo(rx, ry); cx.lineTo(rx * 1.28, ry * 1.28 - 6); cx.stroke();
+  }
+  cx.strokeStyle = C.dark; cx.lineWidth = 1.5;               // claw drag-marks out the door
+  for (const off of [-5, 0, 5]) {
+    cx.beginPath(); cx.moveTo(10 + off * 0.3, 8 + off); cx.lineTo(b.w / 2 * 0.95, 12 + off * 1.6); cx.stroke();
+  }
+  cx.fillStyle = '#e0a43c';                                  // eyeshine in the dark
+  const blink = Math.sin(tick * 0.03 + b.id) > -0.85 ? 1 : 0;
+  if (blink) {
+    cx.beginPath(); cx.arc(-2, 2, 1.2, 0, Math.PI * 2); cx.arc(4, 4, 1.2, 0, Math.PI * 2); cx.fill();
+  }
+  cx.restore();
 }
 
 // gunship — drawn inside translate+rotate, +x forward. Procedural (no air art yet).
@@ -3745,7 +3884,7 @@ function drawUnit(u) {
     drawRank(u);
     return;
   }
-  if (u.type === 'spitter') {
+  if (IS_DINO[u.type]) {
     if (u.specimen) {
       // protected specimen: pulsing field ring so "don't shoot" reads at a glance
       cx.strokeStyle = `rgba(143,201,74,${0.5 + 0.3 * Math.sin(tick * 0.1)})`;
@@ -4050,6 +4189,22 @@ function drawBullet(p) {
 
 function drawFx(f) {
   const k = f.t / f.max;
+  if (f.kind === 'slash') {
+    // three bone-white claw rakes across the victim, angled from the attacker
+    cx.save();
+    cx.translate(f.x, f.y);
+    cx.rotate((f.a || 0) + 0.5);
+    cx.strokeStyle = `rgba(232,226,204,${0.9 * (1 - k)})`;
+    cx.lineWidth = 2;
+    for (const off of [-4.5, 0, 4.5]) {
+      cx.beginPath();
+      cx.moveTo(-7, off - 2);
+      cx.quadraticCurveTo(0, off + 1, 8, off + 3);
+      cx.stroke();
+    }
+    cx.restore();
+    return;
+  }
   if (f.kind === 'boom') {
     cx.strokeStyle = `rgba(240,180,100,${1 - k})`;
     cx.lineWidth = 3;
@@ -4450,8 +4605,12 @@ function activateObjective(id) {
 function doSpawn(sp) {
   const ids = sp.group ? (ms.groups[sp.group] = ms.groups[sp.group] || []) : null;
   const hq = buildings.find(b => b.team === 1 && b.type === 'hq');
-  if (sp.bld) {   // pre-built structures (outposts, survey posts)
-    const b = makeBuilding(sp.bld, sp.team || 1, sp.at[0], sp.at[1]);
+  if (sp.bld) {   // pre-built structures (outposts, survey posts, dino lairs)
+    // dino structures come alive: dens get their door guard + hunt clock,
+    // nests their brood — a bare makeBuilding would spawn them inert
+    const b = sp.bld === 'den' ? makeDen(sp.at[0], sp.at[1])
+      : sp.bld === 'nest' ? makeNest(sp.at[0], sp.at[1])
+      : makeBuilding(sp.bld, sp.team || 1, sp.at[0], sp.at[1]);
     if (ids) ids.push(b.id);
     return;
   }
@@ -4733,7 +4892,7 @@ window.CC = {
   get spritesReady() { return spritesReady; },
   isVisibleAt, isExploredAt, isShownAt, updateFog, toggleFogMemory,
   damage, trainUnit, commandMove, fxExplosion,
-  canPlaceBuilding, tryPlaceBuilding, makeBuilding, makeUnit, makeNest, makeEgg, startResearch,
+  canPlaceBuilding, tryPlaceBuilding, makeBuilding, makeUnit, makeNest, makeDen, spawnRaptor, makeEgg, startResearch,
   hatchSpitter, rankOf, startGame, MAPS, DIFFS,
   startMission, MISSIONS, CAST,
   get mission() { return mission; },
