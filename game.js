@@ -308,6 +308,107 @@ const MISSIONS = [
     winText: 'The expedition has its foothold — and its first live specimen. High above, Rubicon Mining\'s survey fleet has just made its burn for the planet.',
     loseText: 'The outpost fell before it ever stood. Expedition command is reconsidering the landing site.',
   },
+  {
+    title: 'Claim Jumpers', act: 'Act I — The Crystal War',
+    map: 'basin', diff: 'easy', noEnemy: true,
+    patches: [[2870, 590, 6, 2200]],   // Survey Post Beta's rich field
+    brief: [
+      ['ops', 'Survey Post Beta sits on a rich northern field, but its silos are empty and our home patch is thinning. We are opening a convoy route across the valley — today.'],
+      ['red', 'Intercepted, unregistered channel: "To the expedition in grid four: this valley is a Rubicon Mining resource corridor. Consider your route subject to... review." — C. Krauss, Field Commander.'],
+      ['ops', 'That would be Rubicon. Escort the convoy out and back, Commander — and shoot anything that touches a harvester.'],
+    ],
+    intro: [
+      ['ops', 'The convoy is fueled and your escorts are standing by. Take them north-east along the marked route — swing EAST around the nest mounds, and keep rifles between the raiders and the haulers.'],
+    ],
+    objectives: [
+      { id: 'out',  text: 'Escort the convoy to Survey Post Beta (4+ harvesters alive)', type: 'groupReach', group: 'convoy', x: 2760, y: 520, r: 240, count: 4, mark: [2760, 520] },
+      { id: 'back', text: 'Bring the convoy home (4+ harvesters alive)', type: 'groupReach', group: 'convoy', x: 300, y: 2000, r: 260, count: 4, hidden: true, mark: [300, 2000] },
+    ],
+    winWhen: ['out', 'back'],
+    triggers: [
+      { when: { time: 0.5 }, crystals: 250,
+        spawn: [
+          { group: 'convoy', unit: 'harvester', team: 1, n: 6, at: [380, 1960] },
+          { unit: 'marine', team: 1, n: 2, at: [470, 1880] },
+          { unit: 'rocket', team: 1, n: 2, at: [530, 1930] },
+          { bld: 'refinery', team: 1, at: [2700, 470] },
+          { bld: 'turret',   team: 1, at: [2570, 560] },
+          { bld: 'supply',   team: 1, at: [2820, 360] },
+        ] },
+      // the toll collectors arrive once the convoy is committed to the road
+      { when: { near: [2200, 1250, 500] }, alarm: '⚠ Raiders closing on the convoy!',
+        spawn: [
+          { unit: 'raider', team: 2, n: 2, at: [2350, 100], to: [2050, 1350] },
+          { unit: 'raider', team: 2, n: 1, at: [2990, 1500], to: [2400, 1100] },
+        ],
+        say: [['red', 'Attention, expedition convoy: you are traversing a Rubicon resource corridor. Per intersystem claim law, your cargo is subject to a toll. My associates will collect.']] },
+      { when: { done: ['out'] }, objective: 'back',
+        say: [['ops', 'Beta\'s silos are filling. Load up and turn it around, Commander — the road home is never the same road.'],
+              ['red', 'Still rolling? I respect persistence. My accountants do not.']] },
+      { when: { done: ['out'] }, delay: 18, alarm: '⚠ Ambush on the southern leg!',
+        spawn: [
+          { unit: 'raider', team: 2, n: 3, at: [1500, 2240], to: [900, 1900] },
+          { unit: 'raider', team: 2, n: 2, at: [60, 1400], to: [500, 1850] },
+        ] },
+      // background pressure: a lone toll collector every so often until it's over
+      { when: { time: 100, notDone: ['back'] }, repeat: true, every: 55,
+        spawn: { unit: 'raider', team: 2, n: 1, at: [2200, 60], to: [350, 1950] } },
+      // lose the convoy, lose the contract
+      { when: { groupBelow: ['convoy', 4] }, lose: true },
+    ],
+    outro: [
+      ['ops', 'Convoy home, silos full, and every raider they sent is cooling in the flats. That is a route, Commander.'],
+      ['red', 'A courtesy visit, nothing more. The next one is a billing dispute.'],
+      ['sci', 'Odd detail: the raiders drove within meters of two nest mounds and the broods never stirred. The wildlife has... opinions about who it minds.'],
+    ],
+    winText: 'The route is open — and Rubicon now knows your convoy schedule. This stopped being a survey the moment Krauss put a price on the road.',
+    loseText: 'The convoy is scrap on the valley floor. Survey Post Beta goes hungry, and Krauss bills the expedition for "corridor cleanup."',
+  },
+  {
+    title: 'The Nest Problem', act: 'Act I — The Crystal War',
+    map: 'valley', diff: 'easy', noEnemy: true,
+    brief: [
+      ['ops', 'Dead center of Fossil Valley: the richest field either outfit has surveyed, and two nest mounds sitting on it like a padlock.'],
+      ['red', 'Open broadcast, Rubicon side of the valley: "Clearance operations commence at dawn. The mounds are geological obstructions. Bonuses per acre cleared."'],
+      ['sci', 'They are not obstructions, they are colonies. And since nobody will stop the dig — at least let me show you how to take one apart properly. From a distance.'],
+    ],
+    intro: [
+      ['ops', 'Rubicon is throwing riflemen at their mound and calling it a strategy. We do math instead: build a Factory — key V.'],
+    ],
+    objectives: [
+      { id: 'fac',   text: 'Build a Factory (V)', type: 'built', bld: 'factory', count: 1 },
+      { id: 'arty',  text: 'Field two Artillery (Factory — D)', type: 'unitCount', unit: 'artillery', count: 2, hidden: true },
+      { id: 'nest',  text: 'Destroy the southern nest — from beyond its leash', type: 'destroy', bld: 'nest', x: 1666, y: 1262, r: 160, hidden: true, mark: [1666, 1262] },
+      { id: 'hatch', text: 'Salvage an egg and hatch your own Spitter (HQ — R)', type: 'unitCount', unit: 'spitter', count: 1, hidden: true },
+      { id: 'mine8', text: 'Mine 800 crystals', type: 'mined', amount: 800 },
+    ],
+    winWhen: ['fac', 'arty', 'nest', 'hatch', 'mine8'],
+    triggers: [
+      { when: { done: ['fac'] }, objective: 'arty',
+        say: [['ops', 'Factory online. Two Artillery — key D. Their guns out-range their own eyes, so walk a marine ahead as a spotter.']] },
+      { when: { done: ['arty'] }, objective: 'nest',
+        say: [['sci', 'On the record: I object to this entire doctrine. Off the record — your shells fly farther than the brood will chase. Park past their leash and the mound cannot answer you.'],
+              ['ops', 'You heard the doctor. Crack the southern mound, Commander. Artillery talks, everybody walks.']] },
+      // Rubicon's clearance "strategy", on open comms, forever
+      { when: { time: 75, notDone: ['nest'] },
+        say: [['red', 'First shift, forward! Every acre of mound is an acre of bonus!']] },
+      { when: { time: 78, notDone: ['nest'] }, repeat: true, every: 55,
+        spawn: { unit: 'marine', team: 2, n: 4, at: [420, 320], to: [1406, 1042] } },
+      { when: { time: 170, notDone: ['nest'] },
+        say: [['red', '...Casualty reports are a rounding error. Second shift, forward. Payroll — stop counting.']] },
+      { when: { time: 290, notDone: ['nest'] },
+        say: [['red', 'Where is my third shift? ...Fine. Contractors, then. Contractors love bonuses.']] },
+      { when: { done: ['nest'] }, objective: 'hatch',
+        say: [['ops', 'Mound down, brood scattered, nobody scratched. Salvage crew — those eggs ride home with the crystal.'],
+              ['sci', 'Careful with the clutch! I want one incubated. If we cannot stop the digging, we will at least understand what it wakes.']] },
+    ],
+    outro: [
+      ['ops', 'The field is ours and Rubicon is still feeding riflemen to their own mound. Efficiency, Commander.'],
+      ['sci', 'The moment our mound fell, the seismic hum deepened — and two valleys over, something answered it. I am filing that under "later."'],
+    ],
+    winText: 'The mega-field is under expedition control. On the survey charts, the hum keeps spreading — deeper, and wider.',
+    loseText: 'The nest problem solved you instead. Survey command is re-reading Dr. Lin\'s objection with fresh respect.',
+  },
 ];
 
 // Research, StarCraft-style: bought at the producing building, occupies its queue.
@@ -1003,6 +1104,10 @@ function setup(mapKey) {
   for (const spec of M.patches) {
     addPatch(spec.p[0], spec.p[1], spec.n, spec.a);
     for (const nx of (spec.nests || [])) makeNest(nx[0], nx[1]);
+  }
+  // missions can author extra fields (e.g. M2's survey-post patch)
+  if (mission && mission.patches) {
+    for (const [px, py, n, amt] of mission.patches) addPatch(px, py, n, amt);
   }
 
   // camera centered on the player base (clamped to the world edge)
@@ -4296,6 +4401,14 @@ function objMet(o) {
     case 'mined': return stats.mined >= o.amount;
     case 'reach': return units.some(u => u.team === 1 && u.hp > 0 && dist2(u.x, u.y, o.x, o.y) < o.r * o.r);
     case 'captive': return teams[1].captives >= o.count;
+    // enough of a named group has made it to the marked spot (convoy escort)
+    case 'groupReach': {
+      const g = groupAlive(o.group) || [];
+      return g.filter(u => dist2(u.x, u.y, o.x, o.y) < o.r * o.r).length >= o.count;
+    }
+    // no living hostile building of this type left near the mark (nest cracks)
+    case 'destroy': return !buildings.some(b =>
+      b.team !== 1 && b.hp > 0 && b.type === o.bld && dist2(b.x, b.y, o.x, o.y) < o.r * o.r);
     case 'flag': return !!ms.flags[o.id];
   }
   return false;
@@ -4315,9 +4428,17 @@ function condMet(w) {
   if (w.noCaptive && units.some(u => u.team === 1 && u.captive)) return false;
   if (w.mined != null && stats.mined < w.mined) return false;
   if (w.groupDead) {
-    const g = ms.groups[w.groupDead];
-    if (!g || g.some(id => units.some(u => u.id === id && u.hp > 0))) return false;
+    const g = groupAlive(w.groupDead);
+    if (!g || g.length) return false;
   }
+  // too few of a group left alive (convoy attrition → mission failure)
+  if (w.groupBelow) {
+    const g = groupAlive(w.groupBelow[0]);
+    if (!g || g.length >= w.groupBelow[1]) return false;
+  }
+  // any player unit near a point (route progress, ambush triggers)
+  if (w.near && !units.some(u => u.team === 1 && u.hp > 0
+      && dist2(u.x, u.y, w.near[0], w.near[1]) < w.near[2] * w.near[2])) return false;
   return true;
 }
 function activateObjective(id) {
@@ -4327,17 +4448,34 @@ function activateObjective(id) {
   toast('◈ New objective: ' + o.text); snd.ready();
 }
 function doSpawn(sp) {
-  const ids = ms.groups[sp.group] = ms.groups[sp.group] || [];
+  const ids = sp.group ? (ms.groups[sp.group] = ms.groups[sp.group] || []) : null;
   const hq = buildings.find(b => b.team === 1 && b.type === 'hq');
+  if (sp.bld) {   // pre-built structures (outposts, survey posts)
+    const b = makeBuilding(sp.bld, sp.team || 1, sp.at[0], sp.at[1]);
+    if (ids) ids.push(b.id);
+    return;
+  }
   for (let i = 0; i < sp.n; i++) {
     const u = makeUnit(sp.unit, sp.team || 3,
       clamp(sp.at[0] + (i % 3) * 30 - 30, 20, W - 20),
       clamp(sp.at[1] + ((i / 3) | 0) * 30 - i * 10, 20, H - 20));
     if (sp.order === 'attackhq' && hq) u.order = { type: 'attackmove', x: hq.x, y: hq.y };
     else if (sp.order === 'guard') u.order = { type: 'guard', hx: u.x, hy: u.y };
+    else if (sp.to) u.order = { type: isCombat(u) ? 'attackmove' : 'move', x: sp.to[0], y: sp.to[1] };
     if (sp.specimen) u.specimen = true;   // protected: player weapons won't track it
-    ids.push(u.id);
+    if (ids) ids.push(u.id);
   }
+}
+// living members of a spawn group (units and buildings both count)
+function groupAlive(name) {
+  const g = ms.groups[name];
+  if (!g) return null;
+  const out = [];
+  for (const id of g) {
+    const u = units.find(x => x.id === id && x.hp > 0) || buildings.find(x => x.id === id && x.hp > 0);
+    if (u) out.push(u);
+  }
+  return out;
 }
 function fireTrigger(t) {
   if (t.say) for (const [who, line] of t.say) say(who, line);
@@ -4346,6 +4484,7 @@ function fireTrigger(t) {
   if (t.spawn) for (const sp of [].concat(t.spawn)) doSpawn(sp);
   if (t.alarm) { toast(t.alarm); snd.alarm(); }
   if (t.crystals) teams[1].crystals += t.crystals;
+  if (t.lose) missionEnd(false);   // scripted defeat (convoy lost, etc.)
 }
 
 function missionUpdate() {
@@ -4359,11 +4498,13 @@ function missionUpdate() {
   }
   for (const t of ms.triggers) {
     if (t.fired) continue;
-    if (t.armedAt < 0 && condMet(t.when)) t.armedAt = tick;
+    if (t.armedAt < 0 && tick >= (t.coolUntil || 0) && condMet(t.when)) t.armedAt = tick;
     if (t.armedAt >= 0 && tick >= t.armedAt + (t.delay || 0) * 60) {
       if (t.repeat) {
-        // repeatables re-verify at fire time — the world may have moved on
+        // repeatables re-verify at fire time — the world may have moved on.
+        // `every` throttles periodic repeats (theater waves, harassers).
         t.armedAt = -1;
+        t.coolUntil = tick + (t.every || 0) * 60;
         if (condMet(t.when)) fireTrigger(t);
       } else { t.fired = true; fireTrigger(t); }
     }

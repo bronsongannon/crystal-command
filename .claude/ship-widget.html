@@ -132,7 +132,7 @@ const SHIPPED = [
   'Nuke safety: no launching from dead silos, no mode-stacking accidental launches, no overlay race on quit',
   'Menu hotkeys gated off, mission rig costs no supply, enemy plant can\'t spawn on crystals, AI refineries obey the tech tree',
 ];
-const PRE = { ap1: 1, g1: 1, g2: 1, g4: 1 };
+const PRE = { ap1: 1, g1: 1, g2: 1, g4: 1, g6: 1 };
 const KEY = 'cc-ship-checklist-v1';
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
@@ -182,8 +182,8 @@ document.querySelectorAll('button[data-p]').forEach(btn => {
 const ACTS = {
   act1: [
     ['M1','Landfall','Outpost, scouting, the retaliation probe, and the first live capture','built'],
-    ['M2','Claim Jumpers','Convoy escort vs Krauss\'s raiders — the war starts as a mining claim dispute'],
-    ['M3','The Nest Problem','First artillery, first nest crack; Lin objects on the record'],
+    ['M2','Claim Jumpers','Convoy escort vs Krauss\'s raiders — the war starts as a mining claim dispute','built'],
+    ['M3','The Nest Problem','First artillery, first nest crack; Lin objects on the record','built'],
     ['M4','Dig In','Red\'s offensive targets your power plants — the brownout lesson, received'],
     ['M5','Ghost Survey','Commando raid; the stolen data reveals the Heart Crystal signal'],
     ['M6','Countdown','Kill Krauss\'s silo before the launch clock runs out'],

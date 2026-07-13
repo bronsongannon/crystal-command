@@ -27,7 +27,7 @@ file and the widget's task lists in sync.
 - [ ] Playtest Landfall — does it land in the 15-minute window?
 - [x] Team color pass — wild dino bone/moss, red identity touches (2026-07-12)
 - [ ] Raptor + Raptor Den — the Act 1 finale swarm tease
-- [ ] Missions 2–3: harvester convoy escort, first nest crack
+- [x] Missions 2–3: harvester convoy escort, first nest crack (2026-07-12)
 - [ ] Pacing pass toward 20–30 minute matches
 
 ## Art and audio

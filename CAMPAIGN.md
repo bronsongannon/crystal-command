@@ -44,14 +44,14 @@ so the act needs almost no new engine work.
 outpost, scout the fields, survive the retaliation probe, capture a live
 spitter for Lin. Rubicon's survey fleet burns for the planet in the debrief.
 
-**M2 — "Claim Jumpers."** First contact with red. Escort your harvester convoy
+**M2 — "Claim Jumpers."** ✅ BUILT (2026-07-12). First contact with red. Escort your harvester convoy
 between two outposts while Krauss's raiders hit-and-run the line — his voice
 debut is a *mining claim dispute*, corporate and smug, not military. The war
 starts as paperwork with guns. Teaches escorting, raider counters, and reading
 the minimap under harassment. *needs: convoy/keepAlive logic — the same tech
 M12 "Exodus" reuses in Act 2, so it pays twice.*
 
-**M3 — "The Nest Problem."** The signature mechanic gets its mission. A rich
+**M3 — "The Nest Problem."** ✅ BUILT (2026-07-12). The signature mechanic gets its mission. A rich
 field sits under nest guard between your claim and Krauss's; crack it with your
 first artillery battery (sight < range — spotters!) while he bulldozes his side
 with brute infantry losses broadcast on open comms. Lin objects ON THE RECORD:
