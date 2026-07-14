@@ -1450,6 +1450,29 @@ function queueItemCost(b) {
   }
   return UNIT[q].cost;
 }
+// rush fees for buildings still going up — same price model as unit queues:
+// half the building's cost doubles the crew, the full cost finishes it now
+function rushConstruction(b, instant) {
+  if (b.built >= 1) return;
+  if (!instant && (b.buildBoost || 1) > 1) return;
+  const cost = BLD[b.type].cost || 0;
+  const fee = instant ? cost : Math.ceil(cost / 2);
+  const t = teams[b.team];
+  if (t.crystals < fee) { if (b.team === 1) { toast(`Not enough crystals (${fee} ⬡)`); snd.error(); } return; }
+  t.crystals -= fee;
+  if (instant) {
+    // jump to one tick from done — the normal update crosses the finish line,
+    // so completion side effects (refinery harvester, toasts) still fire
+    const bt = BLD[b.type].buildTime || 1;
+    const rem = Math.max(0, 1 - b.built - 1 / bt);
+    b.hp = Math.min(b.maxHp, b.hp + b.maxHp * rem);
+    b.built = Math.max(b.built, 1 - 1 / bt);
+  } else b.buildBoost = 2;
+  if (b.team === 1) {
+    toast(instant ? '⚡ Rush crew — construction finishing now' : '⏩ Construction at double speed');
+    beep(instant ? 980 : 720, 0.08, 'sine', 0.05);
+  }
+}
 function rushProduction(b, instant) {
   if (!b.queue.length) return;
   if (!instant && b.boost > 1) return;
@@ -2169,10 +2192,10 @@ function updateBuilding(b) {
   if (b.hp <= 0) return;   // dead this tick — no healing, firing, or spawning from the grave
   if (b.built < 1) {
     const bt = BLD[b.type].buildTime || BLD.turret.buildTime;
-    b.built = Math.min(1, b.built + 1 / bt);
+    b.built = Math.min(1, b.built + (b.buildBoost || 1) / bt);
     // hp accrues incrementally so combat damage during construction STICKS —
     // the old max(hp, maxHp*built) floor silently healed any non-lethal hit
-    b.hp = Math.min(b.maxHp, b.hp + b.maxHp / bt);
+    b.hp = Math.min(b.maxHp, b.hp + (b.maxHp / bt) * (b.buildBoost || 1));
     if (b.built >= 1 && b.type === 'refinery') {
       // refineries come online with a free harvester, C&C style
       const u = makeUnit('harvester', b.team, b.x, b.y + b.h / 2 + 16);
@@ -3047,13 +3070,28 @@ function refreshCard() {
 // disappearing never shifts the card's buttons (playtest feedback)
 let lastQSig = '';
 function refreshQueue() {
-  const b = selection.length === 1 && selection[0].kind === 'building'
-    && selection[0].queue && selection[0].queue.length ? selection[0] : null;
-  const sig = b ? b.id + '|' + b.queue.join('.') + '|' + b.boost + '|' + Math.floor(teams[1].crystals / 25) : 'none';   // 'none', not '' — the click handlers use '' as a force-refresh sentinel
+  const sel = selection.length === 1 && selection[0].kind === 'building' ? selection[0] : null;
+  const con = sel && sel.built < 1 ? sel : null;                       // under construction
+  const b = !con && sel && sel.queue && sel.queue.length ? sel : null; // producing
+  const sig = con ? 'c' + con.id + '|' + Math.floor(con.built * 40) + '|' + (con.buildBoost || 1) + '|' + Math.floor(teams[1].crystals / 25)
+    : b ? b.id + '|' + b.queue.join('.') + '|' + b.boost + '|' + Math.floor(teams[1].crystals / 25)
+    : 'none';   // 'none', not '' — the click handlers use '' as a force-refresh sentinel
   if (sig === lastQSig) return;
   lastQSig = sig;
-  if (!b) {
+  if (!b && !con) {
     elQpanel.innerHTML = '<div class="queue">Production</div><div class="idle-note">nothing in the works — select a building and queue something up</div>';
+    return;
+  }
+  if (con) {
+    const cost = BLD[con.type].cost || 0;
+    let html = `<div class="queue">Constructing: ${BLD[con.type].label}</div>`;
+    html += '<div class="prog-wrap"><div class="prog" id="prog"></div></div><div class="row">';
+    if ((con.buildBoost || 1) === 1) {
+      const dblFee = Math.ceil(cost / 2);
+      html += `<button data-act="crush:double"${teams[1].crystals < dblFee ? ' class="dim"' : ''}>⏩ 2× speed · ${dblFee} ⬡</button>`;
+    }
+    html += `<button data-act="crush:instant"${teams[1].crystals < cost ? ' class="dim"' : ''}>⚡ Finish now · ${cost} ⬡</button></div>`;
+    elQpanel.innerHTML = html;
     return;
   }
   let html = `<div class="queue">Building: ${b.queue.map(queueLabel).join(' → ')}</div>`;
@@ -3069,7 +3107,11 @@ function refreshQueue() {
   html += `<button data-act="rush:instant"${dimI}>⚡ Finish now · ${base} ⬡</button></div>`;
   elQpanel.innerHTML = html;
 }
-elDock.addEventListener('click', (e) => {
+// pointerdown, not click: the panels rebuild their HTML when crystals cross a
+// 25-step, and a rebuild between mousedown and mouseup silently eats a click.
+// Acting on the press is immune to that (and feels snappier mid-battle).
+elDock.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
   audioInit();
   const btn = e.target.closest('[data-act]');
   if (!btn || gameOver) return;
@@ -3098,6 +3140,10 @@ elDock.addEventListener('click', (e) => {
     const b = selection.find(s => s.kind === 'building' && s.type === 'hq');
     if (b) hatchSpitter(b);
     lastCardSig = '';
+  } else if (act.startsWith('crush:')) {
+    const cb = selection.find(x => x.kind === 'building' && x.built < 1);
+    if (cb) rushConstruction(cb, act.slice(6) === 'instant');
+    lastCardSig = ''; lastQSig = '';
   } else if (act.startsWith('rush:')) {
     const b = selection.find(s => s.kind === 'building' && s.queue && s.queue.length);
     if (b) rushProduction(b, act.slice(5) === 'instant');
@@ -3144,8 +3190,12 @@ function refreshTopbar() {
 function refreshProgressBar() {
   const el = document.getElementById('prog');
   if (!el) return;
-  const b = selection.length === 1 && selection[0].queue && selection[0].queue.length ? selection[0] : null;
-  if (b) el.style.width = Math.min(100, (b.prog / queueTime(b.team, b.queue[0])) * 100) + '%';
+  const sel = selection.length === 1 ? selection[0] : null;
+  if (sel && sel.kind === 'building' && sel.built < 1) {
+    el.style.width = Math.min(100, sel.built * 100) + '%';
+  } else if (sel && sel.queue && sel.queue.length) {
+    el.style.width = Math.min(100, (sel.prog / queueTime(sel.team, sel.queue[0])) * 100) + '%';
+  }
 }
 
 // ---------------- Ground texture (pre-rendered per map) ----------------
