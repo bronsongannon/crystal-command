@@ -30,10 +30,17 @@ of Act I is on the way.
 
 ## Dinosaurs 🦖
 
+Herds of harmless **Grazers** wander every campaign map. They won't fight back —
+but every one your troops kill agitates the planet's real dinosaurs: nest guards
+patrol wider and broods respawn faster for the rest of the level. Hunt at your
+own risk.
+
 The planet's rich crystal fields are guarded by **dino nests**. Each nest keeps a
 brood of **Spitters** on patrol — get close and they attack; retreat far enough
 and they return home. Kill a spitter and the nest hatches a replacement within
-seconds, forever, until you **destroy the nest itself**.
+seconds, forever, until you **destroy the nest itself** — and the moment your
+first shots land on a nest, **2-3 extra defenders erupt from it**. Beat them
+and the survivors don't slink home: they stay loose and roam the map.
 
 Clear the nest or mine poor: the richest expansions are always guarded.
 Artillery is the tool of choice — it outranges the brood's patrol radius
@@ -156,7 +163,7 @@ neither can the enemy, so their depots are a real target).
 - **Factory** (200) — builds vehicles: Raider, Tank, Artillery, APC — **and
   repairs ground vehicles** parked near it, billing you crystals per point of
   armor restored. Drive home damaged, drive out patched and poorer.
-- **Refinery** (175) — crystal drop-off point; build next to far-away patches to
+- **Refinery** (175) — the ONLY crystal drop-off (the HQ is a command post, not an ore chute); every base starts with one. Build next to far-away patches to
   expand your economy. Comes online with a free harvester.
 - **Airpad** (175) — builds Gunships and Harriers, adds +2 supply, and repairs
   aircraft the same way the Factory fixes vehicles (paid)

@@ -82,6 +82,10 @@ const UNIT = {
   // skips the projectile and lands the bite directly. Claws shred infantry
   // (infBonus, the flesh mirror of the rocket trooper's vehBonus).
   raptor:    { label: 'Raptor',    cost: 0,   supply: 1, hp: 65,  speed: 3.4,  r: 9,  dmg: 9,  range: 16,  cooldown: 32,  buildTime: 0, sight: 220, noAA: 1, infBonus: 1.5 },
+  // Ambient wildlife: harmless grazers that wander campaign maps. No weapon
+  // auto-targets them — but a deliberate kill enrages every real dino on the
+  // level (dinoRage). Atmosphere with a conscience.
+  critter:   { label: 'Grazer',    cost: 0,   supply: 0, hp: 45,  speed: 1.1,  r: 8,  dmg: 0,  range: 0,   cooldown: 0,   buildTime: 0, sight: 120, noAA: 1 },
   // Xenobiology field unit: unarmed harvester chassis with a containment cage.
   // Right-click a spitter to capture it (short channel at contact range), then
   // haul it back to the HQ lab. Campaign-granted for now — not in any trains list.
@@ -132,6 +136,7 @@ const NEST_BROOD = 3;          // spitters alive per nest
 const NEST_RESPAWN = 7 * 60;   // one replacement every 7s
 const NEST_LEASH = 360;        // guards give up the chase past this radius from home
 const NEST_EGGS = 3;           // eggs left in the rubble when a nest dies
+const NEST_BURST_CD = 30 * 60; // hitting a nest makes 2-3 extra defenders erupt (once per cooldown)
 const SPITTER_CAP = 5;         // max hatched spitters a side can field at once
 const DEN_GUARDS = 2;          // raptors watching the den door from birth
 const DEN_PACK_SIZE = 3;       // raptors per hunting pack
@@ -306,7 +311,7 @@ const MISSIONS = [
           { group: 'rig',   unit: 'rig',     team: 1, n: 1, at: [380, H - 340] },
           { group: 'scout', unit: 'spitter', team: 3, n: 1, at: [1050, 1650], order: 'guard', specimen: true },
         ],
-        say: [['ops', 'Lin\'s Capture Rig just dropped at the base, and a lone spitter is prowling the flats — marked on your map. Right-click it with the rig. Small-arms are LOCKED around protected specimens — the rig does the work, your marines physically can\'t ruin this one.']] },
+        say: [['ops', 'Lin\'s Capture Rig just dropped at the base, and a lone spitter is prowling the flats — marked on your map. Right-click it with the rig. Weapons discipline is in effect around the specimen — your troops fire at HALF rate near it, so keep them off it and let the rig work. Lin needs this one breathing.']] },
       // safety nets: the tutorial can't dead-end — a lost rig (or specimen) respawns
       { when: { groupDead: 'scout', notDone: ['capture'], noCaptive: true }, delay: 10, repeat: true,
         spawn: { group: 'scout', unit: 'spitter', team: 3, n: 1, at: [1050, 1650], order: 'guard', specimen: true },
@@ -435,7 +440,7 @@ const UPG = {
   harvest:    { label: 'Harvester Systems', at: 'hq',      max: 3, cost: [125, 200, 275], time: [20 * 60, 25 * 60, 30 * 60] },
 };
 const IS_INF = { marine: 1, sniper: 1, engineer: 1, medic: 1, rocket: 1 };
-const IS_DINO = { spitter: 1, raptor: 1 };
+const IS_DINO = { spitter: 1, raptor: 1, critter: 1 };
 const isFlesh = (u) => !!IS_INF[u.type] || !!IS_DINO[u.type];   // what a medic can heal: infantry + dinos
 const isVehicle = (u) => u.kind === 'unit' && !IS_INF[u.type] && !IS_DINO[u.type];   // what an engineer can repair
 // Veterancy: every unit remembers its kills. 2/4/8 kills → +10% damage and
@@ -507,7 +512,7 @@ let fogMemory = true;   // true = explored ground stays dimly visible; false = r
 const dist2 = (x1, y1, x2, y2) => { const dx = x2 - x1, dy = y2 - y1; return dx * dx + dy * dy; };
 const dist = (x1, y1, x2, y2) => Math.sqrt(dist2(x1, y1, x2, y2));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const isCombat = (u) => u.type !== 'harvester' && u.type !== 'engineer' && u.type !== 'medic' && u.type !== 'rig';
+const isCombat = (u) => u.type !== 'harvester' && u.type !== 'engineer' && u.type !== 'medic' && u.type !== 'rig' && u.type !== 'critter';
 
 // ---------------- FX sprites (Kenney particle packs, CC0 — see assets/fx/) ----------------
 // If the images fail to load (e.g. moved/deleted), spritesReady stays false and
@@ -563,7 +568,7 @@ const OPT = {};
   names.push('unit_marine_hunker_teal', 'unit_marine_hunker_red',
     'unit_sniper_hunker_teal', 'unit_sniper_hunker_red',
     'unit_artillery_hunker_teal', 'unit_artillery_hunker_red',
-    'unit_spitter_wild', 'unit_raptor_wild', 'turret_gun_teal', 'turret_gun_red');
+    'unit_spitter_wild', 'unit_raptor_wild', 'unit_critter_wild', 'turret_gun_teal', 'turret_gun_red');
   // death animation frame slots (sliced from Gemini spritesheets). Any prefix
   // of frames works — the game uses however many it finds. (Walk-cycle slots
   // existed briefly and were reverted: movement keeps the procedural sway.)
@@ -633,6 +638,7 @@ let stats = { built: 0, lost: 0, kills: 0, mined: 0 };
 
 let alerts = [];          // {x, y, t}
 let lastAlert = -1e9;
+let lastNoRefinery = -1e9;   // throttled 'nowhere to deliver' warning
 function raiseAlert(x, y, msg) {
   alerts.push({ x, y, t: 0 });
   if (tick - lastAlert < 12 * 60) return;   // one alarm per 12s, pings always show
@@ -779,6 +785,8 @@ function stampVision(x, y, r) {
 }
 let devReveal = false;   // dev mode: the whole map, no fog — for judging layouts
 let devMode = false;     // cheat mode: free tech + bottomless crystals (Space x5 over the ? chip)
+let dinoRage = 0;        // every murdered grazer makes the planet's dinos angrier (wider aggro, faster respawns)
+const dinoAggro = () => Math.min(dinoRage * 25, 150);
 function updateFog() {
   if (devReveal) {
     visible.fill(1); explored.fill(1);
@@ -1109,6 +1117,15 @@ function placeBase(team, M) {
       if (aiSpotFree('power', x, y)) { makeBuilding('power', 2, x, y); break; }
     }
   }
+  // starting refinery: crystals only deliver here now, so every base opens with
+  // one — dropped along the HQ->patch line (bare tutorial starts included)
+  const mx = hq.x + (patch[0].x - hq.x) * 0.55, my = hq.y + (patch[0].y - hq.y) * 0.55;
+  for (let i = 0; i < 40; i++) {
+    const a = Math.random() * Math.PI * 2, r = i === 0 ? 0 : 60 + Math.random() * 130;
+    const x = clamp(mx + Math.cos(a) * r, 60, W - 60);
+    const y = clamp(my + Math.sin(a) * r, 60, H - 60);
+    if (aiSpotFree('refinery', x, y)) { makeBuilding('refinery', team, x, y); break; }
+  }
   hq.rally = { x: patch[0].x, y: patch[0].y };               // fresh harvesters auto-mine
   for (let i = 0; i < 3; i++) {
     // string the starting harvesters out along the HQ→patch line
@@ -1151,6 +1168,22 @@ function setup(mapKey) {
   // missions can author extra fields (e.g. M2's survey-post patch)
   if (mission && mission.patches) {
     for (const [px, py, n, amt] of mission.patches) addPatch(px, py, n, amt);
+  }
+
+  // ambient wildlife (campaign only): grazer herds wandering the map. Props
+  // with a conscience — kill one and dinoRage rises for the whole level.
+  if (mission) {
+    let placed = 0;
+    for (let i = 0; i < 200 && placed < 8; i++) {
+      const x = 60 + Math.random() * (W - 120), y = 60 + Math.random() * (H - 120);
+      if (rocks.some(rk => dist2(x, y, rk.x, rk.y) < (rk.r + 40) ** 2)) continue;
+      if (buildings.some(b => dist2(x, y, b.x, b.y) < 300 ** 2)) continue;
+      if (crystals.some(c => dist2(x, y, c.x, c.y) < 120 ** 2)) continue;
+      const u = makeUnit('critter', 3, x, y);
+      u.roam = true;
+      u.order = { type: 'roam' };
+      placed++;
+    }
   }
 
   // camera centered on the player base (clamped to the world edge)
@@ -1198,9 +1231,11 @@ function nearestCrystalTo(x, y, maxDist) {
 }
 // harvesters can deliver to the HQ or any refinery — refineries are how you expand
 function nearestDropoff(team, x, y) {
+  // crystals go through the refinery, period (2026-07-14 playtest) — the HQ is a
+  // command post, not an ore chute. Eggs and captives still ride to the HQ lab.
   let best = null, bd = 1e18;
   for (const b of buildings) {
-    if (b.team !== team || b.built < 1 || (b.type !== 'hq' && b.type !== 'refinery')) continue;
+    if (b.team !== team || b.built < 1 || b.type !== 'refinery') continue;
     const d = dist2(x, y, b.x, b.y);
     if (d < bd) { bd = d; best = b; }
   }
@@ -1231,7 +1266,7 @@ function nearestEnemyUnit(x, y, team, range, aa, airOnly) {
   let best = null, bd = 1e18;
   for (const u of units) {
     if (u.team === team) continue;
-    if (u.specimen && team === 1) continue;               // protected specimen: player weapons are locked
+    if (u.type === 'critter') continue;                   // wildlife: never auto-targeted, by anyone
     if (airOnly && !UNIT[u.type].fly) continue;           // flak ignores the ground war
     if (aa === false && UNIT[u.type].fly) continue;       // gun can't elevate — skip flyers
     if (team === 1 && !isVisibleAt(u.x, u.y)) continue;   // player can't target into the fog
@@ -1307,7 +1342,6 @@ function commandMove(sel, wx, wy, attackMove) {
 function commandAttack(sel, target) {
   for (const e of sel) {
     if (e.kind !== 'unit') continue;
-    if (target.specimen && e.team === 1) continue;   // weapons locked around protected specimens
     e.order = e.type === 'harrier'
       ? { type: 'strike', target }
       : { type: 'attack', target, resume: null };
@@ -1516,6 +1550,10 @@ function fire(src, target) {
   }
   // browned-out towers still shoot, just half as often
   src.cool = src.cooldown * (src.kind === 'building' && lowPower(src.team) ? 2 : 1);
+  // weapons discipline around a live-capture target: you CAN shoot it, but
+  // everyone drags their trigger — half fire rate (was a hard lock; playtest
+  // wanted the firefight to stay honest while the rig works)
+  if (target.specimen && src.team === 1) src.cool *= 2;
   src.recoil = src.type === 'tank' || src.type === 'artillery' ? 6
     : src.type === 'turret' || src.type === 'flak' ? 4 : 2.5;
   src.faceA = Math.atan2(target.y - src.y, target.x - src.x);
@@ -1561,10 +1599,28 @@ function damage(e, d, src) {
     if (e.kind === 'building') raiseAlert(e.x, e.y, '⚠ Your base is under attack!');
     else if (e.type === 'harvester' || e.type === 'engineer') raiseAlert(e.x, e.y, '⚠ Your workers are under attack!');
   }
-  // fight back if idle — but never against a protected specimen (weapons are locked)
-  if (e.kind === 'unit' && isCombat(e) && e.order.type === 'idle' && src && src.hp > 0
-      && !(src.specimen && e.team === 1)) {
+  // fight back if idle
+  if (e.kind === 'unit' && isCombat(e) && e.order.type === 'idle' && src && src.hp > 0) {
     e.order = { type: 'attack', target: src, resume: null };
+  }
+  // kicking the nest: the brood answers IMMEDIATELY (playtest: nests felt
+  // passive). Burst defenders aren't brood — survivors stay loose and roam.
+  if (e.kind === 'building' && e.type === 'nest' && e.hp > 0 && src && src.team !== 3
+      && tick - (e.burstAt || -1e9) > NEST_BURST_CD) {
+    e.burstAt = tick;
+    const n = 2 + (Math.random() < 0.5 ? 1 : 0);
+    for (let i = 0; i < n; i++) {
+      const d2 = spawnSpitter(e);
+      d2.home = null;   // the nest still replaces its normal guards separately
+      d2.roam = true;
+      d2.order = src.hp > 0 ? { type: 'attack', target: src, resume: null } : { type: 'roam' };
+    }
+    if (isShownAt(e.x, e.y)) toast('🦖 The nest erupts — defenders pour out!');
+  }
+  // dead grazer = angry planet: every real dino gets more aggressive for the level
+  if (e.hp <= 0 && e.type === 'critter' && src && src.team !== 3) {
+    dinoRage++;
+    if (src.team === 1) toast('🦖 The wildlife stirs… the dinosaurs grow agitated');
   }
   if (e.hp <= 0) {
     if (src && src.team === 1 && e.team !== 1) stats.kills++;
@@ -1599,6 +1655,8 @@ function kill(e) {
     fxs.push({ kind: 'corpse', x: e.x, y: e.y, a: e.faceA, frames: corpse,
                t: 0, max: corpse.length * 9 + 170, size: e.r * 2.7 });
     fxs.push({ kind: 'boom', x: e.x, y: e.y, t: 0, max: 16, size: (e.r || 16) * 0.9 });
+  } else if (e.kind === 'unit' && IS_DINO[e.type]) {
+    fxs.push({ kind: 'boom', x: e.x, y: e.y, t: 0, max: 18, size: (e.r || 16) * 0.9 });   // animals don't fireball
   } else {
     fxs.push({ kind: 'boom', x: e.x, y: e.y, t: 0, max: 26, size: (e.r || 16) * 1.6 });
     fxExplosion(e.x, e.y, (e.r || 16) * 1.3, e.kind === 'building');
@@ -1650,15 +1708,46 @@ function moveToward(u, tx, ty) {
   // toward the clear side instead of grinding into it until separation() helps.
   const look = u.r + 12;
   const lx = u.x + Math.cos(a) * look, ly = u.y + Math.sin(a) * look;
-  for (const b of buildings) {
+  const o2 = u.order;
+  let sliding = false;
+  if (!u.ghostT) for (const b of buildings) {
     if (Math.abs(lx - b.x) >= b.w / 2 + u.r || Math.abs(ly - b.y) >= b.h / 2 + u.r) continue;
     // if the waypoint is at/inside this building (attack, repair, drop-off), walk straight in
     if (Math.abs(gx - b.x) < b.w / 2 + u.r + 10 && Math.abs(gy - b.y) < b.h / 2 + u.r + 10) break;
-    const cross = (gx - u.x) * (b.y - u.y) - (gy - u.y) * (b.x - u.x);
-    a += (cross > 0 ? -1 : 1) * Math.PI / 2;   // turn away from the blocked side
+    // sticky slide: pick a side ONCE per wall and keep it — re-deciding every
+    // tick flip-flopped the sign as the unit jittered, which read as a spin-out
+    if (o2._slideB !== b.id) {
+      const cross = (gx - u.x) * (b.y - u.y) - (gy - u.y) * (b.x - u.x);
+      o2._slideB = b.id;
+      o2._slideS = cross > 0 ? -1 : 1;
+    }
+    a += o2._slideS * Math.PI / 2;
+    sliding = true;
     break;
   }
-  u.faceA = a;
+  // hysteresis: hold the dodge a few ticks past the last blocked frame —
+  // without it the heading alternated goal/slide every other tick (the shimmy)
+  if (sliding) o2._slideHold = 6;
+  else if (o2._slideHold > 0) {
+    o2._slideHold--;
+    a += (o2._slideS || 1) * Math.PI / 2;
+    sliding = true;
+  }
+  if (sliding) {
+    // wedged on the same wall too long (concave corner, crowd) — ghost past the
+    // lip instead of orbiting it. Mirrors the A* watchdog, which never fires
+    // for building bumps because buildings aren't in the path grid.
+    o2._slideT = (o2._slideT || 0) + 1;
+    if (o2._slideT > 45) { u.ghostT = 40; o2._slideT = 0; o2._slideB = null; }
+  } else { o2._slideT = 0; o2._slideB = null; }
+  // vehicles steer, they don't teleport-rotate: cap the hull turn rate so a
+  // wall bump reads as a swerve, not a spin (infantry and dinos still snap)
+  if (!IS_INF[u.type] && !IS_DINO[u.type]) {
+    let da = a - u.faceA;
+    while (da > Math.PI) da -= Math.PI * 2;
+    while (da < -Math.PI) da += Math.PI * 2;
+    u.faceA += Math.abs(da) > 0.22 ? Math.sign(da) * 0.22 : da;
+  } else u.faceA = a;
   const step = Math.min(effSpeed(u), d);
   u.x += Math.cos(a) * step;
   u.y += Math.sin(a) * step;
@@ -1692,7 +1781,7 @@ function updateUnit(u) {
     const dGoal = dist2(u.x, u.y, op._pgx, op._pgy);
     if (op._best === undefined || dGoal < op._best - 400) {
       op._best = dGoal; op._bestT = tick;
-    } else if (tick - op._bestT > 150) {
+    } else if (tick - op._bestT > 90) {
       op._path = null; op._best = undefined;
       u.ghostT = 60;
     }
@@ -1706,6 +1795,7 @@ function updateUnit(u) {
       // must never strand a specimen or egg (soft-locked the tutorial once)
       if (u.captive) { u.order = { type: 'returnCaptive' }; break; }
       if (u.eggCarry) { u.order = { type: 'returnEgg' }; break; }
+      if (u.roam) { u.order = { type: 'roam' }; break; }   // loose dinos go back to wandering
       if (u.type === 'medic') {
         const w = nearestWoundedAlly(u, 260);
         if (w) u.order = { type: 'heal', target: w };
@@ -1745,8 +1835,8 @@ function updateUnit(u) {
     case 'guard': {
       // nest creep AI: pounce on anything near home, chase to the leash, then walk back.
       // Never leaves this order, so artillery pounding from beyond aggro range goes unanswered.
-      const t = acquireTarget(u.x, u.y, u.team, u.range + 90, u);
-      if (t && dist(t.x, t.y, o.hx, o.hy) < NEST_LEASH) {
+      const t = acquireTarget(u.x, u.y, u.team, u.range + 90 + (u.team === 3 ? dinoAggro() : 0), u);
+      if (t && dist(t.x, t.y, o.hx, o.hy) < NEST_LEASH + (u.team === 3 ? dinoAggro() : 0)) {
         const d = dist(u.x, u.y, t.x, t.y) - (t.r || 0);
         if (d > u.range) moveToward(u, t.x, t.y);
         else {
@@ -1756,6 +1846,21 @@ function updateUnit(u) {
       } else if (dist(u.x, u.y, o.hx, o.hy) > 55) {
         moveToward(u, o.hx, o.hy);
       }
+      break;
+    }
+    case 'roam': {
+      // loose wildlife: fight whatever comes close (if armed), otherwise amble
+      if (u.dmg > 0) {
+        const t = acquireTarget(u.x, u.y, u.team, u.range + 110 + dinoAggro(), u);
+        if (t) { u.order = { type: 'attack', target: t, resume: null }; break; }
+      }
+      if (o.x === undefined || dist(u.x, u.y, o.x, o.y) < 26) {
+        if (Math.random() < 0.008) {   // graze a while, then drift somewhere new
+          o.x = clamp(u.x + (Math.random() - 0.5) * 800, 30, W - 30);
+          o.y = clamp(u.y + (Math.random() - 0.5) * 800, 30, H - 30);
+          o._path = null;
+        }
+      } else moveToward(u, o.x, o.y);
       break;
     }
     case 'attackmove': {
@@ -1990,7 +2095,14 @@ function updateUnit(u) {
     }
     case 'return': {
       const hq = nearestDropoff(u.team, u.x, u.y);
-      if (!hq) { u.order = { type: 'idle' }; break; }
+      if (!hq) {
+        if (u.team === 1 && tick - lastNoRefinery > 12 * 60) {
+          lastNoRefinery = tick;
+          toast('⚠ No refinery standing — crystals have nowhere to go');
+          snd.error();
+        }
+        u.order = { type: 'idle' }; break;
+      }
       const d = dist(u.x, u.y, hq.x, hq.y);
       if (d > hq.r + u.r + 8) moveToward(u, hq.x, hq.y);
       else {
@@ -1998,7 +2110,7 @@ function updateUnit(u) {
         if (u.team === 1) {
           stats.mined += u.carry;
           fxs.push({ kind: 'text', x: u.x, y: u.y - 14, t: 0, max: 50, msg: '+' + u.carry });
-          snd.deposit();
+          // no deposit sound for crystals (playtest: too chatty) — eggs/captives keep it
         }
         u.carry = 0;
         const c = (u.lastCrystal && u.lastCrystal.amount > 0) ? u.lastCrystal : nearestCrystalTo(u.x, u.y, 700);
@@ -2076,7 +2188,7 @@ function updateBuilding(b) {
     const brood = units.filter(u => u.team === 3 && u.home === b.id).length;
     if (brood >= NEST_BROOD) { b.respawnT = 0; return; }
     b.respawnT = (b.respawnT || 0) + 1;
-    if (b.respawnT >= NEST_RESPAWN) {
+    if (b.respawnT >= Math.max(3 * 60, NEST_RESPAWN - dinoRage * 45)) {
       b.respawnT = 0;
       spawnSpitter(b);
     }
@@ -2092,7 +2204,7 @@ function updateBuilding(b) {
     }
     if (pack.length >= DEN_RAPTOR_CAP) return;   // hunts pause at cap, clock and all
     b.packT = (b.packT || 0) + 1;
-    if (b.packT >= DEN_PACK_EVERY) {
+    if (b.packT >= Math.max(25 * 60, DEN_PACK_EVERY - dinoRage * 90)) {
       b.packT = 0;
       let t = null, bd = 1e18;
       for (const o of buildings) {
@@ -2166,7 +2278,6 @@ function updateBullets() {
         // radius; buildings eat the siege bonus on top
         for (const u of units) {
           if (u.team === p.team || u.hp <= 0) continue;
-          if (u.specimen && p.team === 1) continue;   // protected specimens shrug off player splash
           if (dist(p.tx, p.ty, u.x, u.y) <= p.splash + u.r) damage(u, p.dmg, p.src);
         }
         for (const b of buildings) {
@@ -2320,6 +2431,11 @@ function aiUpdate() {
       aiBuild('power', hq.x, hq.y);   // a browned-out army loses wars — fix the grid first (one at a time)
     } else if (supplyMax(2) - supplyUsed(2) < 5 && supplyMax(2) < SUPPLY_HARD_CAP && t.crystals > BLD.supply.cost + 100) {
       aiBuild('supply', hq.x, hq.y);
+    } else if (!buildings.some(b => b.team === 2 && b.type === 'refinery' && b.built >= 1)
+               && t.crystals > BLD.refinery.cost) {
+      // no refinery = no income at all now — rebuild before anything military
+      const c = nearestCrystalTo(hq.x, hq.y, 900);
+      aiBuild('refinery', c ? c.x + 70 : hq.x, c ? c.y + 70 : hq.y);
     } else if (!have('barracks') && t.crystals > BLD.barracks.cost) {
       aiBuild('barracks', hq.x, hq.y);
     } else if (!have('factory') && t.crystals > BLD.factory.cost + 150) {
@@ -2933,7 +3049,7 @@ let lastQSig = '';
 function refreshQueue() {
   const b = selection.length === 1 && selection[0].kind === 'building'
     && selection[0].queue && selection[0].queue.length ? selection[0] : null;
-  const sig = b ? b.id + '|' + b.queue.join('.') + '|' + b.boost + '|' + Math.floor(teams[1].crystals / 25) : '';
+  const sig = b ? b.id + '|' + b.queue.join('.') + '|' + b.boost + '|' + Math.floor(teams[1].crystals / 25) : 'none';   // 'none', not '' — the click handlers use '' as a force-refresh sentinel
   if (sig === lastQSig) return;
   lastQSig = sig;
   if (!b) {
@@ -3723,6 +3839,21 @@ function drawDino(u) {
     return;
   }
   const C = COLORS[u.team];
+  if (u.type === 'critter') {
+    // dumpy little grazer: dome back, head down in the moss, stub tail
+    const bob = Math.sin(tick * 0.06 + u.id) * 0.8;
+    cx.fillStyle = C.dark;                            // stub tail
+    cx.beginPath(); cx.moveTo(-6, -1.5); cx.lineTo(-9.5, 0); cx.lineTo(-6, 1.5); cx.closePath(); cx.fill();
+    cx.fillStyle = C.main;                            // dome body
+    cx.beginPath(); cx.ellipse(0, 0, 6.5, 4.5, 0, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = C.dark;                            // moss saddle
+    cx.beginPath(); cx.ellipse(-0.5, 0, 3.4, 2.2, 0, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = C.main;                            // grazing head, bobbing
+    cx.beginPath(); cx.ellipse(6.5 + bob * 0.4, 0, 2.8, 2.1, 0, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = '#e0a43c';                         // one placid amber eye
+    cx.beginPath(); cx.arc(6.8 + bob * 0.4, -1, 0.7, 0, Math.PI * 2); cx.fill();
+    return;
+  }
   if (u.type === 'raptor') {
     // sleek pack hunter: whip tail, coiled haunches, head low and forward
     const wag = Math.sin(tick * 0.35 + u.id) * 3.5;
@@ -4837,7 +4968,7 @@ function resetWorld() {
   clearTimeout(overlayTimer); overlayTimer = null;
   lastCardSig = '';
   mission = null; ms = null;
-  wasLowPower = false; lastAvail = null;
+  wasLowPower = false; lastAvail = null; dinoRage = 0;
   dlgQueue = []; dlgCur = null;
   elDialogue.classList.add('hidden');
   refreshObjectives();
