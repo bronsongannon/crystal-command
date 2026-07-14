@@ -457,6 +457,7 @@ const SUPPLY_HARD_CAP = 100;
 const BUILD_MENU = [['turret', 'T'], ['barracks', 'B'], ['factory', 'V'], ['supply', 'C'], ['power', 'O'], ['refinery', 'G'], ['airpad', 'X'], ['flak', 'Y'], ['silo', 'N']];
 // tech tree checks (see BLD req fields)
 function hasTech(team, type) {
+  if (devMode && team === 1) return true;   // dev mode: the whole tree, no prerequisites
   const req = BLD[type].req;
   return !req || req.every(r => buildings.some(b => b.team === team && b.type === r && b.built >= 1));
 }
@@ -777,6 +778,7 @@ function stampVision(x, y, r) {
   }
 }
 let devReveal = false;   // dev mode: the whole map, no fog — for judging layouts
+let devMode = false;     // cheat mode: free tech + bottomless crystals (Space x5 over the ? chip)
 function updateFog() {
   if (devReveal) {
     visible.fill(1); explored.fill(1);
@@ -4453,6 +4455,7 @@ function renderMinimap() {
 
 // ---------------- Main loop ----------------
 function update() {
+  if (devMode && teams[1]) teams[1].crystals = Math.max(teams[1].crystals, 99999);
   tick++;
   updateCamera();
   if (tick % 8 === 1) updateFog();
@@ -4881,6 +4884,36 @@ document.getElementById('btn-again').addEventListener('click', () => {
   quitToMenu();
 });
 
+// ---- dev mode: hover the "?  controls" chip and tap Space five times ----
+// Toggles free tech + bottomless crystals + full campaign unlock, for skipping
+// ahead in playtests. Works at the menu too; same gesture switches it back off.
+let devHover = false, devTaps = 0, devTapAt = 0;
+const devChip = document.getElementById('btn-help');
+devChip.addEventListener('mouseenter', () => { devHover = true; devTaps = 0; });
+devChip.addEventListener('mouseleave', () => { devHover = false; devTaps = 0; });
+window.addEventListener('keydown', (e) => {
+  if (e.code !== 'Space' || !devHover) return;
+  e.preventDefault();
+  const now = performance.now();
+  if (now - devTapAt > 2500) devTaps = 0;   // taps must come in one burst
+  devTapAt = now;
+  if (++devTaps < 5) return;
+  devTaps = 0;
+  devMode = !devMode;
+  devChip.style.borderColor = devMode ? 'rgba(240,200,106,0.8)' : '';
+  devChip.style.color = devMode ? '#f0c86a' : '';
+  lastAvail = null;   // rebaseline the build menu silently (no unlock-toast burst)
+  if (devMode) {
+    localStorage.setItem(CAMPAIGN_KEY, String(MISSIONS.length));   // every mission open
+    if (!started) renderMenu();
+    if (teams[1]) teams[1].crystals = Math.max(teams[1].crystals, 99999);
+    toast('🛠 DEV MODE — free tech, bottomless crystals, campaign unlocked');
+  } else {
+    toast('🛠 Dev mode off — tech tree and wallet back to normal');
+  }
+  snd.ready();
+});
+
 requestAnimationFrame(frame);
 
 // debug handle (used for automated testing; harmless to leave in)
@@ -4902,6 +4935,8 @@ window.CC = {
   get fogMemory() { return fogMemory; },
   get devReveal() { return devReveal; },
   set devReveal(v) { devReveal = !!v; updateFog(); },
+  get devMode() { return devMode; },
+  set devMode(v) { devMode = !!v; },
   get fxs() { return fxs; },
   get spritesReady() { return spritesReady; },
   isVisibleAt, isExploredAt, isShownAt, updateFog, toggleFogMemory,
