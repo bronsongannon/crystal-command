@@ -265,6 +265,12 @@ const MISSIONS = [
   {
     title: 'Landfall', act: 'Act I — The Crystal War',
     map: 'basin', diff: 'easy', noEnemy: true, bare: true,
+    // Landfall spreads the neutral fields to opposite corners of the valley so
+    // scouting is a real trip — and keeps the nests well away from the base.
+    fields: [
+      { p: [W * 0.30, H * 0.22], n: 8, a: 2600, nests: [[W * 0.30 + 110, H * 0.22 - 110]] },
+      { p: [W * 0.72, H * 0.62], n: 8, a: 2600, nests: [[W * 0.72 + 120, H * 0.62 + 100]] },
+    ],
     brief: [
       ['ops', 'Dropships are down and the beacon is live, Commander. This valley holds the richest crystal signature on the planet — and Rubicon Mining wants it as badly as we do.'],
       ['ops', 'Before their survey teams arrive, I want a working outpost: crystals in the bank, rifles on the wall — then push out and map the valley.'],
@@ -279,11 +285,11 @@ const MISSIONS = [
       { id: 'rax',     text: 'Build a Barracks (B)',                   type: 'built', bld: 'barracks', count: 1, hidden: true },
       { id: 'marines', text: 'Train 4 Marines (Barracks — Q)',         type: 'unitCount', unit: 'marine', count: 4, hidden: true },
       { id: 'turret',  text: 'Build a Turret on the perimeter (T)',    type: 'built', bld: 'turret', count: 1, hidden: true },
-      { id: 'scout1',  text: 'Scout the northern crystal field',       type: 'reach', x: W / 2, y: H / 2 - 200, r: 250, hidden: true },
-      { id: 'scout2',  text: 'Scout the southern crystal field',       type: 'reach', x: W / 2, y: H / 2 + 200, r: 250, hidden: true },
+      { id: 'scout1',  text: 'Scout the northern crystal field',       type: 'reach', x: W * 0.30, y: H * 0.22, r: 250, hidden: true },
+      { id: 'scout2',  text: 'Scout the eastern crystal field',        type: 'reach', x: W * 0.72, y: H * 0.62, r: 250, hidden: true },
       { id: 'repel',   text: 'Repel the spitter pack',                 type: 'flag', hidden: true },
       { id: 'capture', text: 'Capture the marked spitter with the Capture Rig (right-click it) and haul it to the HQ', type: 'captive', count: 1, hidden: true, mark: [1050, 1650] },
-      { id: 'mine',    text: 'Mine 600 crystals',                      type: 'mined', amount: 600 },
+      { id: 'mine',    text: 'Mine 1000 crystals',                     type: 'mined', amount: 1000 },
     ],
     winWhen: ['harv', 'depot', 'rax', 'marines', 'turret', 'scout1', 'scout2', 'repel', 'capture', 'mine'],
     // The wildlife never hunts what it hasn't seen: the retaliation probe only
@@ -296,7 +302,7 @@ const MISSIONS = [
       { when: { done: ['rax'] }, objective: ['marines', 'turret'],
         say: [['ops', 'Barracks online. Train four Marines — select it and press Q — and anchor a Turret to the perimeter with T. Standard doctrine, even on a quiet world.']] },
       { when: { done: ['marines', 'turret'] }, objective: ['scout1', 'scout2'],
-        say: [['ops', 'Perimeter is set. Time to learn the neighborhood — push a patrol out to the two marked crystal fields mid-valley.'],
+        say: [['ops', 'Perimeter is set. Time to learn the neighborhood — push a patrol out to the two marked crystal fields: one up north, one out east.'],
               ['sci', 'Quietly, Commander. The wildlife hasn\'t noticed us yet — observe them, don\'t provoke them. They only defend what they can see.']] },
       { when: { done: ['scout1', 'scout2'] },
         say: [['sci', 'Nesting colonies, live broods… magnificent. Ah — Commander, they\'ve spotted your patrol. Seismic contacts converging on your base. Fast.']] },
@@ -1160,8 +1166,9 @@ function setup(mapKey) {
   const pHQ = placeBase(1, M);
   if (!(mission && mission.noEnemy)) placeBase(2, M);
 
-  // neutral fields + their nest guards — clear the nest or mine poor
-  for (const spec of M.patches) {
+  // neutral fields + their nest guards — clear the nest or mine poor.
+  // A mission can replace the map's fields wholesale (M1 spreads them out).
+  for (const spec of ((mission && mission.fields) || M.patches)) {
     addPatch(spec.p[0], spec.p[1], spec.n, spec.a);
     for (const nx of (spec.nests || [])) makeNest(nx[0], nx[1]);
   }
