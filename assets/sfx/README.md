@@ -52,7 +52,7 @@ so slices are onset-detected, trimmed, faded, peak-normalized to -1dB, 44.1k/16-
 | bite | Melee Weapons Pack 1 (D. Dumais) — sword slash impact |
 | screech | Biohazard (Bluezone) — organic creature texture slice |
 | collapse | Building Collapse (Bluezone) — rubble + glass |
-| nuke | Detonation (Bluezone) — full urban explosion, 4s |
+| nuke | COMPOSITE: Geophonic "Cinematic Hit 2" + Shapeforms distorted rumble at 65%, 6s (Bronson-approved after 3 audition rounds) |
 
 Alternate takes for every weapon live in the session audition set; GDC source
 libraries (357MB extract) + full 35GB bundle zips: `assets/sprites/Source 2/audio/` (untracked).
