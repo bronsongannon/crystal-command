@@ -24,9 +24,9 @@ next — progress is saved in your browser.
 **Mission 1 — Landfall** is live: establish the expedition's first outpost,
 scout the crystal fields (the wildlife won't hunt what it hasn't seen — but it
 notices patrols), survive the retaliation, and capture a live spitter for
-Dr. Lin with the unarmed **Capture Rig**. Your weapons are locked around the
-protected specimen, so bring escorts to soak the hits and haul it home. More
-of Act I is on the way.
+Dr. Lin with the unarmed **Capture Rig**. Your troops fire at half rate around
+the protected specimen — keep them busy soaking hits, let the rig do the work,
+and haul it home breathing. More of Act I is on the way.
 
 ## Dinosaurs 🦖
 
@@ -112,7 +112,7 @@ map/difficulty select.
 
 ## Units
 
-- **Harvester** (60) — mines crystals and hauls them back to the HQ
+- **Harvester** (60) — mines crystals and hauls them to the nearest Refinery
 - **Engineer** (90) — repairs damaged buildings **and vehicles**; right-click a
   target, or leave him near the base and he'll fix things on his own
 - **Marine** (80) — fast, cheap ranged infantry; can hunker down to hold ground (Barracks)
