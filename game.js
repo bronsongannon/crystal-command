@@ -171,6 +171,7 @@ const MAPS = {
   gauntlet: {
     label: 'The Gauntlet',
     desc: 'Bases face off across a nest-choked center column. Win the middle, win the game.',
+    ground: { base: '#211710', mottle: 'rgba(255,180,110,0.02)', pebble: 'rgba(225,175,120,0.07)', grid: 'rgba(230,185,140,0.026)' },   // rust badlands
     pHQ: [230, H / 2 + 40], pRax: [420, H / 2 + 150], pPatch: [270, H / 2 - 240],
     eHQ: [W - 230, H / 2 - 40], eRax: [W - 420, H / 2 - 150], eFac: [W - 580, H / 2 + 10],
     eSup: [[W - 260, H / 2 + 200], [W - 160, H / 2 - 260]], eTur: [[W - 430, H / 2 + 110], [W - 430, H / 2 - 200]],
@@ -192,6 +193,7 @@ const MAPS = {
   boneyard: {
     label: 'The Boneyard',
     desc: 'North vs south across three broken lanes — and a monstrously rich middle.',
+    ground: { base: '#1b1b1e', mottle: 'rgba(210,215,235,0.016)', pebble: 'rgba(215,215,230,0.075)', grid: 'rgba(185,195,225,0.026)' },   // cold ash flats
     pHQ: [W / 2, H - 200], pRax: [W / 2 + 200, H - 140], pPatch: [W / 2 - 260, H - 380],
     eHQ: [W / 2, 200], eRax: [W / 2 - 200, 140], eFac: [W / 2 - 400, 240],
     eSup: [[W / 2 + 180, 100], [W / 2 - 140, 340]], eTur: [[W / 2 + 260, 330], [W / 2 - 330, 300]],
@@ -214,6 +216,7 @@ const MAPS = {
   valley: {
     label: 'Fossil Valley',
     desc: 'Quiet corner expansions — and a mega-field dead center under double nest guard.',
+    ground: { base: '#121a0e', mottle: 'rgba(160,220,120,0.018)', pebble: 'rgba(155,205,135,0.06)', grid: 'rgba(150,220,150,0.028)' },   // deep moss
     pHQ: [W - 210, H - 210], pRax: [W - 400, H - 140], pPatch: [W - 260, H - 440],
     eHQ: [210, 210], eRax: [400, 140], eFac: [560, 200],
     eSup: [[300, 100], [150, 340]], eTur: [[350, 330], [480, 220]],
@@ -367,16 +370,30 @@ const MISSIONS = [
           { unit: 'raider', team: 2, n: 1, at: [2990, 1500], to: [2400, 1100] },
         ],
         say: [['red', 'Attention, expedition convoy: you are traversing a Rubicon resource corridor. Per intersystem claim law, your cargo is subject to a toll. My associates will collect.']] },
-      { when: { done: ['out'] }, objective: 'back',
-        say: [['ops', 'Beta\'s silos are filling. Load up and turn it around, Commander — the road home is never the same road.'],
-              ['red', 'Still rolling? I respect persistence. My accountants do not.']] },
-      { when: { done: ['out'] }, delay: 18, alarm: '⚠ Ambush on the southern leg!',
+      { when: { done: ['out'] },
         spawn: [
-          { unit: 'raider', team: 2, n: 3, at: [1500, 2240], to: [900, 1900] },
-          { unit: 'raider', team: 2, n: 2, at: [60, 1400], to: [500, 1850] },
+          { unit: 'marine', team: 1, n: 2, at: [2650, 600] },
+          { unit: 'rocket', team: 1, n: 1, at: [2700, 640] },
+        ],
+        say: [['ops', 'Beta\'s silos are filling — sixty seconds to load the haulers. The post garrison is yours, Commander. Dig in; nobody rolls until the cargo is aboard.'],
+              ['red', 'Still rolling? I respect persistence. My accountants do not.']] },
+      // the loading siege: Krauss hits the post while the convoy is pinned
+      { when: { done: ['out'] }, delay: 10, alarm: '⚠ Raiders hitting Survey Post Beta!',
+        spawn: [
+          { unit: 'raider', team: 2, n: 3, at: [2990, 200], to: [2760, 520] },
+          { unit: 'tank',   team: 2, n: 1, at: [2200, 60],  to: [2700, 470] },
+        ],
+        say: [['red', 'You parked a fortune in my corridor. Collections — move in.']] },
+      { when: { done: ['out'] }, delay: 60, objective: 'back',
+        say: [['ops', 'Cargo aboard! Turn it around, Commander — the road home is never the same road.']] },
+      // they set the southern ambush AHEAD of the convoy, on the home stretch
+      { when: { done: ['out'] }, delay: 70, alarm: '⚠ Ambush forming on the southern leg!',
+        spawn: [
+          { unit: 'raider', team: 2, n: 4, at: [1500, 2240], to: [900, 1900] },
+          { unit: 'raider', team: 2, n: 3, at: [60, 1400], to: [500, 1850] },
         ] },
-      // background pressure: a lone toll collector every so often until it's over
-      { when: { time: 100, notDone: ['back'] }, repeat: true, every: 55,
+      // background pressure: toll collectors every so often until it's over
+      { when: { time: 100, notDone: ['back'] }, repeat: true, every: 45,
         spawn: { unit: 'raider', team: 2, n: 1, at: [2200, 60], to: [350, 1950] } },
       // lose the convoy, lose the contract
       { when: { groupBelow: ['convoy', 4] }, lose: true },
@@ -1173,7 +1190,7 @@ function setup(mapKey) {
   }
   for (const [bx, by, br] of (M.boulders || [])) rocks.push({ x: bx, y: by, r: br });
   buildTerrainGrid();
-  paintGround();
+  paintGround(M);
   const pHQ = placeBase(1, M);
   if (!(mission && mission.noEnemy)) placeBase(2, M);
 
@@ -1901,16 +1918,22 @@ function updateUnit(u) {
         if (t) { u.order = { type: 'attack', target: t, resume: null }; break; }
       }
       // shy phase: until the player has actually SEEN wildlife, roamers keep
-      // out of camp — no dinos strolling through the base before first contact
+      // out of camp — no dinos strolling through the base before first contact.
+      // The flee point is STICKY: picked once and held until reached — re-aiming
+      // every tick made the heading whipsaw between base buildings (spin-out).
       if (!wildSeen && u.team === 3) {
-        const nb = nearestPlayerBld(u.x, u.y, 480);
-        if (nb) {
-          const a = Math.atan2(u.y - nb.y, u.x - nb.x);
-          o.x = clamp(u.x + Math.cos(a) * 520, 30, W - 30);
-          o.y = clamp(u.y + Math.sin(a) * 520, 30, H - 30);
-          o._path = null;
+        if (o.flee && dist(u.x, u.y, o.x, o.y) < 26) o.flee = false;
+        if (!o.flee) {
+          const nb = nearestPlayerBld(u.x, u.y, 480);
+          if (nb) {
+            const a = Math.atan2(u.y - nb.y, u.x - nb.x);
+            o.x = clamp(u.x + Math.cos(a) * 520, 30, W - 30);
+            o.y = clamp(u.y + Math.sin(a) * 520, 30, H - 30);
+            o.flee = true;
+            o._path = null;
+          }
         }
-      }
+      } else o.flee = false;
       if (o.x === undefined || dist(u.x, u.y, o.x, o.y) < 26) {
         if (Math.random() < 0.008) {   // graze a while, then drift somewhere new
           o.x = clamp(u.x + (Math.random() - 0.5) * 800, 30, W - 30);
@@ -2398,7 +2421,10 @@ function aiSpotFree(type, wx, wy) {
   for (const b of buildings) {
     if (Math.abs(wx - b.x) < (b.w + d.w) / 2 + 10 && Math.abs(wy - b.y) < (b.h + d.h) / 2 + 10) return false;
   }
-  for (const c of crystals) if (c.amount > 0 && dist2(wx, wy, c.x, c.y) < (d.w / 2 + 26) ** 2) return false;
+  // refineries keep a wider standoff from the crystals themselves — auto-placed
+  // ones were landing right on the field's doorstep (playtest feedback)
+  const cGap = d.w / 2 + (type === 'refinery' ? 65 : 26);
+  for (const c of crystals) if (c.amount > 0 && dist2(wx, wy, c.x, c.y) < cGap ** 2) return false;
   for (const rk of rocks) if (Math.abs(wx - rk.x) < d.w / 2 + rk.r && Math.abs(wy - rk.y) < d.h / 2 + rk.r) return false;
   if (type === 'refinery' && !crystals.some(c => c.amount > 0 && dist2(wx, wy, c.x, c.y) < REFINERY_NEAR_CRYSTAL ** 2)) return false;
   return true;
@@ -3272,27 +3298,30 @@ function paintRock(g, rk) {
   blob(rk.r * 0.62, '#3a423a', -rk.r * 0.12, -rk.r * 0.16);   // upper facet
   blob(rk.r * 0.3, '#485148', -rk.r * 0.2, -rk.r * 0.28);     // highlight
 }
-function paintGround() {
+function paintGround(M) {
+  // per-map ground palette — each battlefield gets its own soil so maps stop
+  // looking interchangeable (playtest feedback). All fields optional.
+  const pal = (M && M.ground) || {};
   const g = groundCv.getContext('2d');
   const area = (W * H) / (2048 * 1536);   // texture density scales with map area
-  g.fillStyle = '#171c16';
+  g.fillStyle = pal.base || '#171c16';
   g.fillRect(0, 0, W, H);
   // mottled soil
   for (let i = 0; i < 1400 * area; i++) {
     const x = Math.random() * W, y = Math.random() * H;
     const r = 8 + Math.random() * 42;
-    g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.012)' : 'rgba(0,0,0,0.05)';
+    g.fillStyle = Math.random() < 0.5 ? (pal.mottle || 'rgba(255,255,255,0.012)') : 'rgba(0,0,0,0.05)';
     g.beginPath(); g.ellipse(x, y, r, r * 0.6, Math.random() * 3, 0, Math.PI * 2); g.fill();
   }
   // faint grid
-  g.strokeStyle = 'rgba(160,220,200,0.028)';
+  g.strokeStyle = pal.grid || 'rgba(160,220,200,0.028)';
   g.lineWidth = 1;
   for (let x = 0; x <= W; x += TILE) { g.beginPath(); g.moveTo(x + 0.5, 0); g.lineTo(x + 0.5, H); g.stroke(); }
   for (let y = 0; y <= H; y += TILE) { g.beginPath(); g.moveTo(0, y + 0.5); g.lineTo(W, y + 0.5); g.stroke(); }
   // scattered pebbles
   for (let i = 0; i < 240 * area; i++) {
     const x = Math.random() * W, y = Math.random() * H;
-    g.fillStyle = 'rgba(190,200,190,0.06)';
+    g.fillStyle = pal.pebble || 'rgba(190,200,190,0.06)';
     g.beginPath(); g.arc(x, y, 1 + Math.random() * 2.5, 0, Math.PI * 2); g.fill();
   }
   for (const rk of rocks) paintRock(g, rk);
