@@ -2094,7 +2094,7 @@ function updateUnit(u) {
       // capture rig: close to contact range, channel, and bag a live specimen
       const tgt = o.target;
       if (u.captive) { u.order = { type: 'returnCaptive' }; break; }
-      if (!tgt || tgt.hp <= 0 || !units.includes(tgt)) { u.capT = 0; u.order = { type: 'idle' }; break; }
+      if (!tgt || tgt.hp <= 0 || !units.includes(tgt) || !tgt.specimen) { u.capT = 0; u.order = { type: 'idle' }; break; }
       const d = dist(u.x, u.y, tgt.x, tgt.y) - tgt.r;
       if (d > RIG_CAP_RANGE) { u.capT = 0; moveToward(u, tgt.x, tgt.y); }
       else {
@@ -2723,14 +2723,23 @@ cv.addEventListener('contextmenu', (e) => {
     commandCollect(selection, t);
     fxs.push({ kind: 'ping', x: t.x, y: t.y, t: 0, max: 22, color: '#e8e2cc' });
   }
-  else if (t && t.kind === 'unit' && t.type === 'spitter' && t.team !== 1
+  else if (t && t.kind === 'unit' && t.specimen && t.team !== 1
            && selection.some(s => s.kind === 'unit' && s.type === 'rig')) {
-    // capture rigs take the specimen; everyone else holds their orders so an
-    // over-eager escort doesn't gun down the science project
+    // capture rigs take THE specimen — the rig is calibrated for the marked
+    // target only; everyone else holds their orders so an over-eager escort
+    // doesn't gun down the science project
     for (const s of selection) {
       if (s.kind === 'unit' && s.type === 'rig') { s.capT = 0; s.order = { type: 'capture', target: t }; }
     }
     fxs.push({ kind: 'ping', x: t.x, y: t.y, t: 0, max: 22, color: '#8fc94a' });
+  }
+  else if (t && t.kind === 'unit' && t.team === 3 && !t.specimen
+           && selection.some(s => s.kind === 'unit' && s.type === 'rig')) {
+    // rig + ordinary wildlife: escorts engage as usual, the rig holds — it
+    // can only capture the marked specimen
+    toast('The rig is calibrated for the marked specimen — it can\'t capture wild dinos');
+    commandAttack(selection.filter(s => !(s.kind === 'unit' && s.type === 'rig')), t);
+    fxs.push({ kind: 'ping', x: t.x, y: t.y, t: 0, max: 22, color: '#e0564a' });
   }
   else if (t && t.kind === 'unit' && t.specimen) {
     // no rig in the selection: a protected specimen can't be attacked — walk over instead
