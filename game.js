@@ -317,7 +317,7 @@ const MISSIONS = [
           { group: 'rig',   unit: 'rig',     team: 1, n: 1, at: [380, H - 340] },
           { group: 'scout', unit: 'spitter', team: 3, n: 1, at: [1050, 1650], order: 'guard', specimen: true },
         ],
-        say: [['ops', 'Lin\'s Capture Rig just dropped at the base, and a lone spitter is prowling the flats — marked on your map. Right-click it with the rig. Weapons discipline is in effect around the specimen — your troops fire at HALF rate near it, so keep them off it and let the rig work. Lin needs this one breathing.']] },
+        say: [['ops', 'Lin\'s Capture Rig just dropped at the base — the caged harvester wearing the green ring. It is the ONLY unit that can take the specimen alive. A lone spitter is prowling the flats, marked on your map and wearing the SAME green ring: select the rig and right-click it. Your troops fire at half rate near the specimen — keep them clear and let the rig work. Lin needs this one breathing.']] },
       // safety nets: the tutorial can't dead-end — a lost rig (or specimen) respawns
       { when: { groupDead: 'scout', notDone: ['capture'], noCaptive: true }, delay: 10, repeat: true,
         spawn: { group: 'scout', unit: 'spitter', team: 3, n: 1, at: [1050, 1650], order: 'guard', specimen: true },
@@ -793,6 +793,17 @@ let devReveal = false;   // dev mode: the whole map, no fog — for judging layo
 let devMode = false;     // cheat mode: free tech + bottomless crystals (Space x5 over the ? chip)
 let dinoRage = 0;        // every murdered grazer makes the planet's dinos angrier (wider aggro, faster respawns)
 const dinoAggro = () => Math.min(dinoRage * 25, 150);
+let wildSeen = false;    // has the player laid eyes on any wildlife yet? Roamers stay clear of camp until then
+// nearest standing player building within r — shared by the shy-wildlife logic
+function nearestPlayerBld(x, y, r) {
+  let best = null, bd = r * r;
+  for (const b of buildings) {
+    if (b.team !== 1 || b.hp <= 0) continue;
+    const d2b = dist2(x, y, b.x, b.y);
+    if (d2b < bd) { bd = d2b; best = b; }
+  }
+  return best;
+}
 function updateFog() {
   if (devReveal) {
     visible.fill(1); explored.fill(1);
@@ -1799,6 +1810,11 @@ function moveToward(u, tx, ty) {
 
 function updateUnit(u) {
   if (u.hp <= 0) return;   // killed earlier this tick (splash, capture) — the dead don't act
+  // first contact: the moment any wild dino stands in player vision AWAY from
+  // the base ("in the wild"), the wildlife stops being shy. A sighting at the
+  // camp fence doesn't count — otherwise approaching = permission to enter.
+  if (!wildSeen && u.team === 3 && (tick + u.id) % 30 === 0 &&
+      isVisibleAt(u.x, u.y) && !nearestPlayerBld(u.x, u.y, 480)) wildSeen = true;
   if (u.cool > 0) u.cool--;
   if (u.ghostT > 0) u.ghostT--;
   u.moving = false;
@@ -1883,6 +1899,17 @@ function updateUnit(u) {
       if (u.dmg > 0) {
         const t = acquireTarget(u.x, u.y, u.team, u.range + 110 + dinoAggro(), u);
         if (t) { u.order = { type: 'attack', target: t, resume: null }; break; }
+      }
+      // shy phase: until the player has actually SEEN wildlife, roamers keep
+      // out of camp — no dinos strolling through the base before first contact
+      if (!wildSeen && u.team === 3) {
+        const nb = nearestPlayerBld(u.x, u.y, 480);
+        if (nb) {
+          const a = Math.atan2(u.y - nb.y, u.x - nb.x);
+          o.x = clamp(u.x + Math.cos(a) * 520, 30, W - 30);
+          o.y = clamp(u.y + Math.sin(a) * 520, 30, H - 30);
+          o._path = null;
+        }
       }
       if (o.x === undefined || dist(u.x, u.y, o.x, o.y) < 26) {
         if (Math.random() < 0.008) {   // graze a while, then drift somewhere new
@@ -3319,6 +3346,13 @@ function drawCrystal(c) {
 }
 
 function drawEgg(e) {
+  // pickup ring: the same pulsing green "interact" language as the specimen —
+  // reads as "this is collectible" without a word of tutorial
+  cx.strokeStyle = `rgba(143,201,74,${0.45 + 0.25 * Math.sin(tick * 0.08)})`;
+  cx.lineWidth = 2;
+  cx.setLineDash([4, 5]);
+  cx.beginPath(); cx.arc(e.x, e.y, e.r + 8, 0, Math.PI * 2); cx.stroke();
+  cx.setLineDash([]);
   const img = opt('egg');
   if (img) {
     cx.drawImage(img, e.x - 9, e.y - 11, 18, 22);
@@ -4336,7 +4370,16 @@ function drawUnitDecor(u) {
 
 // capture channel progress — a green arc closing around the rig
 function drawCapRing(u) {
-  if (!u.capT || u.order.type !== 'capture') return;   // ring only while actually channeling
+  // player rigs wear the specimen's green field ring at all times — the rig
+  // and its target share one visual language, so the pairing reads at a glance
+  if (u.type === 'rig' && u.team === 1) {
+    cx.strokeStyle = `rgba(143,201,74,${0.5 + 0.3 * Math.sin(tick * 0.1)})`;
+    cx.lineWidth = 2;
+    cx.setLineDash([4, 5]);
+    cx.beginPath(); cx.arc(u.x, u.y, u.r + 9, 0, Math.PI * 2); cx.stroke();
+    cx.setLineDash([]);
+  }
+  if (!u.capT || u.order.type !== 'capture') return;   // progress arc only while channeling
   cx.strokeStyle = '#8fc94a';
   cx.lineWidth = 3;
   cx.beginPath();
@@ -4599,8 +4642,8 @@ function renderMinimap() {
   }
   for (const e of eggs) {
     if (!isShownAt(e.x, e.y)) continue;
-    mcx.fillStyle = '#e8e2cc';
-    mcx.fillRect(e.x * sx - 1, e.y * sy - 1, 2, 2);
+    mcx.fillStyle = tick % 60 < 34 ? '#8fc94a' : '#e8e2cc';   // green blink: "come get these"
+    mcx.fillRect(e.x * sx - 1.5, e.y * sy - 1.5, 3, 3);
   }
   mcx.fillStyle = '#3d443d';
   for (const rk of rocks) {
@@ -5025,7 +5068,7 @@ function resetWorld() {
   clearTimeout(overlayTimer); overlayTimer = null;
   lastCardSig = '';
   mission = null; ms = null;
-  wasLowPower = false; lastAvail = null; dinoRage = 0;
+  wasLowPower = false; lastAvail = null; dinoRage = 0; wildSeen = false;
   dlgQueue = []; dlgCur = null;
   elDialogue.classList.add('hidden');
   refreshObjectives();
