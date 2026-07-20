@@ -12,8 +12,9 @@ sprites); until then each character shows a colored-initials chip.
 
 **Format:** square PNG, 256×256 is plenty (drawn at 56px). The box crops with
 `background-size: cover`, so keep the face centered with headroom. Portraits are
-painted busts, NOT the sprite style — do not run them through process_sprite.py
-(keep the painted background, no transparency needed).
+**photorealistic** (Bronson's call, 2026-07-14), NOT the sprite style and not
+painted — do not run them through process_sprite.py (keep the full-bleed photo
+background, no transparency needed).
 
 **Workflow (same trick that worked for unit art):** generate ONE portrait first,
 approve it, then attach it as the style anchor when generating the other two so
@@ -22,12 +23,13 @@ these faces will appear hundreds of times across 20 missions.
 
 ## Shared style block (paste into every prompt)
 
-> Painted sci-fi character portrait, head-and-shoulders bust, centered, facing
-> slightly off-camera. Retro-futuristic expedition military style, grounded and
-> practical (Command & Conquer briefing energy, not anime, not photoreal).
-> Painterly brushwork, strong single key light, dark muted background with a
-> subtle hint of the character's accent color. Slightly stylized proportions to
-> sit alongside cartoonish top-down game art. No text, no watermark, no frame.
+> Photorealistic cinematic character portrait, head-and-shoulders, centered,
+> facing slightly off-camera. Shot like a film still: 85mm lens look, shallow
+> depth of field, strong single key light, dark muted background with a subtle
+> hint of the character's accent color. Retro-futuristic expedition military
+> wardrobe, grounded and practical — worn fabric, real materials (Command &
+> Conquer live-action briefing energy). Natural skin texture, no smoothing,
+> no illustration or painterly style. No text, no watermark, no frame.
 
 ## Character prompts (casting suggestions — edit before generating)
 
