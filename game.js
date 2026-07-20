@@ -253,12 +253,22 @@ const DIFFS = {
 let diff = DIFFS.normal;
 
 // ---------------- Campaign ----------------
-// Recurring voices. Lines are plain prefixed text — portraits can come later.
+// Recurring voices. Lines are plain prefixed text; the dialogue bar shows a
+// portrait PiP per speaker (art optional, monogram fallback).
 const CAST = {
-  ops: { name: 'CPT. VEGA',   color: '#8fd8cf' },   // expedition ops commander
-  sci: { name: 'DR. LIN',     color: '#e8d38a' },   // xenobiologist
-  red: { name: 'CDR. KRAUSS', color: '#f0a898' },   // Rubicon Mining field commander
+  ops: { name: 'CPT. VEGA',   color: '#8fd8cf', init: 'V' },   // expedition ops commander
+  sci: { name: 'DR. LIN',     color: '#e8d38a', init: 'L' },   // xenobiologist
+  red: { name: 'CDR. KRAUSS', color: '#f0a898', init: 'K' },   // Rubicon Mining field commander
 };
+// Cast portraits (optional art slots, same philosophy as sfx): drop
+// assets/portraits/<who>.png (ops/sci/red) — square bust crop, ~256px.
+// Missing file = colored monogram fallback in the PiP.
+const PORTRAITS = {};
+for (const who of Object.keys(CAST)) {
+  const img = new Image();
+  img.onload = () => { PORTRAITS[who] = img; };
+  img.src = 'assets/portraits/' + who + '.png';
+}
 // Mission specs are pure data, same philosophy as MAPS. Objective types:
 // unitCount / built / mined / flag (set by a trigger). hidden objectives appear
 // when a trigger activates them. Triggers: {when:{time|done|groupDead|mined},
@@ -592,12 +602,14 @@ const OPT = {};
     'unit_sniper_hunker_teal', 'unit_sniper_hunker_red',
     'unit_artillery_hunker_teal', 'unit_artillery_hunker_red',
     'unit_spitter_wild', 'unit_raptor_wild', 'unit_critter_wild', 'turret_gun_teal', 'turret_gun_red');
-  // death animation frame slots (sliced from Gemini spritesheets). Any prefix
-  // of frames works — the game uses however many it finds. (Walk-cycle slots
-  // existed briefly and were reverted: movement keeps the procedural sway.)
+  // animation frame slots. Any prefix of frames works — the game uses however
+  // many it finds. death: sliced from Gemini spritesheets. walk: sliced from
+  // AI walk-in-place videos via slice_walk.py (2026-07-20, DaVinci marine first;
+  // units without walk art keep the procedural sway fallback).
   for (const k in UNIT) {
     for (const cw of ['_teal', '_red', '_wild']) {
       for (let i = 1; i <= 4; i++) names.push('unit_' + k + '_death' + i + cw);
+      for (let i = 1; i <= 8; i++) names.push('unit_' + k + '_walk' + i + cw);
     }
   }
   for (const n of names) {
@@ -650,6 +662,10 @@ function animFrames(type, kind, team, max) {
   if (a.length) animCache[key] = a;
   return a;
 }
+
+// world px of ground covered per full walk cycle — cadence knob for walk
+// frames (smaller = faster leg churn; feet look planted when this ≈ sprite size)
+const WALK_STRIDE_PX = 34;
 
 // distance from unit/building center to the muzzle tip of its drawn barrel
 const MUZZLE_LEN = { marine: 15, sniper: 24, rocket: 16, raider: 17, tank: 22, artillery: 28, gunship: 13, turret: 22, flak: 20, engineer: 11, harvester: 12 };
@@ -2884,6 +2900,7 @@ function togglePause() {
   userPaused = !userPaused;
   elPauseBanner.classList.toggle('hidden', !userPaused);
   btnPause.textContent = userPaused ? '▶ resume' : '⏸ pause';
+  syncVoicePause();
 }
 function quitToMenu() {
   started = false;
@@ -2910,10 +2927,11 @@ btnQuit.addEventListener('click', () => {
 function setHelp(open) {
   elHelp.classList.toggle('hidden', !open);
   paused = open;
+  syncVoicePause();
 }
 btnHelp.addEventListener('click', () => { audioInit(); setHelp(elHelp.classList.contains('hidden')); });
 document.getElementById('btn-help-close').addEventListener('click', () => { audioInit(); setHelp(false); });
-btnMute.addEventListener('click', () => { audioInit(); muted = !muted; btnMute.textContent = muted ? '🔇' : '🔊'; });
+btnMute.addEventListener('click', () => { audioInit(); muted = !muted; btnMute.textContent = muted ? '🔇' : '🔊'; if (muted) stopVoice(); });
 function toggleFogMemory() {
   fogMemory = !fogMemory;
   btnFog.textContent = fogMemory ? '🌫 map: remembered' : '🌫 map: re-fogs';
@@ -3829,11 +3847,18 @@ function drawBuilding(b) {
 // called inside a translate(u.x,u.y)+rotate(u.faceA) transform, so +x is forward.
 // Infantry art faces right (no extra rotation); vehicle art points up (rotate +90°).
 function drawUnitSprite(u) {
-  // NOTE: a sliced 6-frame walk cycle was tried here (2026-07-12) and REVERTED
-  // after playtest — the frame-swap looked worse than the subtle procedural
-  // walk-sway all units share (see the marine). Movement stays sway-based.
+  // walk cycle: real frames sliced from an AI walk video (slice_walk.py).
+  // Frame advances with DISTANCE (walkT), not time, so feet read planted.
+  // (A 2026-07-12 spritesheet walk attempt was reverted — too few frames,
+  // wrong cadence; this 8-frame video slice is the do-over, 2026-07-20.)
+  let walk = null;
+  if (u.moving && u.order.type !== 'hunker') {
+    const wf = animFrames(u.type, 'walk', u.team, 8);
+    if (wf.length) walk = wf[Math.floor(u.walkT / (WALK_STRIDE_PX / wf.length)) % wf.length];
+  }
   // pre-colored colorway art wins outright — drawn as-is, no tint
-  const pre = (u.order.type === 'hunker' && optCW('unit_' + u.type + '_hunker', u.team))
+  const pre = walk
+    || (u.order.type === 'hunker' && optCW('unit_' + u.type + '_hunker', u.team))
     || optCW('unit_' + u.type, u.team);
   if (pre) {
     cx.rotate(Math.PI / 2);              // generated art faces up
@@ -4191,7 +4216,11 @@ function drawUnit(u) {
   cx.translate(u.x, u.y);
   cx.rotate(u.faceA);
   if (u.recoil) cx.translate(-u.recoil, 0);                       // gun kick
-  if ((IS_INF[u.type]) && u.moving) cx.rotate(Math.sin(u.walkT * 0.4) * 0.07);   // walk sway
+  // infantry with walk frames animate via the frame cycle (drawUnitSprite);
+  // the rest keep the original subtle sway until their walk video lands.
+  // (A translate weight-shift was tried 2026-07-20 and read worse — don't.)
+  if ((IS_INF[u.type]) && u.moving && !animFrames(u.type, 'walk', u.team, 8).length)
+    cx.rotate(Math.sin(u.walkT * 0.4) * 0.07);
   if (bodiesReady) {
     drawUnitSprite(u);
     cx.restore();
@@ -4776,11 +4805,16 @@ const elObjList = document.getElementById('obj-list');
 const elDialogue = document.getElementById('dialogue');
 const elDlgName = document.getElementById('dlg-name');
 const elDlgText = document.getElementById('dlg-text');
+const elDlgPip = document.getElementById('dlg-pip');
+const elDlgImg = document.getElementById('dlg-img');
+const elDlgInit = document.getElementById('dlg-init');
+const elDlgWave = document.getElementById('dlg-wave');
 const CAMPAIGN_KEY = 'cc.campaign';
 const campaignDone = () => parseInt(localStorage.getItem(CAMPAIGN_KEY) || '0', 10) || 0;
 
 function missionInit(idx) {
   mission = MISSIONS[idx];
+  preloadVoices(mission);
   ms = {
     idx,
     // reach objectives mark their own spot; anything else can set an explicit mark
@@ -4791,6 +4825,82 @@ function missionInit(idx) {
     triggers: (mission.triggers || []).map(t => ({ ...t, fired: false, armedAt: -1 })),
     groups: {}, flags: {}, winAt: 0, outroDone: false,
   };
+}
+
+// Voice lines (optional, like sfx/portrait slots): drop
+// assets/voice/<who>_<hash8>.mp3|ogg|wav and the line plays voiced; missing file
+// = silent typewriter as before. Filenames come from voiceKey(who, text) — the
+// hash covers speaker + text, so rewording a line correctly orphans its old clip.
+// CC.exportVoiceScript() downloads the full studio script with filenames.
+const VOICE_EXTS = ['mp3', 'ogg', 'wav'];
+const VOICE_VOL = 0.9;
+const voice = {};        // key -> loaded HTMLAudio
+const voiceTried = {};   // key -> probe already issued
+function voiceKey(who, text) {
+  const s = who + '|' + text;
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return who + '_' + h.toString(16).padStart(8, '0');
+}
+function loadVoice(who, text) {
+  const key = voiceKey(who, text);
+  if (voiceTried[key]) return;
+  voiceTried[key] = true;
+  (function tryExt(i) {
+    if (i >= VOICE_EXTS.length) return;
+    const el = new Audio();
+    el.preload = 'auto';
+    el.oncanplaythrough = () => { if (!voice[key]) voice[key] = el; };
+    el.onerror = () => tryExt(i + 1);
+    el.src = 'assets/voice/' + key + '.' + VOICE_EXTS[i];
+  })(0);
+}
+// probe every line a mission can speak, so clips are buffered before they fire
+function preloadVoices(m) {
+  for (const [w, t] of (m.brief || [])) loadVoice(w, t);
+  for (const [w, t] of (m.intro || [])) loadVoice(w, t);
+  for (const tr of (m.triggers || [])) for (const [w, t] of (tr.say || [])) loadVoice(w, t);
+  for (const [w, t] of (m.outro || [])) loadVoice(w, t);
+}
+let voiceCur = null;
+function playVoice(who, text) {
+  stopVoice();
+  const clip = voice[voiceKey(who, text)];
+  if (!clip || muted) return null;
+  clip.volume = VOICE_VOL;
+  try { clip.currentTime = 0; clip.play().catch(() => { /* pre-gesture autoplay block */ }); } catch (e) { /* ignore */ }
+  voiceCur = clip;
+  return clip;
+}
+function stopVoice() {
+  if (voiceCur) { try { voiceCur.pause(); } catch (e) { /* ignore */ } voiceCur = null; }
+}
+// pause/help freeze the sim tick, so dialogue timing stops — hold the audio with it
+function syncVoicePause() {
+  if (!voiceCur || voiceCur.ended) return;
+  if (userPaused || paused) { try { voiceCur.pause(); } catch (e) {} }
+  else { try { voiceCur.play().catch(() => {}); } catch (e) {} }
+}
+function exportVoiceScript() {
+  const rows = [], seen = new Set();
+  const add = (mi, ctx, who, text) => {
+    const key = voiceKey(who, text);
+    if (seen.has(key)) return;
+    seen.add(key);
+    rows.push([mi + 1, ctx, CAST[who].name, key + '.mp3', text]);
+  };
+  MISSIONS.forEach((m, i) => {
+    for (const [w, t] of (m.brief || [])) add(i, 'briefing', w, t);
+    for (const [w, t] of (m.intro || [])) add(i, 'intro', w, t);
+    for (const tr of (m.triggers || [])) for (const [w, t] of (tr.say || [])) add(i, 'trigger', w, t);
+    for (const [w, t] of (m.outro || [])) add(i, 'outro', w, t);
+  });
+  const tsv = 'mission\tcontext\tspeaker\tfile\tline\n' + rows.map(r => r.join('\t')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([tsv], { type: 'text/tab-separated-values' }));
+  a.download = 'voice-script.tsv';
+  a.click();
+  return rows.length + ' lines exported';
 }
 
 // dialogue: a queue of speaker lines, revealed typewriter-style on the sim tick.
@@ -4806,7 +4916,24 @@ function dlgUpdate() {
     const c = CAST[dlgCur.who];
     elDlgName.textContent = c.name; elDlgName.style.color = c.color;
     elDlgText.textContent = '';
+    elDlgPip.style.borderColor = c.color;
+    elDlgWave.style.color = c.color;
+    const art = PORTRAITS[dlgCur.who];
+    if (art) {
+      elDlgImg.src = art.src;
+      elDlgImg.classList.remove('hidden'); elDlgInit.classList.add('hidden');
+    } else {
+      elDlgImg.classList.add('hidden'); elDlgInit.classList.remove('hidden');
+      elDlgInit.textContent = c.init; elDlgInit.style.color = c.color;
+    }
     elDialogue.classList.remove('hidden');
+    elDialogue.classList.add('talking');
+    // a voiced line holds the bar for the clip's length (metadata is in — the
+    // clip only registers on canplaythrough); text pacing stays the floor
+    const clip = playVoice(dlgCur.who, dlgCur.text);
+    if (clip && isFinite(clip.duration) && clip.duration > 0) {
+      dlgUntil = tick + Math.max(dlgDur(dlgCur.text), Math.ceil(clip.duration * 60) + 24);
+    }
   }
   if (!dlgCur) return;
   const rush = dlgQueue.length > 0;
@@ -4818,6 +4945,8 @@ function dlgUpdate() {
     : dlgUntil;
   if (tick >= until) {
     dlgCur = null;
+    stopVoice();   // a rush-cut line cuts its clip too — radio discipline, no overlap
+    elDialogue.classList.remove('talking');
     if (!dlgQueue.length) elDialogue.classList.add('hidden');
   }
 }
@@ -5046,25 +5175,33 @@ function briefLineHtml(who, text) {
 function openBriefing(idx) {
   briefIdx = idx;
   const m = MISSIONS[idx];
+  preloadVoices(m);
   document.getElementById('brief-kicker').textContent = `${m.act} · Mission ${idx + 1}`;
   document.getElementById('brief-title').textContent = m.title;
   document.getElementById('brief-objs').innerHTML =
     m.objectives.filter(o => !o.hidden).map(o => `<li>${o.text}</li>`).join('');
-  // typewriter reveal, one line at a time; click the text to skip ahead
+  // typewriter reveal, one line at a time; click the text to skip ahead.
+  // A voiced line holds the next line until its clip ends (a blocked/missing
+  // clip is paused, so it can never wedge the reveal).
   const box = document.getElementById('brief-lines');
   box.innerHTML = '';
   clearInterval(briefTimer);
-  let li = 0, ci = 0, span = null;
+  let li = 0, ci = 0, span = null, briefClip = null;
   briefTimer = setInterval(() => {
-    if (li >= m.brief.length) { clearInterval(briefTimer); briefTimer = null; return; }
+    if (li >= m.brief.length) {
+      if (briefClip && !briefClip.paused) return;
+      clearInterval(briefTimer); briefTimer = null; return;
+    }
     const [who, text] = m.brief[li];
     if (!span) {
+      if (briefClip && !briefClip.paused) return;   // let the previous line finish speaking
       const c = CAST[who];
       const p = document.createElement('p');
       const name = document.createElement('b');
       name.textContent = c.name; name.style.color = c.color;
       span = document.createElement('span');
       p.appendChild(name); p.appendChild(span); box.appendChild(p);
+      briefClip = playVoice(who, text);
     }
     ci += 2;
     span.textContent = text.slice(0, ci);
@@ -5072,12 +5209,14 @@ function openBriefing(idx) {
   }, 16);
   box.onclick = () => {
     clearInterval(briefTimer); briefTimer = null;
+    stopVoice();
     box.innerHTML = m.brief.map(([who, text]) => briefLineHtml(who, text)).join('');
   };
   elBriefing.classList.remove('hidden');
 }
 function closeBriefing() {
   clearInterval(briefTimer); briefTimer = null;
+  stopVoice();
   elBriefing.classList.add('hidden');
 }
 document.getElementById('btn-brief-back').addEventListener('click', () => { audioInit(); closeBriefing(); });
@@ -5108,7 +5247,9 @@ function resetWorld() {
   mission = null; ms = null;
   wasLowPower = false; lastAvail = null; dinoRage = 0; wildSeen = false;
   dlgQueue = []; dlgCur = null;
+  stopVoice();
   elDialogue.classList.add('hidden');
+  elDialogue.classList.remove('talking');
   refreshObjectives();
 }
 function startGame(mapKey, diffKey, missionIdx) {
@@ -5213,6 +5354,7 @@ window.CC = {
   canPlaceBuilding, tryPlaceBuilding, makeBuilding, makeUnit, makeNest, makeDen, spawnRaptor, makeEgg, startResearch,
   hatchSpitter, rankOf, startGame, MAPS, DIFFS,
   startMission, MISSIONS, CAST,
+  exportVoiceScript, voiceKey, voice, PORTRAITS,
   get mission() { return mission; },
   get missionState() { return ms; },
   unlockAll() { localStorage.setItem(CAMPAIGN_KEY, String(MISSIONS.length)); renderMenu(); },

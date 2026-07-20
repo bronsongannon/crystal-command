@@ -1,6 +1,6 @@
 # Ship checklist — Mac App Store by July 31, 2026
 
-Working checklist (updated 2026-07-12). Goal: submit a v1 (skirmish + Mission 1)
+Working checklist (updated 2026-07-16). Goal: submit a v1 (skirmish + Mission 1)
 to Apple by end of month. Apple Developer membership already covered by the
 existing account (one membership, unlimited apps) — no enrollment wait.
 
@@ -31,6 +31,9 @@ file and the widget's task lists in sync.
 - [ ] Pacing pass toward 20–30 minute matches
 
 ## Art and audio
+
+- [ ] Cast portraits: Vega, Lin, Krauss — square busts for the dialogue PiP (Gemini pipeline, spec in assets/portraits/README.md)
+- [ ] Voice engine pick + generate Act 1 lines — script is exported at assets/voice/voice-script.tsv, workflow in assets/voice/README.md
 
 - [x] Source the 14 sound-effect slots — all filled, Kenney CC0 + one Freesound klaxon (2026-07-13)
 - [x] Generate unit_rig.png and bld_power.png — superseded by full colorway art set (2026-07-12)

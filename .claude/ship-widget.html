@@ -48,7 +48,7 @@
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
     <i class="ti ti-checklist" style="font-size:20px" aria-hidden="true"></i>
     <p style="font-weight:500;font-size:15px;margin:0">Shipped — playtest round + full code audit</p>
-    <span style="margin-left:auto;background:var(--bg-success);color:var(--text-success);font-size:12px;padding:3px 10px;border-radius:var(--radius)">Jul 11–14</span>
+    <span style="margin-left:auto;background:var(--bg-success);color:var(--text-success);font-size:12px;padding:3px 10px;border-radius:var(--radius)">Jul 11–16</span>
   </div>
   <p style="font-size:13px;color:var(--text-secondary);margin:0 0 10px">Playtest notes plus a two-agent audit of all ~4,300 lines. Everything below is fixed, verified, and pushed.</p>
   <div id="shipped"></div>
@@ -128,6 +128,10 @@ const TRACKS = {
       'I dropped the wild spitter IDLE+DEATH sheet in Source 2 — slice the death frames into unit_spitter_death slots and verify dinos leave carcasses. Acts 2-3 will show this constantly.'],
     ['a8','Infantry death sheets: marine, sniper, medic, engineer (teal + red recolors)','',
       'I dropped infantry death sheets in Source 2 (marine/sniper/medic/engineer, teal plus red recolors) — slice and install all of them, then show me a battle with bodies.'],
+    ['a9','Cast portraits: Vega, Lin, Krauss — square busts for the dialogue PiP','',
+      'Help me generate the three cast portraits for Crystal Command\'s dialogue PiP (Vega/Lin/Krauss) with the Gemini pipeline — prompts per assets/portraits/README.md, then process and verify them in the comms panel in-game.'],
+    ['a10','Voice engine pick + generate Act 1 voice lines (script already exported)','',
+      'I\'m ready to voice Crystal Command\'s dialogue. The line script is at assets/voice/voice-script.tsv (44 lines, missions 1-3). Help me evaluate voice engines (character consistency, emotion control, commercial license), lock one voice per character, and set up the generation workflow from assets/voice/README.md.'],
   ],
 };
 const SHIPPED = [
@@ -149,6 +153,7 @@ const SHIPPED = [
   'Four new sound slots: raptor bite, dino death screech, building collapse, and an ear-approved composite nuke (cinematic hit + rumble)',
   'Dev mode: Space x5 over the controls chip — free tech, bottomless crystals, campaign unlocked (gold chip = on)',
   'Missions 2 + 3 built: Claim Jumpers (convoy escort) + The Nest Problem (artillery doctrine)',
+  'Dialogue PiP + voice pipeline: portrait comms panel (monogram fallback), assets/voice drop-in clips, briefings and bar both voiced, CC.exportVoiceScript() emits the studio script',
 ];
 const PRE = { ap1: 1, g1: 1, g2: 1, g4: 1, g5: 1, g6: 1, a1: 1, a2: 1, a3: 1, a4: 1, a5: 1, a6: 1, a7: 1, a8: 1 };
 const KEY = 'cc-ship-checklist-v1';

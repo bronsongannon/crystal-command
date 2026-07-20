@@ -216,18 +216,42 @@
   #objectives .obj { color: #c8d4cb; }
   #objectives .obj.done { color: #5f7a68; text-decoration: line-through; }
 
-  /* mission dialogue bar (campaign only) */
+  /* mission dialogue bar (campaign only) — portrait PiP + typewriter text */
   #dialogue {
     position: fixed; bottom: 148px; left: 50%; transform: translateX(-50%);
     z-index: 12; pointer-events: none;
+    display: flex; gap: 12px; align-items: flex-start;
     width: max-content; max-width: min(640px, calc(100vw - 40px));
     background: rgba(12, 16, 13, 0.92);
     border: 1px solid rgba(120, 200, 190, 0.35);
     border-radius: 10px;
-    padding: 9px 16px 10px;
+    padding: 9px 12px 10px;
     font-size: 14px; line-height: 1.45;
   }
-  #dialogue b { display: block; font-size: 11px; letter-spacing: 1.5px; margin-bottom: 2px; }
+  #dialogue b { font-size: 11px; letter-spacing: 1.5px; }
+  #dlg-body { min-width: 0; }
+  #dlg-body > b { display: inline-block; margin-bottom: 2px; vertical-align: middle; }
+  #dlg-text { display: block; }
+  #dlg-pip {
+    width: 58px; height: 58px; flex: none; position: relative;
+    border: 1px solid rgba(120, 200, 190, 0.5); border-radius: 8px;
+    background: #0a1410; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #dlg-pip img { width: 100%; height: 100%; object-fit: cover; display: block; image-rendering: auto; }
+  #dlg-init { font-size: 24px; font-weight: 700; letter-spacing: 0; opacity: 0.9; }
+  #dlg-pip::after {   /* comms-feed scanlines over the portrait */
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.16) 0 1px, transparent 1px 3px);
+  }
+  #dlg-wave { display: none; gap: 2px; align-items: flex-end; height: 10px; margin-left: 7px; vertical-align: middle; }
+  #dlg-wave i { width: 3px; height: 3px; background: currentColor; border-radius: 1px; }
+  #dialogue.talking #dlg-wave { display: inline-flex; }
+  #dialogue.talking #dlg-wave i { animation: dlgwave 0.7s ease-in-out infinite; }
+  #dlg-wave i:nth-child(2) { animation-delay: 0.18s; }
+  #dlg-wave i:nth-child(3) { animation-delay: 0.36s; }
+  #dlg-wave i:nth-child(4) { animation-delay: 0.09s; }
+  @keyframes dlgwave { 0%, 100% { height: 3px; } 50% { height: 10px; } }
 
   /* full-screen mission briefing */
   #briefing {
@@ -348,7 +372,10 @@
     <div id="obj-list"></div>
   </div>
 
-  <div id="dialogue" class="hidden"><b id="dlg-name"></b><span id="dlg-text"></span></div>
+  <div id="dialogue" class="hidden">
+    <div id="dlg-pip"><img id="dlg-img" class="hidden" alt=""><span id="dlg-init"></span></div>
+    <div id="dlg-body"><b id="dlg-name"></b><span id="dlg-wave"><i></i><i></i><i></i><i></i></span><span id="dlg-text"></span></div>
+  </div>
 
   <canvas id="minimap" width="200" height="150"></canvas>
   <div id="dock">
