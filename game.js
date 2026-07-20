@@ -584,6 +584,7 @@ const OPT = {};
   for (const k in BLD) if (k !== 'nest' && k !== 'den') names.push('bld_' + k);   // bld_hq.png, … (dino structures use dino_* slots)
   names.push('unit_marine_hunker', 'unit_sniper_hunker', 'unit_artillery_hunker');   // dug-in poses
   names.push('rock', 'crystal');   // terrain art (natural colors, not tinted)
+  for (const k in CAST) names.push('portrait_' + k);   // dialogue PiP busts (painted, matched set)
   // pre-colored colorway slots (STYLE-GUIDE.pdf / Gemini pipeline): drawn AS-IS,
   // no team tint. _teal = team 1, _red = team 2, _wild = untamed dinos.
   for (const k in UNIT) names.push('unit_' + k + '_teal', 'unit_' + k + '_red');
@@ -4776,6 +4777,7 @@ const elObjList = document.getElementById('obj-list');
 const elDialogue = document.getElementById('dialogue');
 const elDlgName = document.getElementById('dlg-name');
 const elDlgText = document.getElementById('dlg-text');
+const elDlgFace = document.getElementById('dlg-face');
 const CAMPAIGN_KEY = 'cc.campaign';
 const campaignDone = () => parseInt(localStorage.getItem(CAMPAIGN_KEY) || '0', 10) || 0;
 
@@ -4806,6 +4808,17 @@ function dlgUpdate() {
     const c = CAST[dlgCur.who];
     elDlgName.textContent = c.name; elDlgName.style.color = c.color;
     elDlgText.textContent = '';
+    // character PiP: painted bust if the portrait slot has art, initials chip otherwise
+    const face = opt('portrait_' + dlgCur.who);
+    elDlgFace.style.borderColor = c.color;
+    if (face) {
+      elDlgFace.style.backgroundImage = `url(${face.src})`;
+      elDlgFace.textContent = '';
+    } else {
+      elDlgFace.style.backgroundImage = 'none';
+      elDlgFace.style.color = c.color;
+      elDlgFace.textContent = c.name.split(' ').pop()[0];   // 'CPT. VEGA' -> 'V'
+    }
     elDialogue.classList.remove('hidden');
   }
   if (!dlgCur) return;
@@ -4813,6 +4826,7 @@ function dlgUpdate() {
   const rate = rush ? 2.6 : 1.4;
   const chars = Math.floor((tick - dlgStart) * rate);
   if (chars <= dlgCur.text.length + 3) elDlgText.textContent = dlgCur.text.slice(0, chars);
+  elDlgFace.classList.toggle('talking', chars <= dlgCur.text.length);   // pulse while the line types
   const until = rush
     ? Math.min(dlgUntil, dlgStart + Math.ceil(dlgCur.text.length / rate) + 60)
     : dlgUntil;

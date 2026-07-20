@@ -226,8 +226,24 @@
     border-radius: 10px;
     padding: 9px 16px 10px;
     font-size: 14px; line-height: 1.45;
+    display: flex; align-items: flex-start; gap: 11px;
   }
+  #dialogue.hidden { display: none; }
   #dialogue b { display: block; font-size: 11px; letter-spacing: 1.5px; margin-bottom: 2px; }
+  /* character PiP: painted bust when portrait art exists, initials chip until then */
+  #dlg-face {
+    flex: 0 0 auto; width: 56px; height: 56px; margin-top: 2px;
+    border-radius: 8px; border: 1px solid rgba(120, 200, 190, 0.45);
+    background: #0e1411 center / cover no-repeat;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700; letter-spacing: 1px;
+    transition: filter 0.2s;
+  }
+  #dlg-face.talking { animation: dlg-talk 0.9s ease-in-out infinite; }
+  @keyframes dlg-talk {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.22); }
+  }
 
   /* full-screen mission briefing */
   #briefing {
@@ -348,7 +364,7 @@
     <div id="obj-list"></div>
   </div>
 
-  <div id="dialogue" class="hidden"><b id="dlg-name"></b><span id="dlg-text"></span></div>
+  <div id="dialogue" class="hidden"><div id="dlg-face"></div><div id="dlg-body"><b id="dlg-name"></b><span id="dlg-text"></span></div></div>
 
   <canvas id="minimap" width="200" height="150"></canvas>
   <div id="dock">
