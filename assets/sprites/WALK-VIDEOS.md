@@ -43,7 +43,7 @@ attempts before one holds the character design through the whole loop.
 | ~~10~~ | ~~spitter~~ | ~~wild~~ | DONE 2026-07-21 (tail sway loops clean) | |
 | ~~11~~ | ~~spitter~~ | ~~teal~~ | DERIVED 2026-07-21 via recolor_walk.py (throat sac stays venom green) | |
 | ~~12~~ | ~~raptor~~ | ~~wild~~ | DONE 2026-07-21 | |
-| 13 | critter | wild | `unit_critter_wild.png` | a docile bone-hided grazing dinosaur |
+| ~~13~~ | ~~critter~~ | ~~wild~~ | DONE 2026-07-21 — QUEUE COMPLETE, 13/13 walk cycles live | |
 
 Snipers keep their prone art for hunker only — the walk video is the STANDING
 pose. Same for marines (hunker pose art is separate and untouched).
@@ -54,7 +54,7 @@ pose. Same for marines (hunker pose art is separate and untouched).
 existing set of walk frames — it learns the color mapping from the unit's
 pixel-aligned static colorway pair (color + position matched, median-smoothed)
 so only ONE video per body is ever needed. Marine red, sniper red, and rocket
-teal all shipped this way. Videos still wanted: critter wild — the grazer is the LAST one.
+teal all shipped this way. ALL VIDEOS DONE (2026-07-21). Every walking unit has real frames; the procedural sway/scurry code remains only as a fallback for future units.
 
 ## Dino caveat
 

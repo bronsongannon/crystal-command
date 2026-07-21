@@ -132,8 +132,8 @@ const TRACKS = {
       'The three cast portraits are live (assets/portraits/). Review them in-game across missions 1-3 dialogue and tell me if any need a regenerate before the set is locked.'],
     ['a10','Voice lines: 43 remaining (Vega\'s opener is live — DaVinci workflow proven)','',
       'Vega\'s first voice clip is live in Mission 1. Walk me through batch-generating the remaining 43 lines from assets/voice/voice-script.tsv in DaVinci — one locked voice per character — and I\'ll drop the mp3s on you to hash-match and install.'],
-    ['a11','Walk-cycle videos: 12 remaining units (marine + sniper teal are live)','',
-      'Let\'s continue the walk-cycle videos from assets/sprites/WALK-VIDEOS.md — give me the next DaVinci prompt from the queue and I\'ll generate it, then you slice and install with slice_walk.py.'],
+    ['a11','Walk cycles COMPLETE: all 13 walkers animated (DaVinci videos + derived colorways)','',
+      'All walk cycles are live. Playtest a big mixed battle and tell me if any unit\'s gait cadence or frame count feels off — WALK_STRIDE_PX is the knob.'],
   ],
 };
 const SHIPPED = [
@@ -157,12 +157,12 @@ const SHIPPED = [
   'Missions 2 + 3 built: Claim Jumpers (convoy escort) + The Nest Problem (artillery doctrine)',
   'Dialogue PiP + voice pipeline: portrait comms panel (monogram fallback), assets/voice drop-in clips, briefings and bar both voiced, CC.exportVoiceScript() emits the studio script',
   'Elevation: vision high ground — plateaus, cliff rims, ramp-only routes; Fossil Valley twin overlooks',
-  'Walk cycles v2 via DaVinci video: marine + sniper teal live, distance-paced frames (slice_walk.py)',
+  'Walk cycles COMPLETE 13/13: every infantry unit + dino animated (DaVinci videos, sliced + colorway-derived)',
   'Sniper scope glint steady (blink read as stray muzzle flash); prone stays hunker-only',
   'CAST COMPLETE: Vega, Lin, Krauss photorealistic portraits live in the comms panel',
   'First voice clip live: Vega\'s M1 briefing opener (9.6s, DaVinci)',
 ];
-const PRE = { ap1: 1, g1: 1, g2: 1, g4: 1, g5: 1, g6: 1, a1: 1, a2: 1, a3: 1, a4: 1, a5: 1, a6: 1, a7: 1, a8: 1, a9: 1 };
+const PRE = { ap1: 1, g1: 1, g2: 1, g4: 1, g5: 1, g6: 1, a1: 1, a2: 1, a3: 1, a4: 1, a5: 1, a6: 1, a7: 1, a8: 1, a9: 1, a11: 1 };
 const KEY = 'cc-ship-checklist-v1';
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
