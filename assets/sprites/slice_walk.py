@@ -33,7 +33,9 @@ from collections import deque
 
 LUM_OUTLINE = 0.12   # darker than this = character outline, blocks the flood
 SHADOW_LUM_MAX = 0.60
-GRAY_SPREAD = 22     # max-min channel spread; true grays only (teal blends block)
+GRAY_SPREAD = 14     # max-min channel spread; true grays only. Measured on real
+                     # videos: cast shadow ~9, bg ~10, dark-brown boots ~20 —
+                     # 14 splits shadow from every dark BODY tone seen so far
 BG_TOL = 35          # straight distance-to-bg floods from the border (uniform bg)
 SHADOW_Y = 0.52      # shadow pass only runs below this fraction of the frame —
                      # the pipeline spec locks the shadow at the feet, while the
@@ -80,7 +82,15 @@ def mask_frame(rgb):
     # only lum between outline_cap and the shadow cap can be flooded away.
     bg_lum = (bg.max() + bg.min()) / 510
     outline_cap = min(0.35, max(LUM_OUTLINE, bg_lum * 0.45))
-    shadowish = ((spread < GRAY_SPREAD) & (lum > outline_cap)
+    # …and the flood may never cross a HARD EDGE: cel art rings every body part
+    # with a drawn outline (strong gradient) while a cast shadow is pure soft
+    # falloff. This is the one separator that works when a gray boot and the
+    # shadow share the exact same color (engineer video).
+    g = rgb.astype(np.float32).sum(2) / 3
+    grad = np.zeros((h, w), np.float32)
+    grad[1:-1, 1:-1] = (np.abs(g[2:, 1:-1] - g[:-2, 1:-1]) +
+                        np.abs(g[1:-1, 2:] - g[1:-1, :-2]))
+    shadowish = ((spread < GRAY_SPREAD) & (lum > outline_cap) & (grad < 12)
                  & ((lum < SHADOW_LUM_MAX) | (lum < bg_lum - 0.03))
                  & (ys > h * SHADOW_Y))
     edge = removed & np.roll(~removed, 1, 0) | removed & np.roll(~removed, -1, 0) \
@@ -90,6 +100,9 @@ def mask_frame(rgb):
     return ~removed
 
 def largest_component(keep):
+    # body = largest component PLUS any component ≥120px within ~10px of it —
+    # shadow removal can slice a gray ring through the ankles and orphan the
+    # feet; they must survive while far-off watermark sparkles still drop
     h, w = keep.shape
     lbl = np.zeros((h, w), np.int32)
     sizes, cur = [0], 0
@@ -107,7 +120,16 @@ def largest_component(keep):
                             lbl[ny, nx] = cur; q.append((ny, nx))
                 sizes.append(n)
     if cur == 0: return keep
-    return lbl == int(np.argmax(sizes))
+    main = int(np.argmax(sizes))
+    near = lbl == main
+    for _ in range(10):
+        near = near | np.roll(near, 1, 0) | np.roll(near, -1, 0) \
+                    | np.roll(near, 1, 1) | np.roll(near, -1, 1)
+    out = lbl == main
+    for c in range(1, cur + 1):
+        if c != main and sizes[c] >= 120 and ((lbl == c) & near).any():
+            out |= lbl == c
+    return out
 
 def main():
     video, utype, cw = sys.argv[1], sys.argv[2], sys.argv[3]

@@ -38,8 +38,8 @@ attempts before one holds the character design through the whole loop.
 | ~~5~~ | ~~sniper~~ | ~~red~~ | DERIVED 2026-07-21 via recolor_walk.py (from the teal video) | |
 | ~~6~~ | ~~medic~~ | ~~teal~~ | DONE 2026-07-21 (best on-model video yet — matched the static's dual med kits) | |
 | ~~7~~ | ~~medic~~ | ~~red~~ | DERIVED 2026-07-21 via recolor_walk.py | |
-| 8 | engineer | teal | `unit_engineer_teal.png` | a teal-coveralled engineer with a hard hat and tool arm |
-| ~~9~~ | ~~engineer~~ | ~~red~~ | will be DERIVED from the teal video once it exists — do not generate | |
+| ~~8~~ | ~~engineer~~ | ~~teal~~ | DONE 2026-07-21 (gray boots = shadow color; slicer gained the hard-edge flood gate) | |
+| ~~9~~ | ~~engineer~~ | ~~red~~ | DERIVED 2026-07-21 via recolor_walk.py | |
 | 10 | spitter | wild | `unit_spitter_wild.png` | a bone-hided two-legged spitter dinosaur with a green throat sac |
 | ~~11~~ | ~~spitter~~ | ~~teal~~ | will be DERIVED from the wild video once it exists — do not generate | |
 | 12 | raptor | wild | `unit_raptor_wild.png` | a bone-hided raptor with moss back-stripes and a whip tail |
@@ -54,8 +54,8 @@ pose. Same for marines (hunker pose art is separate and untouched).
 existing set of walk frames — it learns the color mapping from the unit's
 pixel-aligned static colorway pair (color + position matched, median-smoothed)
 so only ONE video per body is ever needed. Marine red, sniper red, and rocket
-teal all shipped this way. Videos still wanted: engineer teal, spitter wild,
-raptor wild, critter wild — four total.
+teal all shipped this way. Videos still wanted: spitter wild, raptor wild,
+critter wild — the three dinos.
 
 ## Dino caveat
 
