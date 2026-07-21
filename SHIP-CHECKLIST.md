@@ -32,7 +32,7 @@ file and the widget's task lists in sync.
 
 ## Art and audio
 
-- [ ] Cast portraits: Vega, Lin, Krauss — square busts for the dialogue PiP (Gemini pipeline, spec in assets/portraits/README.md)
+- [x] Cast portraits: Vega, Lin, Krauss — DONE 2026-07-21 via DaVinci (photorealistic film-still set, bust-cropped for the PiP; full-res originals in assets/portraits/source/)
 - [ ] Voice engine pick + generate Act 1 lines — script is exported at assets/voice/voice-script.tsv, workflow in assets/voice/README.md
 
 - [x] Source the 14 sound-effect slots — all filled, Kenney CC0 + one Freesound klaxon (2026-07-13)
