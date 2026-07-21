@@ -33,7 +33,7 @@ attempts before one holds the character design through the whole loop.
 |---|------|----------|------------------|------------------|
 | 1 | marine | red | `unit_marine_red.png` | a red-armored sci-fi marine with charcoal trim |
 | 2 | rocket | teal | `unit_rocket_teal.png` | a teal sci-fi rocket trooper carrying a launch tube on the shoulder |
-| 3 | rocket | red | `unit_rocket_red.png` | a red sci-fi rocket trooper carrying a launch tube on the shoulder |
+| ~~3~~ | ~~rocket~~ | ~~red~~ | DONE 2026-07-21 (light-gray bg + baked dust-kick; slicer gained bg-adaptive outline/shadow caps) | |
 | ~~4~~ | ~~sniper~~ | ~~teal~~ | DONE 2026-07-20 (stride period 48 — DaVinci's slower gait sliced fine) | |
 | 5 | sniper | red | `unit_sniper_red.png` | a cloaked red sci-fi sniper with a long rifle over the shoulder |
 | 6 | medic | teal | `unit_medic_teal.png` | a white-armored field medic with teal boots and a red cross |

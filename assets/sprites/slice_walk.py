@@ -74,7 +74,14 @@ def mask_frame(rgb):
     # pass 2: the ground shadow — gray, mid-dark, feet-area only, and reachable
     # from already-removed background (so enclosed grays like the gun survive)
     ys = np.arange(h)[:, None]
-    shadowish = ((spread < GRAY_SPREAD) & (lum > LUM_OUTLINE) & (lum < SHADOW_LUM_MAX)
+    # both bounds are relative to the background: on a light bg a soft shadow
+    # sits just UNDER bg luminance (far above the absolute cap), while dark-gray
+    # BODY parts (charcoal boots) sit far below it and must act as outline —
+    # only lum between outline_cap and the shadow cap can be flooded away.
+    bg_lum = (bg.max() + bg.min()) / 510
+    outline_cap = min(0.35, max(LUM_OUTLINE, bg_lum * 0.45))
+    shadowish = ((spread < GRAY_SPREAD) & (lum > outline_cap)
+                 & ((lum < SHADOW_LUM_MAX) | (lum < bg_lum - 0.03))
                  & (ys > h * SHADOW_Y))
     edge = removed & np.roll(~removed, 1, 0) | removed & np.roll(~removed, -1, 0) \
          | removed & np.roll(~removed, 1, 1) | removed & np.roll(~removed, -1, 1)
@@ -131,7 +138,11 @@ def main():
     ref = Image.open(os.path.join(here, f"unit_{utype}_{cw}.png")).convert("RGBA")
     ref_mass = (np.array(ref)[..., 3] > 8).sum() * (side / ref.width) ** 2
     mean_mass = np.mean([m.sum() for m in masks])
-    side = int(side * (mean_mass / ref_mass) ** -0.5) if mean_mass > 0 else side
+    bbox_side = side
+    if mean_mass > 0: side = int(side * (mean_mass / ref_mass) ** -0.5)
+    # mass-normalize by PADDING only — never crop tighter than the body bounds
+    # (a video character that fills the frame would lose its feet otherwise)
+    side = max(side, bbox_side + 8)
     half = side // 2
     for k, (keep, rgb) in enumerate(zip(masks, rgbs)):
         out = np.zeros((side, side, 4), np.uint8)
