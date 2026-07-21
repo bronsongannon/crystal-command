@@ -217,6 +217,12 @@ const MAPS = {
     label: 'Fossil Valley',
     desc: 'Quiet corner expansions — and a mega-field dead center under double nest guard.',
     ground: { base: '#121a0e', mottle: 'rgba(160,220,120,0.018)', pebble: 'rgba(155,205,135,0.06)', grid: 'rgba(150,220,150,0.028)' },   // deep moss
+    // twin overlooks flanking the center approaches — artillery perches with
+    // one ramp each (N ramp faces west, S ramp faces east)
+    plateaus: [
+      { c: [[W * 0.5, H * 0.13, 150]], ramps: [[W * 0.5 - 150, H * 0.13, 95]] },
+      { c: [[W * 0.5, H * 0.87, 150]], ramps: [[W * 0.5 + 150, H * 0.87, 95]] },
+    ],
     pHQ: [W - 210, H - 210], pRax: [W - 400, H - 140], pPatch: [W - 260, H - 440],
     eHQ: [210, 210], eRax: [400, 140], eFac: [560, 200],
     eSup: [[300, 100], [150, 340]], eTur: [[350, 330], [480, 220]],
@@ -812,13 +818,27 @@ const isShownAt = (wx, wy) => {
   return visible[i] === 1 || (fogMemory && explored[i] === 1);
 };
 
-function stampVision(x, y, r) {
+// ---------------- Elevation (vision high ground) ----------------
+// Plateaus are authored per map (MAPS.plateaus): raised discs whose rims grow
+// a chain of cliff slabs (impassable — ramps are the only ground route up) and
+// whose tiles sit at elev 1. Rules: low ground never REVEALS high tiles, and
+// nothing AUTO-acquires a target standing above it. Explicit orders and
+// retaliation still pierce; flyers ignore elevation entirely.
+const elev = new Uint8Array(MAP_W * MAP_H);
+const elevAt = (wx, wy) => elev[fogCell(wx, wy)];
+
+function stampVision(x, y, r, fly) {
   const cx0 = Math.floor(x / TILE), cy0 = Math.floor(y / TILE);
   const cr = Math.ceil(r / TILE), r2 = r * r;
+  const ve = fly ? 9 : elev[fogCell(x, y)];   // flyers see over cliffs
   for (let gy = Math.max(0, cy0 - cr); gy <= Math.min(fogH - 1, cy0 + cr); gy++) {
     for (let gx = Math.max(0, cx0 - cr); gx <= Math.min(fogW - 1, cx0 + cr); gx++) {
       const dx = (gx + 0.5) * TILE - x, dy = (gy + 0.5) * TILE - y;
-      if (dx * dx + dy * dy <= r2) { const i = gy * fogW + gx; visible[i] = 1; explored[i] = 1; }
+      if (dx * dx + dy * dy <= r2) {
+        const i = gy * fogW + gx;
+        if (elev[i] > ve) continue;   // the cliff top stays dark from below
+        visible[i] = 1; explored[i] = 1;
+      }
     }
   }
 }
@@ -846,7 +866,7 @@ function updateFog() {
     return;
   }
   visible.fill(0);
-  for (const u of units) if (u.team === 1) stampVision(u.x, u.y, UNIT[u.type].sight);
+  for (const u of units) if (u.team === 1) stampVision(u.x, u.y, UNIT[u.type].sight, u.fly);
   for (const b of buildings) if (b.team === 1) stampVision(b.x, b.y, BLD[b.type].sight);
   const d = fogImg.data;
   for (let i = 0; i < visible.length; i++) {
@@ -1205,6 +1225,27 @@ function setup(mapKey) {
     }
   }
   for (const [bx, by, br] of (M.boulders || [])) rocks.push({ x: bx, y: by, r: br });
+  // plateaus: raise the interior tiles, then grow the cliff rim as a chain of
+  // slab rocks — ramps leave gaps, the only ground route up
+  elev.fill(0);
+  for (const pl of (M.plateaus || [])) {
+    const inRamp = (x, y) => (pl.ramps || []).some(([rx, ry, rr]) => dist2(x, y, rx, ry) < rr * rr);
+    for (let gy = 0; gy < MAP_H; gy++) for (let gx = 0; gx < MAP_W; gx++) {
+      const wx = (gx + 0.5) * TILE, wy = (gy + 0.5) * TILE;
+      if (pl.c.some(([px, py, pr]) => dist2(wx, wy, px, py) < pr * pr)) elev[gy * MAP_W + gx] = 1;
+    }
+    for (const [px, py, pr] of pl.c) {
+      const n = Math.max(10, Math.round((Math.PI * 2 * pr) / 30));
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const x = px + Math.cos(a) * pr, y = py + Math.sin(a) * pr;
+        // interior seams (inside a sibling disc) and ramp mouths stay open
+        if (pl.c.some(([ox, oy, orr]) => (ox !== px || oy !== py) && dist2(x, y, ox, oy) < (orr - 10) ** 2)) continue;
+        if (inRamp(x, y)) continue;
+        rocks.push({ x, y, r: 17, cliff: true, a });
+      }
+    }
+  }
   buildTerrainGrid();
   paintGround(M);
   const pHQ = placeBase(1, M);
@@ -1313,24 +1354,28 @@ function nearestDamagedBuilding(team, x, y, range) {
 }
 // can this unit/building shoot at flyers?
 const canAA = (e) => e.kind === 'unit' ? !UNIT[e.type].noAA : true;   // only turrets fire among buildings, and they have AA
-function nearestEnemyUnit(x, y, team, range, aa, airOnly) {
+function nearestEnemyUnit(x, y, team, range, aa, airOnly, fromAir) {
   let best = null, bd = 1e18;
+  const ve = fromAir ? 9 : elevAt(x, y);
   for (const u of units) {
     if (u.team === team) continue;
     if (u.type === 'critter') continue;                   // wildlife: never auto-targeted, by anyone
     if (airOnly && !UNIT[u.type].fly) continue;           // flak ignores the ground war
     if (aa === false && UNIT[u.type].fly) continue;       // gun can't elevate — skip flyers
     if (team === 1 && !isVisibleAt(u.x, u.y)) continue;   // player can't target into the fog
+    if (!u.fly && elevAt(u.x, u.y) > ve) continue;        // can't spot up the cliff — no auto-fire uphill
     const d = dist(x, y, u.x, u.y) - u.r;
     if (d <= range && d * d < bd) { bd = d * d; best = u; }
   }
   return best;
 }
-function nearestEnemyBuilding(x, y, team, range) {
+function nearestEnemyBuilding(x, y, team, range, fromAir) {
   let best = null, bd = 1e18;
+  const ve = fromAir ? 9 : elevAt(x, y);
   for (const b of buildings) {
     if (b.team === team) continue;
     if (team === 1 && !isVisibleAt(b.x, b.y)) continue;
+    if (elevAt(b.x, b.y) > ve) continue;                  // cliff-top structures are safe from below
     const d = dist(x, y, b.x, b.y) - b.r;
     if (d <= range && d * d < bd) { bd = d * d; best = b; }
   }
@@ -1338,7 +1383,8 @@ function nearestEnemyBuilding(x, y, team, range) {
 }
 function acquireTarget(x, y, team, range, attacker) {
   const aa = attacker ? canAA(attacker) : true;
-  return nearestEnemyUnit(x, y, team, range, aa) || nearestEnemyBuilding(x, y, team, range);
+  const air = !!(attacker && attacker.fly);
+  return nearestEnemyUnit(x, y, team, range, aa, false, air) || nearestEnemyBuilding(x, y, team, range, air);
 }
 function thingAtPoint(wx, wy) {
   for (const u of units) {
@@ -3289,6 +3335,21 @@ function refreshProgressBar() {
 const groundCv = document.createElement('canvas');
 groundCv.width = W; groundCv.height = H;
 function paintRock(g, rk) {
+  if (rk.cliff) {
+    // cliff-face slab: tangential wedge with a lit lip on the high side and a
+    // shadow skirt falling outward — chained slabs read as one wall
+    g.save();
+    g.translate(rk.x, rk.y);
+    g.rotate(rk.a || 0);   // +x points away from the plateau
+    g.fillStyle = 'rgba(0,0,0,0.38)';
+    g.fillRect(2, -rk.r * 1.15, rk.r * 0.95, rk.r * 2.3);
+    g.fillStyle = '#252b25';
+    g.fillRect(-rk.r * 0.55, -rk.r * 1.15, rk.r * 0.95, rk.r * 2.3);
+    g.fillStyle = '#39413a';
+    g.fillRect(-rk.r * 0.68, -rk.r * 1.15, rk.r * 0.22, rk.r * 2.3);
+    g.restore();
+    return;
+  }
   g.fillStyle = 'rgba(0,0,0,0.35)';   // ground shadow
   g.beginPath(); g.ellipse(rk.x + 5, rk.y + 7, rk.r * 1.02, rk.r * 0.88, 0, 0, Math.PI * 2); g.fill();
   const img = opt('rock');
@@ -3341,6 +3402,22 @@ function paintGround(M) {
     const x = Math.random() * W, y = Math.random() * H;
     g.fillStyle = pal.pebble || 'rgba(190,200,190,0.06)';
     g.beginPath(); g.arc(x, y, 1 + Math.random() * 2.5, 0, Math.PI * 2); g.fill();
+  }
+  // raised ground: drop shadow + lifted tone so plateaus read at a glance;
+  // ramps get a half-lift so the way up is visible from across the map
+  for (const pl of ((M && M.plateaus) || [])) {
+    for (const [px, py, pr] of pl.c) {
+      g.fillStyle = 'rgba(0,0,0,0.24)';
+      g.beginPath(); g.arc(px + 7, py + 10, pr + 9, 0, Math.PI * 2); g.fill();
+    }
+    for (const [px, py, pr] of pl.c) {
+      g.fillStyle = pal.hi || 'rgba(235,240,225,0.08)';
+      g.beginPath(); g.arc(px, py, pr, 0, Math.PI * 2); g.fill();
+    }
+    for (const [rx, ry, rr] of (pl.ramps || [])) {
+      g.fillStyle = pal.hi || 'rgba(235,240,225,0.05)';
+      g.beginPath(); g.arc(rx, ry, rr * 0.8, 0, Math.PI * 2); g.fill();
+    }
   }
   for (const rk of rocks) paintRock(g, rk);
 }
@@ -5328,6 +5405,7 @@ requestAnimationFrame(frame);
 
 // debug handle (used for automated testing; harmless to leave in)
 window.CC = {
+  elevAt,
   get units() { return units; },
   get buildings() { return buildings; },
   get crystals() { return crystals; },
