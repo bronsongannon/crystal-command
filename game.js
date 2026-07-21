@@ -4437,11 +4437,10 @@ function drawUnitDecor(u) {
       cx.lineWidth = 2;
       cx.beginPath(); cx.arc(1, 0, 4.5, -0.65, 0.65); cx.stroke();
       break;
-    case 'sniper':      // scope glint — one blinking pixel of menace
-      if (tick % 60 < 26) {
-        cx.fillStyle = C.accent;
-        cx.beginPath(); cx.arc(7, -2, 1.4, 0, Math.PI * 2); cx.fill();
-      }
+    case 'sniper':      // scope glint — steady, not blinking (playtest 2026-07-20:
+      // the blink read as unexplained muzzle flash)
+      cx.fillStyle = C.accent;
+      cx.beginPath(); cx.arc(7, -2, 1.4, 0, Math.PI * 2); cx.fill();
       break;
     case 'rocket':      // red warhead tip peeking from the tube
       cx.fillStyle = '#e0564a';
