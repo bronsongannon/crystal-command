@@ -4057,7 +4057,14 @@ function drawDino(u) {
   // raptor art is extremely elongated (whip tail) — drawn bigger so the BODY
   // matches spitter mass while the tail overhangs the hit circle harmlessly
   const half = u.type === 'raptor' ? 17 : 13;
-  const pre = optCW('unit_' + u.type, u.team);
+  // walk frames (sliced dino videos) win while moving — same distance-driven
+  // cycle as infantry, so the gait speed tracks actual ground covered
+  let pre = null;
+  if (u.moving) {
+    const wf = animFrames(u.type, 'walk', u.team, 8);
+    if (wf.length) pre = wf[Math.floor(u.walkT / (WALK_STRIDE_PX / wf.length)) % wf.length];
+  }
+  pre = pre || optCW('unit_' + u.type, u.team);
   if (pre) {
     cx.rotate(Math.PI / 2);   // art faces up
     cx.drawImage(pre, -half, -half, half * 2, half * 2);
@@ -4274,7 +4281,8 @@ function drawUnit(u) {
     cx.save();
     cx.translate(u.x, u.y);
     cx.rotate(u.faceA);
-    if (u.moving) cx.rotate(Math.sin(u.walkT * 0.55) * 0.09);     // scurry wiggle
+    if (u.moving && !animFrames(u.type, 'walk', u.team, 8).length)
+      cx.rotate(Math.sin(u.walkT * 0.55) * 0.09);   // scurry wiggle (no-frames fallback)
     drawDino(u);
     cx.restore();
     if (sel || u.hp < u.maxHp) drawHpBar(u.x, u.y - u.r - 10, u.r * 2.4, u.hp, u.maxHp);
