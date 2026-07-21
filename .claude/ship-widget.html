@@ -128,10 +128,12 @@ const TRACKS = {
       'I dropped the wild spitter IDLE+DEATH sheet in Source 2 — slice the death frames into unit_spitter_death slots and verify dinos leave carcasses. Acts 2-3 will show this constantly.'],
     ['a8','Infantry death sheets: marine, sniper, medic, engineer (teal + red recolors)','',
       'I dropped infantry death sheets in Source 2 (marine/sniper/medic/engineer, teal plus red recolors) — slice and install all of them, then show me a battle with bodies.'],
-    ['a9','Cast portraits: Vega, Lin, Krauss — square busts for the dialogue PiP','',
-      'Help me generate the three cast portraits for Crystal Command\'s dialogue PiP (Vega/Lin/Krauss) with the Gemini pipeline — prompts per assets/portraits/README.md, then process and verify them in the comms panel in-game.'],
-    ['a10','Voice engine pick + generate Act 1 voice lines (script already exported)','',
-      'I\'m ready to voice Crystal Command\'s dialogue. The line script is at assets/voice/voice-script.tsv (44 lines, missions 1-3). Help me evaluate voice engines (character consistency, emotion control, commercial license), lock one voice per character, and set up the generation workflow from assets/voice/README.md.'],
+    ['a9','Cast portraits: Vega, Lin, Krauss — DaVinci film-still set, live in the PiP','',
+      'The three cast portraits are live (assets/portraits/). Review them in-game across missions 1-3 dialogue and tell me if any need a regenerate before the set is locked.'],
+    ['a10','Voice lines: 43 remaining (Vega\'s opener is live — DaVinci workflow proven)','',
+      'Vega\'s first voice clip is live in Mission 1. Walk me through batch-generating the remaining 43 lines from assets/voice/voice-script.tsv in DaVinci — one locked voice per character — and I\'ll drop the mp3s on you to hash-match and install.'],
+    ['a11','Walk-cycle videos: 12 remaining units (marine + sniper teal are live)','',
+      'Let\'s continue the walk-cycle videos from assets/sprites/WALK-VIDEOS.md — give me the next DaVinci prompt from the queue and I\'ll generate it, then you slice and install with slice_walk.py.'],
   ],
 };
 const SHIPPED = [
