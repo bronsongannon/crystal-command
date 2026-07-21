@@ -31,22 +31,31 @@ attempts before one holds the character design through the whole loop.
 
 | # | Unit | Colorway | Reference sprite | [CHARACTER] text |
 |---|------|----------|------------------|------------------|
-| 1 | marine | red | `unit_marine_red.png` | a red-armored sci-fi marine with charcoal trim |
-| 2 | rocket | teal | `unit_rocket_teal.png` | a teal sci-fi rocket trooper carrying a launch tube on the shoulder |
+| ~~1~~ | ~~marine~~ | ~~red~~ | DERIVED 2026-07-21 via recolor_walk.py (from the teal video) | |
+| ~~2~~ | ~~rocket~~ | ~~teal~~ | DERIVED 2026-07-21 via recolor_walk.py (from the red video; right pad hides under the tube — replace with a real video if playtest objects) | |
 | ~~3~~ | ~~rocket~~ | ~~red~~ | DONE 2026-07-21 (light-gray bg + baked dust-kick; slicer gained bg-adaptive outline/shadow caps) | |
 | ~~4~~ | ~~sniper~~ | ~~teal~~ | DONE 2026-07-20 (stride period 48 — DaVinci's slower gait sliced fine) | |
-| 5 | sniper | red | `unit_sniper_red.png` | a cloaked red sci-fi sniper with a long rifle over the shoulder |
+| ~~5~~ | ~~sniper~~ | ~~red~~ | DERIVED 2026-07-21 via recolor_walk.py (from the teal video) | |
 | 6 | medic | teal | `unit_medic_teal.png` | a white-armored field medic with teal boots and a red cross |
-| 7 | medic | red | `unit_medic_red.png` | a white-armored field medic with red boots and a red cross |
+| ~~7~~ | ~~medic~~ | ~~red~~ | will be DERIVED from the teal video once it exists — do not generate | |
 | 8 | engineer | teal | `unit_engineer_teal.png` | a teal-coveralled engineer with a hard hat and tool arm |
-| 9 | engineer | red | `unit_engineer_red.png` | a red-coveralled engineer with a hard hat and tool arm |
+| ~~9~~ | ~~engineer~~ | ~~red~~ | will be DERIVED from the teal video once it exists — do not generate | |
 | 10 | spitter | wild | `unit_spitter_wild.png` | a bone-hided two-legged spitter dinosaur with a green throat sac |
-| 11 | spitter | teal | `unit_spitter_teal.png` | a teal-hided two-legged spitter dinosaur with a green throat sac |
+| ~~11~~ | ~~spitter~~ | ~~teal~~ | will be DERIVED from the wild video once it exists — do not generate | |
 | 12 | raptor | wild | `unit_raptor_wild.png` | a bone-hided raptor with moss back-stripes and a whip tail |
 | 13 | critter | wild | `unit_critter_wild.png` | a docile bone-hided grazing dinosaur |
 
 Snipers keep their prone art for hunker only — the walk video is the STANDING
 pose. Same for marines (hunker pose art is separate and untouched).
+
+## Colorway derivation (2026-07-21)
+
+`recolor_walk.py <type> <src_cw> <dst_cw>` derives a second colorway from an
+existing set of walk frames — it learns the color mapping from the unit's
+pixel-aligned static colorway pair (color + position matched, median-smoothed)
+so only ONE video per body is ever needed. Marine red, sniper red, and rocket
+teal all shipped this way. Videos still wanted: medic teal, engineer teal,
+spitter wild, raptor wild, critter wild — five total.
 
 ## Dino caveat
 
