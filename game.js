@@ -85,7 +85,7 @@ const UNIT = {
   // Ambient wildlife: harmless grazers that wander campaign maps. No weapon
   // auto-targets them — but a deliberate kill enrages every real dino on the
   // level (dinoRage). Atmosphere with a conscience.
-  critter:   { label: 'Grazer',    cost: 0,   supply: 0, hp: 45,  speed: 1.1,  r: 8,  dmg: 0,  range: 0,   cooldown: 0,   buildTime: 0, sight: 120, noAA: 1 },
+  critter:   { label: 'Grazer',    cost: 0,   supply: 0, hp: 45,  speed: 1.1,  r: 8,  dmg: 0,  range: 0,   cooldown: 0,   buildTime: 0, sight: 120, noAA: 1, stridePx: 85 },
   // Xenobiology field unit: unarmed harvester chassis with a containment cage.
   // Right-click a spitter to capture it (short channel at contact range), then
   // haul it back to the HQ lab. Campaign-granted for now — not in any trains list.
@@ -670,8 +670,11 @@ function animFrames(type, kind, team, max) {
 }
 
 // world px of ground covered per full walk cycle — cadence knob for walk
-// frames (smaller = faster leg churn; feet look planted when this ≈ sprite size)
+// frames (smaller = faster leg churn; feet look planted when this ≈ sprite size).
+// UNIT[type].stridePx overrides per unit: heavy quadrupeds need a long stride
+// or their amble plays back frantic (grazer playtest 2026-07-21).
 const WALK_STRIDE_PX = 34;
+const strideOf = (t) => UNIT[t].stridePx || WALK_STRIDE_PX;
 
 // distance from unit/building center to the muzzle tip of its drawn barrel
 const MUZZLE_LEN = { marine: 15, sniper: 24, rocket: 16, raider: 17, tank: 22, artillery: 28, gunship: 13, turret: 22, flak: 20, engineer: 11, harvester: 12 };
@@ -3931,7 +3934,7 @@ function drawUnitSprite(u) {
   let walk = null;
   if (u.moving && u.order.type !== 'hunker') {
     const wf = animFrames(u.type, 'walk', u.team, 8);
-    if (wf.length) walk = wf[Math.floor(u.walkT / (WALK_STRIDE_PX / wf.length)) % wf.length];
+    if (wf.length) walk = wf[Math.floor(u.walkT / (strideOf(u.type) / wf.length)) % wf.length];
   }
   // pre-colored colorway art wins outright — drawn as-is, no tint
   const pre = walk
@@ -4062,7 +4065,7 @@ function drawDino(u) {
   let pre = null;
   if (u.moving) {
     const wf = animFrames(u.type, 'walk', u.team, 8);
-    if (wf.length) pre = wf[Math.floor(u.walkT / (WALK_STRIDE_PX / wf.length)) % wf.length];
+    if (wf.length) pre = wf[Math.floor(u.walkT / (strideOf(u.type) / wf.length)) % wf.length];
   }
   pre = pre || optCW('unit_' + u.type, u.team);
   if (pre) {
