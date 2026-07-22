@@ -5,11 +5,14 @@
 > strategy: `BROODFALL-BRIEF.md`. Standing rule: never use the phrase "brood war"
 > in marketing (registered Blizzard trademark). Historical notes below may still
 > say Crystal Command. Local folder is still `crystal-command/` (harmless).
-> Business model (Bronson, 2026-07-23): free = 3 campaign missions + 1 skirmish
-> map, $9.99 one-time unlock; DLC mission packs are the long-term revenue;
-> Broodfall 2 (new planet, same style) is the franchise plan. Steam release
-> planned after Mac App Store v1 — needs an Electron/Tauri wrapper for
-> Windows (see BROODFALL-BRIEF.md Steam notes).
+> Business model (Bronson, 2026-07-23, CONFIRMED): free = 3 campaign missions +
+> 1 skirmish map, $9.99 one-time unlock. ALL 20 campaign missions are base-game
+> (Acts 2–3 stay free "tease then deliver" updates). Paid DLC begins only after
+> the full campaign ships, and **DLC round one = the playable dino faction**
+> (the thing the 2026-07-08 design Q&A said to earn first — a finished campaign
+> is the earning). Broodfall 2 (new planet, same style) follows. Steam release
+> after Mac App Store v1 — Electron wrapper, storage bridge, entitlement layer
+> (see BROODFALL-BRIEF.md Steam notes).
 
 A tiny browser RTS in the spirit of Command & Conquer / StarCraft 2, built for and with Bronson (a big fan of those games). Pure canvas + vanilla JS, zero dependencies, runs from `file://` by double-clicking `index.html`.
 

@@ -12,14 +12,16 @@ stores: free app + non-consumable IAP; Steam: free demo app + paid app). DLC
 mission packs planned as ongoing revenue; **Broodfall 2** (new planet, new
 conflicts, same style) is the franchise plan.
 
-**Open decision — flag before v1 listing copy is written:** the earlier "tease
-then deliver" plan promised Acts 2–3 as FREE updates; the new DLC-revenue idea
-can conflict with that. Recommended resolution: keep Acts 2–3 free (review
-velocity + goodwill are worth more than early DLC dollars at this scale; DLC
-attach rates for premium indies run ~10–30% of base sales), and make PAID DLC
-the post-campaign content: new campaigns, challenge packs, maybe a playable
-dino faction — with Broodfall 2 as the real second revenue event. Decide
-before writing store copy so we never promise the acts twice.
+**DECIDED (Bronson, 2026-07-23):** all 20 campaign missions ship free within
+the base game (Acts 2–3 as the free "tease then deliver" updates, as
+originally planned). Paid DLC starts only AFTER the full campaign is out, and
+**DLC round one is the playable dino faction** — the thing the original
+design Q&A said the game had to earn first; a completed 20-mission campaign
+is it earning it. (Engine note for that future work: dinos currently have no
+economy/build system — a playable faction means designing nest-based
+production, and the entitlement layer gates it as a skirmish faction +
+possibly a mini-campaign.) Broodfall 2 — new planet, new conflicts, same
+style — is the second revenue event after DLC round one.
 
 ## Why rename at all
 

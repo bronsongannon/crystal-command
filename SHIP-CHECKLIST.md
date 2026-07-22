@@ -11,7 +11,7 @@ file and the widget's task lists in sync.
 ## Apple submission track (critical path, in order)
 
 - [x] Developer Program membership — covered by existing account
-- [ ] Create the app record + bundle ID in App Store Connect — by Jul 14
+- [ ] NEXT UP: Create the Broodfall app record in App Store Connect — unblocked by the 2026-07-23 rename; bundle ID `com.bronsongannon.broodfall`, free-with-IAP ($9.99 unlock) — by Jul 24
 - [x] Build the Mac wrapper — WKWebView shell in Xcode loading the game locally (2026-07-22: `mac/`, sandboxed + signed, full game verified inside — see mac/README.md)
 - [x] App icon + 1024px store icon (2026-07-22: pipeline + archive-ready icon from the game's crystal sprite, `mac/icon/`; commissioned upgrade optional — one-file drop-in, budget can go to store key art instead)
 - [ ] Store listing: screenshots, description, keywords, $9.99 price — by Jul 25
