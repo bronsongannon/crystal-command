@@ -1,5 +1,11 @@
 # Crystal Command
 
+> **RENAME PENDING (2026-07-23): "Broodfall" is the front-runner** — "Crystal
+> Command" collides with an existing Steam game and the Crystal Commanders
+> Quest RTS. Full vet + market strategy: `BROODFALL-BRIEF.md`. Do NOT create
+> the App Store Connect record (ship-checklist ap2) until the name is locked.
+> Rule regardless of outcome: never use the phrase "brood war" in marketing.
+
 A tiny browser RTS in the spirit of Command & Conquer / StarCraft 2, built for and with Bronson (a big fan of those games). Pure canvas + vanilla JS, zero dependencies, runs from `file://` by double-clicking `index.html`.
 
 - **Repo:** https://github.com/bronsongannon/crystal-command (public)
