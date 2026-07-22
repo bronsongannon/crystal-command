@@ -13,7 +13,7 @@ file and the widget's task lists in sync.
 - [x] Developer Program membership — covered by existing account
 - [ ] Create the app record + bundle ID in App Store Connect — by Jul 14
 - [x] Build the Mac wrapper — WKWebView shell in Xcode loading the game locally (2026-07-22: `mac/`, sandboxed + signed, full game verified inside — see mac/README.md)
-- [ ] App icon + 1024px store icon (the ~$100 art budget goes here) — by Jul 22
+- [x] App icon + 1024px store icon (2026-07-22: pipeline + archive-ready icon from the game's crystal sprite, `mac/icon/`; commissioned upgrade optional — one-file drop-in, budget can go to store key art instead)
 - [ ] Store listing: screenshots, description, keywords, $9.99 price — by Jul 25
 - [ ] Privacy policy page (game collects nothing — one static page) — by Jul 25
 - [ ] Sandbox entitlements, code signing, notarize, test on a clean Mac — by Jul 27

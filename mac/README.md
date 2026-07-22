@@ -31,10 +31,11 @@ and all 18 sound slots load from the bundle, localStorage persists across
 relaunch, native menus drive the game. Verified via a temporary smoke test in
 `didFinish` — title reported `launch:2 units:16 sprites:true sfx:18`.
 
-## Still to do before submission (ship checklist ap4–ap8)
+## Still to do before submission (ship checklist ap5–ap8)
 
-- App icon (`Assets.xcassets` + `ASSETCATALOG_COMPILER_APPICON_NAME` — not
-  added yet; archive will warn until then)
+- ~~App icon~~ DONE 2026-07-22 — pipeline + archive-ready icon in `icon/`
+  (composed from the game's crystal sprite; optional commissioned upgrade is a
+  one-file drop-in, see `icon/README.md`)
 - Store listing, privacy policy URL
 - Archive with a Distribution identity via Xcode Organizer → upload
 
