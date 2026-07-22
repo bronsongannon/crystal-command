@@ -7,3 +7,4 @@ assets/sprites/Source 2/audio/
 assets/sprites/Source 2/*.torrent
 .DS_Store
 assets/sprites/Source 2/*.dmg
+mac/build/

@@ -82,8 +82,8 @@ const TRACKS = {
       'My Apple Developer membership already exists. What exactly do I do in App Store Connect to add Crystal Command as a second app — app record, bundle ID, and anything that could trip me up?'],
     ['ap2','Create the app record + bundle ID in App Store Connect','Jul 14',
       'Walk me through creating the Crystal Command app record in App Store Connect: reserving the name, picking a bundle ID, category, and age rating for a cartoon RTS.'],
-    ['ap3','Build the Mac wrapper — WKWebView shell in Xcode loading the game locally','Jul 18',
-      'Let\'s build the WKWebView Mac wrapper for Crystal Command step by step: Xcode project, loading the game from the app bundle, fullscreen, menu bar, and quit handling so it feels native enough for review.'],
+    ['ap3','Mac wrapper DONE — sandboxed WKWebView shell, game verified inside (mac/)','done',
+      'The Mac wrapper is built and verified (mac/README.md). Walk me through what\'s left before archiving: app icon asset catalog, bundle ID match with App Store Connect, and the Distribution signing switch.'],
     ['ap4','App icon + 1024px store icon (the ~$100 art budget goes here)','Jul 22',
       'Help me art-direct the Crystal Command app icon: generation prompts and a Fiverr brief, the required macOS icon sizes, and how to build the .icns.'],
     ['ap5','Store listing: screenshots, description, keywords, $9.99 price','Jul 25',
@@ -161,8 +161,9 @@ const SHIPPED = [
   'Sniper scope glint steady (blink read as stray muzzle flash); prone stays hunker-only',
   'CAST COMPLETE: Vega, Lin, Krauss photorealistic portraits live in the comms panel',
   'First voice clip live: Vega\'s M1 briefing opener (9.6s, DaVinci)',
+  'Mac wrapper BUILT + VERIFIED: sandboxed WKWebView shell, native menus bridged into the game, full skirmish + sprites + 18 sfx + localStorage persistence proven inside the .app (gotcha captured: sandbox needs network.client or WebContent crashes black)',
 ];
-const PRE = { ap1: 1, g1: 1, g2: 1, g4: 1, g5: 1, g6: 1, a1: 1, a2: 1, a3: 1, a4: 1, a5: 1, a6: 1, a7: 1, a8: 1, a9: 1, a11: 1 };
+const PRE = { ap1: 1, ap3: 1, g1: 1, g2: 1, g4: 1, g5: 1, g6: 1, a1: 1, a2: 1, a3: 1, a4: 1, a5: 1, a6: 1, a7: 1, a8: 1, a9: 1, a11: 1 };
 const KEY = 'cc-ship-checklist-v1';
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
