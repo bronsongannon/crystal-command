@@ -1,4 +1,4 @@
-"""Generates STYLE-GUIDE.pdf — the Gemini art-direction brief for Crystal Command.
+"""Generates STYLE-GUIDE.pdf — the Gemini art-direction brief for Broodfall.
 
 One sheet per character: subject description, signature detail, colorway swatches
 with exact output filenames, and ready-to-paste generation + recolor prompts.
@@ -102,7 +102,7 @@ def header(title, sub):
     c.setFillColor(MUTE)
     c.setFont('Helvetica', 9)
     c.drawString(M, y, sub)
-    c.drawRightString(W - M, y, 'Crystal Command style guide  ·  p.%d' % PAGE_NO[0])
+    c.drawRightString(W - M, y, 'Broodfall style guide  ·  p.%d' % PAGE_NO[0])
     return y - 20
 
 def banner(y, name, tagline):
@@ -146,7 +146,7 @@ def sheet(e):
 
 # ---------------------------------------------------------------- cover
 y = header('CRYSTAL COMMAND - SPRITE GENERATION BRIEF', 'for Gemini image generation')
-y = para(M, y, 'This document specifies every sprite for the game Crystal Command: colors, signature '
+y = para(M, y, 'This document specifies every sprite for the game Broodfall: colors, signature '
                'details, and ready-to-paste prompts. Each character page is self-contained.', 10, 14) - 8
 y = para(M, y, 'WORKFLOW (follow for every character)', 10.5, 14, 'Helvetica-Bold')
 steps = [

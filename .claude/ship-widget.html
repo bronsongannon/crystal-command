@@ -82,6 +82,8 @@ const TRACKS = {
       'My Apple Developer membership already exists. What exactly do I do in App Store Connect to add Broodfall as a second app — app record, bundle ID, and anything that could trip me up?'],
     ['ap2','NEXT UP: Create the Broodfall app record in App Store Connect — unblocked by the rename; bundle ID com.bronsongannon.broodfall','Jul 24',
       'Walk me through creating the Broodfall app record in App Store Connect: reserving the "Broodfall" name, bundle ID com.bronsongannon.broodfall (must match the Xcode project), category Games > Strategy, age rating for a cartoon RTS, and the free-with-IAP setup (3 free missions + $9.99 unlock).'],
+    ['ap9','CRITICAL: build the IAP gate — StoreKit bridge, gate missions 4+ and 3 skirmish maps, restore purchases, DEBUG-gate dev mode (no monetization code exists yet)','Jul 26',
+      'Build Broodfall\'s IAP gate per the 2026-07-23 audit: a JS-to-StoreKit message bridge in the Mac wrapper, an owns(\'full\') entitlement check gating campaign missions 4+ and all but one skirmish map, a restore-purchases UI, and DEBUG-gating of dev mode and CC.unlockAll so they can\'t bypass the paywall. The App Store record is free-with-IAP, so review must be able to purchase in-app.'],
     ['ap3','Mac wrapper DONE — sandboxed WKWebView shell, game verified inside (mac/)','done',
       'The Mac wrapper is built and verified (mac/README.md). Walk me through what\'s left before archiving: app icon asset catalog, bundle ID match with App Store Connect, and the Distribution signing switch.'],
     ['ap4','App icon DONE — archive-ready, from the game\'s crystal sprite (mac/icon/)','done',

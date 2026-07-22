@@ -128,7 +128,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\nGAME_DST=\"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Resources/game\"\nmkdir -p \"${GAME_DST}\"\n/usr/bin/rsync -a --delete \\\n  --exclude \"Source 2\" --exclude \"source\" --exclude \".DS_Store\" \\\n  --exclude \"*.md\" --exclude \"voice-script.tsv\" \\\n  \"${SRCROOT}/../index.html\" \"${SRCROOT}/../game.js\" \"${SRCROOT}/../assets\" \\\n  \"${GAME_DST}/\"\n";
+			shellScript = "set -e\nGAME_DST=\"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Resources/game\"\nmkdir -p \"${GAME_DST}\"\n/usr/bin/rsync -a --delete --delete-excluded \\\n  --exclude \"Source 2\" --exclude \"source\" --exclude \".DS_Store\" \\\n  --exclude \"*.md\" --exclude \"voice-script.tsv\" --exclude \"*.py\" --exclude \"*.pdf\" \\\n  \"${SRCROOT}/../index.html\" \"${SRCROOT}/../game.js\" \"${SRCROOT}/../assets\" \\\n  \"${GAME_DST}/\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -201,6 +201,7 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Broodfall";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.strategy-games";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Bronson Gannon";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
@@ -224,6 +225,7 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Broodfall";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.strategy-games";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "© 2026 Bronson Gannon";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;

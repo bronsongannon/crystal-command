@@ -12,6 +12,7 @@ file and the widget's task lists in sync.
 
 - [x] Developer Program membership — covered by existing account
 - [ ] NEXT UP: Create the Broodfall app record in App Store Connect — unblocked by the 2026-07-23 rename; bundle ID `com.bronsongannon.broodfall`, free-with-IAP ($9.99 unlock) — by Jul 24
+- [ ] **CRITICAL (2026-07-23 audit): build the IAP gate — no monetization code exists yet.** JS↔StoreKit bridge in the wrapper, gate campaign missions 4+ and 3 of 4 skirmish maps behind `owns('full')`, restore-purchases UI (guideline 3.1.1), and DEBUG-gate dev mode + `CC.unlockAll()` in the same change (they'd bypass the paywall). Review must be able to buy the IAP in-app or the binary fails 2.1 — by Jul 26
 - [x] Build the Mac wrapper — WKWebView shell in Xcode loading the game locally (2026-07-22: `mac/`, sandboxed + signed, full game verified inside — see mac/README.md)
 - [x] App icon + 1024px store icon (2026-07-22: pipeline + archive-ready icon from the game's crystal sprite, `mac/icon/`; commissioned upgrade optional — one-file drop-in, budget can go to store key art instead)
 - [ ] Store listing: screenshots, description, keywords, $9.99 price — by Jul 25

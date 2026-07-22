@@ -23,7 +23,7 @@ Gemini upgrade below is optional polish, not a blocker.
 Drop a new 1024×1024 `master.png` here, rerun `make-icon.py`, rebuild. Done.
 
 **Gemini prompt (matches the game's art style guide):**
-> macOS app icon for "Crystal Command", a retro RTS where a human mining
+> macOS app icon for "Broodfall", a retro RTS where a human mining
 > expedition battles dinosaurs. Rounded-square macOS icon (Apple squircle,
 > full-bleed artwork, no border, no text). A cluster of glowing teal crystals
 > erupts from dark rocky ground; behind it, the amber eye-shine and dark

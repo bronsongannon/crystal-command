@@ -1,4 +1,4 @@
-# Crystal Command — visual style guide
+# Broodfall — visual style guide
 
 Team spec sheet + character spec sheet (2026-07-12). The goal: get past the
 single multiply-tint. Every faction gets a five-role palette, and every unit,
