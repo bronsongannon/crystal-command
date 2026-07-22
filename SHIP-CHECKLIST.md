@@ -1,6 +1,6 @@
 # Ship checklist — Mac App Store by July 31, 2026
 
-Working checklist (updated 2026-07-16). Goal: submit a v1 (skirmish + Mission 1)
+Working checklist (updated 2026-07-16). Goal: submit Broodfall v1 (skirmish + Mission 1)
 to Apple by end of month. Apple Developer membership already covered by the
 existing account (one membership, unlimited apps) — no enrollment wait.
 

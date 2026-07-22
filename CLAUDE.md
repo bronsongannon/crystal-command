@@ -1,15 +1,20 @@
-# Crystal Command
+# Broodfall
 
-> **RENAME PENDING (2026-07-23): "Broodfall" is the front-runner** — "Crystal
-> Command" collides with an existing Steam game and the Crystal Commanders
-> Quest RTS. Full vet + market strategy: `BROODFALL-BRIEF.md`. Do NOT create
-> the App Store Connect record (ship-checklist ap2) until the name is locked.
-> Rule regardless of outcome: never use the phrase "brood war" in marketing.
+> **RENAMED 2026-07-23: the game is "Broodfall"** (was Crystal Command — collided
+> with an existing Steam game + the Crystal Commanders Quest RTS). Vet + market
+> strategy: `BROODFALL-BRIEF.md`. Standing rule: never use the phrase "brood war"
+> in marketing (registered Blizzard trademark). Historical notes below may still
+> say Crystal Command. Local folder is still `crystal-command/` (harmless).
+> Business model (Bronson, 2026-07-23): free = 3 campaign missions + 1 skirmish
+> map, $9.99 one-time unlock; DLC mission packs are the long-term revenue;
+> Broodfall 2 (new planet, same style) is the franchise plan. Steam release
+> planned after Mac App Store v1 — needs an Electron/Tauri wrapper for
+> Windows (see BROODFALL-BRIEF.md Steam notes).
 
 A tiny browser RTS in the spirit of Command & Conquer / StarCraft 2, built for and with Bronson (a big fan of those games). Pure canvas + vanilla JS, zero dependencies, runs from `file://` by double-clicking `index.html`.
 
-- **Repo:** https://github.com/bronsongannon/crystal-command (public)
-- **Live / shareable:** https://bronsongannon.github.io/crystal-command/ — GitHub Pages serves the `main` branch root, so **every push to `main` auto-deploys** (~1 min).
+- **Repo:** https://github.com/bronsongannon/broodfall (public, renamed — old crystal-command URLs redirect)
+- **Live / shareable:** https://bronsongannon.github.io/broodfall/ — GitHub Pages serves the `main` branch root, so **every push to `main` auto-deploys** (~1 min).
 
 ## Files
 
@@ -23,7 +28,7 @@ A tiny browser RTS in the spirit of Command & Conquer / StarCraft 2, built for a
 ## Game snapshot (as of 2026-07-09)
 
 - **App icon (2026-07-22, ship-checklist ap4):** `mac/icon/` — `master.png` (1024) is the single source; `make-icon.py` emits the full `AppIcon.appiconset` into `mac/CrystalCommand/Assets.xcassets` (wired via `ASSETCATALOG_COMPILER_APPICON_NAME`). Current master composed by `make-placeholder.py` from the game's own `crystal.png` (Apple icon-grid squircle 832/1024, radius 186; padded-canvas Gaussian glow — unpadded blur clips to the sprite bbox and reads as a dark rectangle). Verified in the Dock. Upgrade = drop new master + rerun script; Gemini prompt (crystal + raptor eye-shine concept) and Fiverr brief in `mac/icon/README.md`. GOTCHA: LaunchServices caches Dock icons per bundle PATH — rebuilding in place shows the stale/generic icon; launch from a fresh path or `lsregister -f` + `killall Dock`. Store installs unaffected.
-- **Mac wrapper (2026-07-22, ship-checklist ap3):** `mac/` — hand-authored Xcode project (objectVersion 77, synchronized folder group), two Swift files (`main.swift` programmatic entry + `AppDelegate.swift`: WKWebView window, programmatic menu bar with Game/Help menus bridged into the game's JS via evaluateJavaScript, fullscreen, close-quits). "Bundle Game Files" script phase rsyncs index.html/game.js/assets into `Resources/game` every build (excludes Source dirs/md/tsv; ~19MB app). **GOTCHA (cost an hour): a sandboxed WKWebView app MUST have `com.apple.security.network.client` — without it WebContent crashes instantly and the window is black, even for purely local content, with nothing in the logs.** Signed with Bronson's Apple Development identity (team X22M9K8T66), bundle id `com.bronsongannon.crystalcommand` — must match the App Store Connect record (ap2, still open). Debug builds: inspectable + load-failure title diagnostics. Verified inside the sandboxed .app: skirmish sim, sprites, all 18 sfx, localStorage across relaunch (smoke title `launch:2 units:16 sprites:true sfx:18`). Details + remaining submission steps: `mac/README.md`. `mac/build/` gitignored.
+- **Mac wrapper (2026-07-22, ship-checklist ap3):** `mac/` — hand-authored Xcode project (objectVersion 77, synchronized folder group), two Swift files (`main.swift` programmatic entry + `AppDelegate.swift`: WKWebView window, programmatic menu bar with Game/Help menus bridged into the game's JS via evaluateJavaScript, fullscreen, close-quits). "Bundle Game Files" script phase rsyncs index.html/game.js/assets into `Resources/game` every build (excludes Source dirs/md/tsv; ~19MB app). **GOTCHA (cost an hour): a sandboxed WKWebView app MUST have `com.apple.security.network.client` — without it WebContent crashes instantly and the window is black, even for purely local content, with nothing in the logs.** Signed with Bronson's Apple Development identity (team X22M9K8T66), bundle id `com.bronsongannon.broodfall` (renamed 2026-07-23 with the game; mac/ project, target, and .app are all "Broodfall" now) — must match the App Store Connect record (ap2, still open). Debug builds: inspectable + load-failure title diagnostics. Verified inside the sandboxed .app: skirmish sim, sprites, all 18 sfx, localStorage across relaunch (smoke title `launch:2 units:16 sprites:true sfx:18`). Details + remaining submission steps: `mac/README.md`. `mac/build/` gitignored.
 
 - **Dialogue PiP + voice pipeline (2026-07-16):** the dialogue bar is now portrait + text (`#dlg-pip` comms panel: faction-color border, scanline overlay, animated waveform while `.talking`; monogram fallback via `CAST[who].init`). Art slots: `assets/portraits/<who>.png` (ops/sci/red, square bust ~256px, spec in that folder's README). **Voice lines:** `assets/voice/<who>_<hash8>.mp3|ogg|wav` — `voiceKey(who,text)` (djb2 of `who|text`, so rewording orphans the clip — deliberate), probed lazily per mission (`preloadVoices` in missionInit + openBriefing), each clip independent, missing = silent typewriter. Playback: voiced lines hold the bar for clip length (text pacing is the floor); briefing lines wait for their clip (guarded on `clip.paused` so a blocked/missing clip can't wedge the reveal); rush-cut/skip/quit/mute all `stopVoice()` (no overlap, ever); pause + help modal freeze voice via `syncVoicePause()`. `CC.exportVoiceScript()` downloads `voice-script.tsv` (mission/context/speaker/filename/line, deduped) — the studio script for whatever AI voice engine Bronson picks (exploring Higgsfield vs a dedicated TTS; advice given: pre-bake audio, never runtime TTS — offline file:// + "collects nothing" privacy policy). Verified: PiP + fallback + voiced line + clip-cut + skirmish regression, zero console errors. **First real content landed 2026-07-21, both via DaVinci:** Vega's briefing-opener clip (`ops_d9cb6395.mp3`, 9.6s) and her portrait (`ops.png` — bust-crop the raw art to head-and-shoulders before installing, a full waist-up frame is unreadable at 58px; full-res original in assets/portraits/source/ for key art). **Cast portraits COMPLETE 2026-07-21** (all DaVinci film-stills, matched set): `ops.png` Vega, `sci.png` Lin (amber glasses + vial bandolier), `red.png` Krauss (Rubicon pennant chest badge — mirrors the in-game HQ pennant). All bust-cropped for the 58px PiP; full-res originals in `assets/portraits/source/` (store key-art material).
 

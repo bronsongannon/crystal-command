@@ -1,8 +1,25 @@
 # Broodfall — rename brief & market strategy (2026-07-23)
 
-Status: **Broodfall is the front-runner rename** (Bronson: "I can get behind
-Broodfall"), pending final go. Do NOT create the App Store Connect record until
-the name is locked. Research below as of 2026-07-23.
+Status: **LOCKED 2026-07-23 — the game is Broodfall.** Rename executed same day
+(game strings, mac/ project + bundle id `com.bronsongannon.broodfall`, repo →
+github.com/bronsongannon/broodfall, campaign M10 "Broodfall" title drop, M20
+"Heartvein"). ap2 (App Store Connect record) is unblocked — create it as
+Broodfall.
+
+**Business model locked (Bronson, 2026-07-23):** free = first 3 campaign
+missions + 1 skirmish map; $9.99 one-time unlock for the full game (Apple
+stores: free app + non-consumable IAP; Steam: free demo app + paid app). DLC
+mission packs planned as ongoing revenue; **Broodfall 2** (new planet, new
+conflicts, same style) is the franchise plan.
+
+**Open decision — flag before v1 listing copy is written:** the earlier "tease
+then deliver" plan promised Acts 2–3 as FREE updates; the new DLC-revenue idea
+can conflict with that. Recommended resolution: keep Acts 2–3 free (review
+velocity + goodwill are worth more than early DLC dollars at this scale; DLC
+attach rates for premium indies run ~10–30% of base sales), and make PAID DLC
+the post-campaign content: new campaigns, challenge packs, maybe a playable
+dino faction — with Broodfall 2 as the real second revenue event. Decide
+before writing store copy so we never promise the acts twice.
 
 ## Why rename at all
 
@@ -90,6 +107,36 @@ after Mac App Store v1.
 - ~2–4 focused weeks. Universal purchase with the Mac app.
 - **Sequencing: nothing starts until Mac v1 ships (Jul 31).** The dino-RTS
   window is even wider on iOS — nobody is shipping one there.
+
+## Steam release — code checklist (sequenced after Mac App Store v1)
+
+1. **Windows wrapper** (the big one — WKWebView is Apple-only): Electron
+   recommended over Tauri for a game (bundled Chromium = identical renderer,
+   audio, and perf on every machine; known-good Steam overlay). One repo,
+   `steam/` next to `mac/`, same rsync-the-game-in pattern.
+2. **Persistence bridge**: localStorage is wrong for Steam — move saves/settings
+   behind a tiny storage abstraction (`cc.*` keys are already centralized) with
+   backends: localStorage (web), file via IPC (Electron) → enables **Steam
+   Auto-Cloud**. Do this once; Mac wrapper can adopt the same bridge later.
+3. **Entitlement abstraction**: one `owns('full') / owns(packId)` API with
+   per-store backends — StoreKit non-consumable (Apple), Steam appid ownership
+   + `BIsDlcInstalled` (Steam DLC), all-unlocked (dev). Gate missions 4+ and
+   locked skirmish maps through it. This is also the DLC architecture: mission
+   packs are pure data (MISSIONS table) + an entitlement key.
+4. **Demo**: Steam's model is a separate free Demo appid built from the same
+   code with the gate forced shut — plan the build flag now.
+5. **Achievements** (expected on Steam): stats system already tracks
+   built/lost/kills/mined — bridge JS→IPC→steamworks.js. Design ~15
+   achievements cheaply from existing stats + mission completions.
+6. **High-refresh correctness — VERIFY BEFORE ANY STEAM WORK**: the sim is a
+   60tps fixed-step loop driven by rAF; on 120–144Hz monitors (ubiquitous on
+   Steam) confirm the accumulator holds 60tps and doesn't fast-forward the
+   game. Also test ProMotion Macs for the same reason.
+7. **Steam Deck**: defer. Runs via Linux Electron or Proton, but RTS controller
+   support is a real project — mark Unsupported at launch; the eventual touch
+   layer (iOS) and Deck UI share design work.
+8. Logistics: $100 Steam Direct fee, builds via steampipe (depots per OS),
+   store page needs capsule art + trailer (reuse DaVinci pipeline).
 
 ## Sources
 

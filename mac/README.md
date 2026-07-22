@@ -1,6 +1,6 @@
 # Mac wrapper — WKWebView shell for the App Store
 
-Native macOS app that ships the browser game. Open `CrystalCommand.xcodeproj`
+Native macOS app that ships the browser game. Open `Broodfall.xcodeproj`
 in Xcode, hit Run. No storyboard, no dependencies — two Swift files.
 
 ## What's configured
@@ -19,7 +19,7 @@ in Xcode, hit Run. No storyboard, no dependencies — two Swift files.
   local content. The game itself makes zero network requests.
 - **Signing:** Apple Development identity, team `X22M9K8T66` (set in the
   project). App Store submission will need the app record's bundle ID to match
-  `com.bronsongannon.crystalcommand` — change both together if you pick a
+  `com.bronsongannon.broodfall` — change both together if you pick a
   different one in App Store Connect.
 - **Debug builds** are web-inspectable (Safari → Develop menu) and surface
   load failures in the window title. Release builds carry neither.
@@ -42,9 +42,9 @@ relaunch, native menus drive the game. Verified via a temporary smoke test in
 ## CLI build
 
 ```
-xcodebuild -project mac/CrystalCommand.xcodeproj -scheme CrystalCommand \
+xcodebuild -project mac/Broodfall.xcodeproj -scheme Broodfall \
   -configuration Debug -derivedDataPath mac/build build
 ```
 
-Product lands in `mac/build/Build/Products/Debug/CrystalCommand.app`.
+Product lands in `mac/build/Build/Products/Debug/Broodfall.app`.
 `mac/build/` is gitignored.

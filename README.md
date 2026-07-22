@@ -1,11 +1,11 @@
-# Crystal Command
+# Broodfall
 
 A tiny real-time strategy game in the spirit of Command & Conquer / StarCraft.
 Runs entirely in your browser — no install needed.
 
 ## Play
 
-**▶ [Play it right now](https://bronsongannon.github.io/crystal-command/)** — or
+**▶ [Play it right now](https://bronsongannon.github.io/broodfall/)** — or
 double-click `index.html` locally (works offline).
 
 ## Goal

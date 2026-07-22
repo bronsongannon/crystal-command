@@ -47,12 +47,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "Crystal Command"
+        window.title = "Broodfall"
         window.minSize = NSSize(width: 1024, height: 640)
         window.backgroundColor = .black
         window.collectionBehavior.insert(.fullScreenPrimary)
         window.contentView = webView
-        window.setFrameAutosaveName("CrystalCommandMain")
+        window.setFrameAutosaveName("BroodfallMain")
         window.center()
         window.makeKeyAndOrderFront(nil)
     }
@@ -85,18 +85,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         webView.evaluateJavaScript("typeof CC === 'object' ? 'ready' : 'loaded, game absent'") { result, _ in
             if let status = result as? String, status != "ready" {
-                self.window.title = "Crystal Command — \(status)"
+                self.window.title = "Broodfall — \(status)"
             }
         }
     }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        window.title = "Crystal Command — provisional fail: \(error.localizedDescription)"
+        window.title = "Broodfall — provisional fail: \(error.localizedDescription)"
     }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        window.title = "Crystal Command — nav fail: \(error.localizedDescription)"
+        window.title = "Broodfall — nav fail: \(error.localizedDescription)"
     }
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        window.title = "Crystal Command — WebContent crashed"
+        window.title = "Broodfall — WebContent crashed"
     }
     #endif
 
@@ -110,11 +110,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         mainMenu.addItem(appItem)
         let appMenu = NSMenu()
         appItem.submenu = appMenu
-        appMenu.addItem(withTitle: "About Crystal Command",
+        appMenu.addItem(withTitle: "About Broodfall",
                         action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
                         keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Hide Crystal Command",
+        appMenu.addItem(withTitle: "Hide Broodfall",
                         action: #selector(NSApplication.hide(_:)),
                         keyEquivalent: "h")
         let hideOthers = appMenu.addItem(withTitle: "Hide Others",
@@ -125,7 +125,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
                         action: #selector(NSApplication.unhideAllApplications(_:)),
                         keyEquivalent: "")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Quit Crystal Command",
+        appMenu.addItem(withTitle: "Quit Broodfall",
                         action: #selector(NSApplication.terminate(_:)),
                         keyEquivalent: "q")
 

@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "CC0000000000000000000020"
-               BuildableName = "CrystalCommand.app"
-               BlueprintName = "CrystalCommand"
-               ReferencedContainer = "container:CrystalCommand.xcodeproj">
+               BuildableName = "Broodfall.app"
+               BlueprintName = "Broodfall"
+               ReferencedContainer = "container:Broodfall.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -43,9 +43,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "CC0000000000000000000020"
-            BuildableName = "CrystalCommand.app"
-            BlueprintName = "CrystalCommand"
-            ReferencedContainer = "container:CrystalCommand.xcodeproj">
+            BuildableName = "Broodfall.app"
+            BlueprintName = "Broodfall"
+            ReferencedContainer = "container:Broodfall.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -60,9 +60,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "CC0000000000000000000020"
-            BuildableName = "CrystalCommand.app"
-            BlueprintName = "CrystalCommand"
-            ReferencedContainer = "container:CrystalCommand.xcodeproj">
+            BuildableName = "Broodfall.app"
+            BlueprintName = "Broodfall"
+            ReferencedContainer = "container:Broodfall.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

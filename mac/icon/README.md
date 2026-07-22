@@ -6,7 +6,7 @@
 python3 make-icon.py            # master.png -> AppIcon.appiconset (all 10 macOS sizes)
 ```
 
-The asset catalog lives in `mac/CrystalCommand/Assets.xcassets` and is wired into
+The asset catalog lives in `mac/Broodfall/Assets.xcassets` and is wired into
 the build (`ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon`) — rebuild and the app
 has the new icon. The same 1024 master is the App Store icon for the store
 listing (ap5).

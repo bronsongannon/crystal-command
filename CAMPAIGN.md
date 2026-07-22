@@ -1,4 +1,4 @@
-# Crystal Command — Campaign & Faction Design Plan
+# Broodfall — Campaign & Faction Design Plan
 
 Working design doc (2026-07-11). Covers the ~20-mission campaign arc, per-team color
 schemes, and the expanded dino roster. Locked story beat from Bronson: **the red team
@@ -112,7 +112,7 @@ the three surviving red engineers to the LZ. Dread mission; small scale, heavy
 fog. *needs: Screecher; `keepAlive` objective (fail if a tagged group dies);
 pre-damaged/ruined building spawns in mission specs.*
 
-**M10 — "The Fall."** The one players will remember. Full war footing: destroy
+**M10 — "Broodfall."** The one players will remember. Full war footing: destroy
 Krauss's main base — the finale Act 1 promised. As his HQ hits half health, the
 map edge erupts: a scripted, unkillable swarm (raptor floods + Screecher wings +
 the first **Ironbacks**) hits red's base from the far side. His turrets browns
@@ -208,7 +208,8 @@ fronts. Destroying the hive core exposes the Heart Crystal site and the way in.
 *needs: nothing new — this is the "every system at once" mission; it exists to
 prove the machine we already built.*
 
-**M20 — "Crystal Command."** Title drop. The Heart Crystal chamber: the
+**M20 — "Heartvein."** The finale (the title drop now lives at M10, the fall
+itself). The Heart Crystal chamber: the
 **Broodmother** (killable now, spawning raptor broods while she lives) and
 endless den reinforcements. Two mutually exclusive win objectives, both live
 from the start — the player's CHOICE is the ending:

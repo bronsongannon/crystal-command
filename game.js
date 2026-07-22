@@ -1,6 +1,6 @@
 'use strict';
 /* ============================================================
-   CRYSTAL COMMAND — a tiny real-time strategy game
+   BROODFALL — a tiny real-time strategy game
    Harvest crystals · train an army · destroy the enemy HQ
    ============================================================ */
 
@@ -3184,7 +3184,7 @@ function refreshCard() {
     if (aboard > 0) html += `<button data-act="unload">Unload ${aboard} [U]</button>`;
     html += '<button data-act="stop">Stop [S]</button></div>';
   } else {
-    html = '<h3>Crystal Command</h3><div class="sub">Drag to select units. Right-click to give orders. Select a building to train units.</div>';
+    html = '<h3>Broodfall</h3><div class="sub">Drag to select units. Right-click to give orders. Select a building to train units.</div>';
   }
   if (!placing && !attackMoveMode) {
     html += '<div class="row">';

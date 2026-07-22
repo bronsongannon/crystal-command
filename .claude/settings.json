@@ -7,7 +7,7 @@
             "type": "command",
             "command": "cat .claude/session-start.json 2>/dev/null || true",
             "timeout": 10,
-            "statusMessage": "Loading Crystal Command ship checklist"
+            "statusMessage": "Loading Broodfall ship checklist"
           }
         ]
       }

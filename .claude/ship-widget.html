@@ -1,4 +1,4 @@
-<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Checklist of tasks to submit Crystal Command to the Mac App Store by July 31, a log of shipped fixes, and a lettered button per task that starts a working session on it.</h2>
+<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Checklist of tasks to submit Broodfall to the Mac App Store by July 31, a log of shipped fixes, and a lettered button per task that starts a working session on it.</h2>
 
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:0 0 1.5rem">
   <div style="background:var(--surface-1);border-radius:var(--radius);padding:1rem">
@@ -70,56 +70,56 @@
 </div>
 
 <div style="display:flex;gap:8px;flex-wrap:wrap">
-  <button onclick="sendPrompt('Walk me through creating the Crystal Command app record in App Store Connect under my existing developer account')">Start App Store record ↗</button>
-  <button onclick="sendPrompt('Let\'s build the WKWebView Mac wrapper for Crystal Command step by step')">Start the Mac wrapper ↗</button>
-  <button onclick="sendPrompt('What should I work on next from the Crystal Command ship checklist?')">What's next? ↗</button>
+  <button onclick="sendPrompt('Walk me through creating the Broodfall app record in App Store Connect under my existing developer account')">Start App Store record ↗</button>
+  <button onclick="sendPrompt('Let\'s build the WKWebView Mac wrapper for Broodfall step by step')">Start the Mac wrapper ↗</button>
+  <button onclick="sendPrompt('What should I work on next from the Broodfall ship checklist?')">What's next? ↗</button>
 </div>
 
 <script>
 const TRACKS = {
   apple: [
     ['ap1','Developer Program membership — covered by your existing account','done',
-      'My Apple Developer membership already exists. What exactly do I do in App Store Connect to add Crystal Command as a second app — app record, bundle ID, and anything that could trip me up?'],
+      'My Apple Developer membership already exists. What exactly do I do in App Store Connect to add Broodfall as a second app — app record, bundle ID, and anything that could trip me up?'],
     ['ap2','Create the app record + bundle ID in App Store Connect','Jul 14',
-      'Walk me through creating the Crystal Command app record in App Store Connect: reserving the name, picking a bundle ID, category, and age rating for a cartoon RTS.'],
+      'Walk me through creating the Broodfall app record in App Store Connect: reserving the name, picking a bundle ID, category, and age rating for a cartoon RTS.'],
     ['ap3','Mac wrapper DONE — sandboxed WKWebView shell, game verified inside (mac/)','done',
       'The Mac wrapper is built and verified (mac/README.md). Walk me through what\'s left before archiving: app icon asset catalog, bundle ID match with App Store Connect, and the Distribution signing switch.'],
     ['ap4','App icon DONE — archive-ready, from the game\'s crystal sprite (mac/icon/)','done',
       'The app icon is live (mac/icon/). I want to try the upgraded concept — walk me through generating the crystal + raptor eye-shine icon with the Gemini prompt in mac/icon/README.md and dropping it in as the new master.'],
     ['ap5','Store listing: screenshots, description, keywords, $9.99 price','Jul 25',
-      'Draft the full App Store listing for Crystal Command: description, subtitle, keywords, promo text, and a shot list for the required Mac screenshots.'],
+      'Draft the full App Store listing for Broodfall: description, subtitle, keywords, promo text, and a shot list for the required Mac screenshots.'],
     ['ap6','Privacy policy page — the game collects nothing, one static page','Jul 25',
-      'Write the privacy policy page for Crystal Command (it collects no data) and set it up on GitHub Pages so I have the URL App Store Connect asks for.'],
+      'Write the privacy policy page for Broodfall (it collects no data) and set it up on GitHub Pages so I have the URL App Store Connect asks for.'],
     ['ap7','Sandbox entitlements, code signing, notarize, test on a clean Mac','Jul 27',
-      'Guide me through sandbox entitlements, code signing, and notarization for the Crystal Command Mac app, plus how to test the built .app cleanly and dodge the guideline 4.2 thin-wrapper flag.'],
+      'Guide me through sandbox entitlements, code signing, and notarization for the Broodfall Mac app, plus how to test the built .app cleanly and dodge the guideline 4.2 thin-wrapper flag.'],
     ['ap8','Archive, upload, submit for review — 2-day buffer before the 31st','Jul 29',
-      'Walk me through archiving Crystal Command in Xcode, uploading to App Store Connect, filling out the review form, and submitting.'],
+      'Walk me through archiving Broodfall in Xcode, uploading to App Store Connect, filling out the review form, and submitting.'],
   ],
   game: [
     ['g1','Mission framework + Mission 1 "Landfall" (briefings, objectives, capture op)','',
-      'Show me how to author a new Crystal Command mission with the MISSIONS framework — walk through the spec format so we can bang out missions fast.'],
+      'Show me how to author a new Broodfall mission with the MISSIONS framework — walk through the spec format so we can bang out missions fast.'],
     ['g2','Tech tree, power grid, depot repair field, factory/airpad repair bays','',
-      'Recap the tech tree and power grid knobs in Crystal Command and where to tune them if playtests say the brownout or repair costs feel off.'],
+      'Recap the tech tree and power grid knobs in Broodfall and where to tune them if playtests say the brownout or repair costs feel off.'],
     ['g3','Playtest Landfall again — does it land in the 15-minute window now?','',
       'I\'m replaying Mission 1 Landfall after the exploration-first rework. Give me a short list of what to watch for (pacing, capture feel, tutorial clarity) so my feedback is useful.'],
     ['g4','Team color pass — wild dino bone/moss, red identity touches','',
-      'Let\'s do the Crystal Command team color pass from CAMPAIGN.md: bone/moss wild dinos, red team identity touches, and colorblind-safe brightness separation.'],
+      'Let\'s do the Broodfall team color pass from CAMPAIGN.md: bone/moss wild dinos, red team identity touches, and colorblind-safe brightness separation.'],
     ['g5','Raptor + Raptor Den — the Act 1 finale swarm tease','',
-      'Let\'s build the Raptor and Raptor Den for Crystal Command: fast melee pack hunter (short-range fake melee) and a den that sends periodic hunting packs.'],
+      'Let\'s build the Raptor and Raptor Den for Broodfall: fast melee pack hunter (short-range fake melee) and a den that sends periodic hunting packs.'],
     ['g6','Missions 2–3: harvester convoy escort, first nest crack','',
-      'Let\'s design and build Crystal Command missions 2 and 3: the harvester convoy escort and the first nest crack, using the existing mission framework.'],
+      'Let\'s design and build Broodfall missions 2 and 3: the harvester convoy escort and the first nest crack, using the existing mission framework.'],
     ['g7','Pacing pass toward 20–30 minute matches','',
-      'Let\'s start the Crystal Command pacing pass toward 20-30 minute matches: what levers exist (HP, patch sizes, wave cadence, map size) and a tuning plan.'],
+      'Let\'s start the Broodfall pacing pass toward 20-30 minute matches: what levers exist (HP, patch sizes, wave cadence, map size) and a tuning plan.'],
   ],
   art: [
     ['a1','Source the 14 sound-effect slots (Kenney / Freesound CC0)','',
-      'Help me fill Crystal Command\'s 14 sound-effect slots: point me at exact Kenney/CC0 packs and files for each slot in assets/sfx/README.md.'],
+      'Help me fill Broodfall\'s 14 sound-effect slots: point me at exact Kenney/CC0 packs and files for each slot in assets/sfx/README.md.'],
     ['a2','Generate unit_rig.png and bld_power.png (prompts in ART-WANTED.md)','',
-      'Give me the image-generation prompts for Crystal Command\'s unit_rig.png and bld_power.png sprites and how to process and drop them into assets/sprites.'],
+      'Give me the image-generation prompts for Broodfall\'s unit_rig.png and bld_power.png sprites and how to process and drop them into assets/sprites.'],
     ['a3','Dino art hunt — itch.io CC0 packs first, AI-generate if nothing fits','',
-      'Let\'s hunt for CC0 top-down dinosaur sprites for Crystal Command (spitter, nest, future raptor) — search itch.io and OpenGameArt, and fall back to generation prompts.'],
+      'Let\'s hunt for CC0 top-down dinosaur sprites for Broodfall (spitter, nest, future raptor) — search itch.io and OpenGameArt, and fall back to generation prompts.'],
     ['a4','Standing sniper art (only the prone pose exists today)','',
-      'Help me create the standing sniper sprite for Crystal Command to pair with the existing prone hunker art — generation prompt and drop-in steps.'],
+      'Help me create the standing sniper sprite for Broodfall to pair with the existing prone hunker art — generation prompt and drop-in steps.'],
     ['a5','Turret gun red (30-second Gemini recolor)','',
       'I dropped the red turret gun recolor in Source 2 — process it into turret_gun_red.png and verify it composites on red turret bases in-game.'],
     ['a6','Rocket trooper death sheet — red recolor of the existing sheet','',
@@ -224,7 +224,7 @@ const ACTS = {
   act2: [
     ['M8','Strip Mine','Krauss nukes a nest field; the first Raptor Den answers — hunting BOTH sides'],
     ['M9','The Silence','Commando dread mission into a dead red outpost; first Screechers'],
-    ['M10','The Fall','Your final assault on Krauss becomes his base falling to the swarm — the kill objective is cancelled mid-mission: get out alive'],
+    ['M10','Broodfall','Your final assault on Krauss becomes his base falling to the swarm — the kill objective is cancelled mid-mission: get out alive'],
     ['M11','Strange Bedfellows','Joint defense beside red AI allies; lose if EITHER HQ falls'],
     ['M12','Exodus','Escort his civilian convoy past Ironback roadblocks'],
     ['M13','The Broodmother Wakes','Hold the evac LZ, then watch her walk through the ruins. You leave.'],
@@ -236,7 +236,7 @@ const ACTS = {
     ['M17','The Screeching Sky','Air war on cliff roosts strangling your mining economy'],
     ['M18','Krauss\'s Debt','Joint assault; his last warhead breaches the crater wall'],
     ['M19','The Mega-Hive','Siege of red\'s old HQ crater — every system in the game at once'],
-    ['M20','Crystal Command','Broodmother + the Heart Crystal: shatter it or take it — your choice IS the ending'],
+    ['M20','Heartvein','Broodmother + the Heart Crystal: shatter it or take it — your choice IS the ending'],
   ],
 };
 for (const [act, rows] of Object.entries(ACTS)) {
@@ -250,7 +250,7 @@ for (const [act, rows] of Object.entries(ACTS)) {
     + '</div>').join('');
 }
 document.querySelectorAll('button[data-m]').forEach(btn => {
-  btn.addEventListener('click', () => sendPrompt('Let\'s build Crystal Command mission ' + btn.dataset.m.slice(1) + ' "' + btn.dataset.t + '" — pull its design from CAMPAIGN.md, list any engine prerequisites still missing, and start implementing.'));
+  btn.addEventListener('click', () => sendPrompt('Let\'s build Broodfall mission ' + btn.dataset.m.slice(1) + ' "' + btn.dataset.t + '" — pull its design from CAMPAIGN.md, list any engine prerequisites still missing, and start implementing.'));
 });
 const days = Math.max(0, Math.ceil((new Date('2026-07-31T23:59:00') - new Date()) / 86400000));
 document.getElementById('days-left').textContent = days;
