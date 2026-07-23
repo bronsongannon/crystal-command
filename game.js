@@ -5225,6 +5225,66 @@ function missionEnd(win) {
   }, win ? 600 : 1400);
 }
 
+// ---------------- Store / entitlements ----------------
+// One owns() API with per-platform backends (BROODFALL-BRIEF item 3):
+//  - Mac App Store wrapper: webkit.messageHandlers.bfstore bridges to StoreKit 2
+//    (mac/Broodfall/StoreBridge.swift); state arrives via BFStore._update().
+//  - web / file:// (no bridge): everything unlocked — GitHub Pages stays the
+//    free playtest build. Steam later plugs in as its own backend here.
+// Free tier (locked 2026-07-23): first FREE_MISSIONS campaign missions and the
+// FREE_MAPS skirmish maps; one non-consumable purchase unlocks the rest.
+const FREE_MISSIONS = 3;
+const FREE_MAPS = ['basin'];
+const BFStore = (() => {
+  const native = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.bfstore);
+  // In the wrapper, fail CLOSED until StoreKit answers — a paywall that flashes
+  // open is a refund ticket; one that flashes shut is a beat of patience.
+  let state = { owned: !native, price: null, debug: false, busy: false };
+  const post = (msg) => { try { window.webkit.messageHandlers.bfstore.postMessage(msg); } catch (e) { /* bridge gone */ } };
+  if (native) post({ cmd: 'state' });
+  return {
+    native,
+    owns() { return state.owned; },
+    // dev cheats live only where there is no paywall (web) or no customer (DEBUG builds)
+    devAllowed() { return !native || state.debug; },
+    get price() { return state.price; },
+    get busy() { return state.busy; },
+    buy() { if (native && !state.owned && !state.busy) { state.busy = true; post({ cmd: 'buy' }); renderMenu(); } },
+    restore() { if (native && !state.busy) { state.busy = true; post({ cmd: 'restore' }); renderMenu(); } },
+    _update(s) {
+      const hadIt = state.owned;
+      state = { ...state, ...s, busy: false };
+      if (s.error) toast('⚠ ' + s.error);
+      else if (state.owned && !hadIt) toast('💎 Full game unlocked — every mission, every map. Good hunting, commander.');
+      if (!started) renderMenu();
+    },
+  };
+})();
+const missionPaywalled = (i) => i >= FREE_MISSIONS && !BFStore.owns();
+const mapPaywalled = (k) => !FREE_MAPS.includes(k) && !BFStore.owns();
+function storeNudge() {
+  toast(`🔒 That's part of the full game — one purchase (${BFStore.price || '$9.99'}) unlocks everything, forever.`);
+  const el = document.getElementById('menu-store');
+  el.classList.remove('nudge');
+  void el.offsetWidth;   // restart the shake animation
+  el.classList.add('nudge');
+}
+function renderStoreStrip() {
+  const el = document.getElementById('menu-store');
+  if (!BFStore.native || BFStore.owns()) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  if (BFStore.busy) {
+    el.innerHTML = '<div class="store-note">Contacting the App Store…</div>';
+    return;
+  }
+  el.innerHTML =
+    `<button id="btn-buy">💎 Unlock the full game — ${BFStore.price || '$9.99'}</button>` +
+    '<div class="store-sub">Every campaign mission — including the free story updates — and every skirmish map. One purchase, no ads, ever.</div>' +
+    '<button id="btn-restore">Restore purchase</button>';
+  document.getElementById('btn-buy').onclick = () => { audioInit(); BFStore.buy(); };
+  document.getElementById('btn-restore').onclick = () => { audioInit(); BFStore.restore(); };
+}
+
 // ---------------- Start menu ----------------
 let started = false;
 const elMenu = document.getElementById('menu');
@@ -5233,13 +5293,14 @@ let chosenDiff = localStorage.getItem('cc.diff') || 'normal';
 if (!MAPS[chosenMap]) chosenMap = 'basin';
 if (!DIFFS[chosenDiff]) chosenDiff = 'normal';
 
-function menuButtons(el, table, chosen, pick) {
+function menuButtons(el, table, chosen, pick, lockedFn) {
   el.innerHTML = '';
   for (const key in table) {
+    const locked = lockedFn ? lockedFn(key) : false;
     const b = document.createElement('button');
-    b.className = 'opt' + (key === chosen ? ' sel' : '');
-    b.innerHTML = `<b>${table[key].label}</b><span>${table[key].desc}</span>`;
-    b.onclick = () => { audioInit(); pick(key); };
+    b.className = 'opt' + (key === chosen ? ' sel' : '') + (locked ? ' opt-locked' : '');
+    b.innerHTML = `<b>${locked ? '🔒 ' : ''}${table[key].label}</b><span>${table[key].desc}</span>`;
+    b.onclick = () => { audioInit(); if (locked) { storeNudge(); return; } pick(key); };
     el.appendChild(b);
   }
 }
@@ -5256,25 +5317,30 @@ function renderMenu() {
   document.getElementById('menu-skirmish').classList.toggle('hidden', chosenMode !== 'skirmish');
   document.getElementById('menu-campaign').classList.toggle('hidden', chosenMode !== 'campaign');
   if (chosenMode === 'skirmish') {
-    menuButtons(document.getElementById('menu-maps'), MAPS, chosenMap, k => { chosenMap = k; renderMenu(); });
+    // a remembered pick from an unlocked build must not smuggle a locked map past the gate
+    if (mapPaywalled(chosenMap)) chosenMap = FREE_MAPS[0];
+    menuButtons(document.getElementById('menu-maps'), MAPS, chosenMap, k => { chosenMap = k; renderMenu(); }, mapPaywalled);
     menuButtons(document.getElementById('menu-diffs'), DIFFS, chosenDiff, k => { chosenDiff = k; renderMenu(); });
   } else {
     renderMissionList();
   }
+  renderStoreStrip();
 }
 function renderMissionList() {
   const el = document.getElementById('menu-missions');
   el.innerHTML = '';
   const doneN = campaignDone();
   MISSIONS.forEach((m, i) => {
-    const locked = i > doneN;
+    const paywalled = missionPaywalled(i);
+    const locked = i > doneN || paywalled;
     const b = document.createElement('button');
     b.className = 'mrow' + (locked ? ' locked' : '');
     b.innerHTML =
       `<span class="mnum">${String(i + 1).padStart(2, '0')}</span>` +
       `<span class="mtitle"><b>${m.title}</b><span>${m.act}</span></span>` +
-      `<span class="mstat">${locked ? '🔒' : i < doneN ? '✔' : '▶'}</span>`;
+      `<span class="mstat">${paywalled ? '💎' : locked ? '🔒' : i < doneN ? '✔' : '▶'}</span>`;
     if (!locked) b.onclick = () => { audioInit(); openBriefing(i); };
+    else if (paywalled) { b.onclick = () => { audioInit(); storeNudge(); }; b.style.cursor = 'pointer'; }
     el.appendChild(b);
   });
 }
@@ -5372,6 +5438,8 @@ function resetWorld() {
   refreshObjectives();
 }
 function startGame(mapKey, diffKey, missionIdx) {
+  // paywall backstop — the menu shouldn't get here, but console calls can
+  if (missionIdx == null && mapPaywalled(mapKey)) { storeNudge(); return; }
   resetWorld();
   if (missionIdx != null) missionInit(missionIdx);
   diff = DIFFS[diffKey] || DIFFS.normal;
@@ -5396,6 +5464,7 @@ function startGame(mapKey, diffKey, missionIdx) {
 function startMission(idx) {
   const m = MISSIONS[idx];
   if (!m) return;
+  if (missionPaywalled(idx)) { storeNudge(); return; }   // paywall backstop (CC/console path)
   startGame(m.map, m.diff || 'normal', idx);
 }
 renderMenu();
@@ -5428,6 +5497,9 @@ window.addEventListener('keydown', (e) => {
   devTapAt = now;
   if (++devTaps < 5) return;
   devTaps = 0;
+  // App Store release builds: cheats stay off — free tech + a fully open
+  // campaign would be a paywall bypass. DEBUG wrapper builds re-enable them.
+  if (!BFStore.devAllowed()) { toast('🛠 Dev mode is disabled in this build.'); return; }
   devMode = !devMode;
   devChip.style.borderColor = devMode ? 'rgba(240,200,106,0.8)' : '';
   devChip.style.color = devMode ? '#f0c86a' : '';
@@ -5476,7 +5548,7 @@ window.CC = {
   get devReveal() { return devReveal; },
   set devReveal(v) { devReveal = !!v; updateFog(); },
   get devMode() { return devMode; },
-  set devMode(v) { devMode = !!v; },
+  set devMode(v) { if (BFStore.devAllowed()) devMode = !!v; },
   get fxs() { return fxs; },
   get spritesReady() { return spritesReady; },
   isVisibleAt, isExploredAt, isShownAt, updateFog, toggleFogMemory,
@@ -5487,7 +5559,7 @@ window.CC = {
   exportVoiceScript, voiceKey, voice, PORTRAITS,
   get mission() { return mission; },
   get missionState() { return ms; },
-  unlockAll() { localStorage.setItem(CAMPAIGN_KEY, String(MISSIONS.length)); renderMenu(); },
+  unlockAll() { if (!BFStore.devAllowed()) return; localStorage.setItem(CAMPAIGN_KEY, String(MISSIONS.length)); renderMenu(); },
   buyNuke, launchNuke, unloadAPC, NUKE,
   get nukes() { return nukes; },
   get started() { return started; },

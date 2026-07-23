@@ -1,0 +1,35 @@
+{
+  "identifier" : "BF000000000000000000000000000001",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "9.99",
+      "familyShareable" : false,
+      "internalID" : "BF000000000000000000000000000002",
+      "localizations" : [
+        {
+          "description" : "Every campaign mission and every skirmish map.",
+          "displayName" : "Broodfall — Full Game",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.bronsongannon.broodfall.full",
+      "referenceName" : "Full Game Unlock",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA"
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

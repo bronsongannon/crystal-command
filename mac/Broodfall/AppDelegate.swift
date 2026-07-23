@@ -4,6 +4,7 @@ import WebKit
 final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
     private var window: NSWindow!
     private var webView: WKWebView!
+    private let store = StoreBridge()
 
     // MARK: - Lifecycle
 
@@ -27,9 +28,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate {
         // The game gates all audio behind its own first-click init; don't make
         // WebKit demand a second gesture for the briefing voice lines.
         config.mediaTypesRequiringUserActionForPlayback = []
+        // IAP bridge — must attach before the web view exists so the game's
+        // BFStore detects webkit.messageHandlers.bfstore at load
+        store.attach(to: config)
 
         webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self
+        store.webView = webView
+        store.start()
         webView.allowsMagnification = false
         webView.allowsBackForwardNavigationGestures = false
         if #available(macOS 12.0, *) {

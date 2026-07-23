@@ -23,6 +23,19 @@ in Xcode, hit Run. No storyboard, no dependencies — two Swift files.
   different one in App Store Connect.
 - **Debug builds** are web-inspectable (Safari → Develop menu) and surface
   load failures in the window title. Release builds carry neither.
+- **In-app purchase (2026-07-22):** `StoreBridge.swift` is a StoreKit 2 bridge
+  behind `webkit.messageHandlers.bfstore`; the JS side is `BFStore` in game.js
+  (fails closed in the wrapper until StoreKit answers — the web build, with no
+  bridge, stays fully unlocked). Product id `com.bronsongannon.broodfall.full`,
+  non-consumable — **create it with exactly that id and $9.99 in App Store
+  Connect** (ship checklist ap2). Gates: campaign missions 4+ and every
+  skirmish map but Crystal Basin; unlock + restore-purchase UI lives in the
+  start menu. Dev mode and `CC.unlockAll` are dead in Release builds (the
+  bridge reports `debug` only from DEBUG builds). **Local testing:**
+  `mac/Products.storekit` is wired into the Run scheme, so Xcode ▶ Run lets
+  you buy/refund the test product without App Store Connect (manage
+  transactions via Debug → StoreKit → Manage Transactions). No extra
+  entitlement needed — IAP works under the existing app sandbox.
 
 ## Verified working (2026-07-22)
 

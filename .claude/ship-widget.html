@@ -80,10 +80,10 @@ const TRACKS = {
   apple: [
     ['ap1','Developer Program membership — covered by your existing account','done',
       'My Apple Developer membership already exists. What exactly do I do in App Store Connect to add Broodfall as a second app — app record, bundle ID, and anything that could trip me up?'],
-    ['ap2','NEXT UP: Create the Broodfall app record in App Store Connect — unblocked by the rename; bundle ID com.bronsongannon.broodfall','Jul 24',
-      'Walk me through creating the Broodfall app record in App Store Connect: reserving the "Broodfall" name, bundle ID com.bronsongannon.broodfall (must match the Xcode project), category Games > Strategy, age rating for a cartoon RTS, and the free-with-IAP setup (3 free missions + $9.99 unlock).'],
-    ['ap9','CRITICAL: build the IAP gate — StoreKit bridge, gate missions 4+ and 3 skirmish maps, restore purchases, DEBUG-gate dev mode (no monetization code exists yet)','Jul 26',
-      'Build Broodfall\'s IAP gate per the 2026-07-23 audit: a JS-to-StoreKit message bridge in the Mac wrapper, an owns(\'full\') entitlement check gating campaign missions 4+ and all but one skirmish map, a restore-purchases UI, and DEBUG-gating of dev mode and CC.unlockAll so they can\'t bypass the paywall. The App Store record is free-with-IAP, so review must be able to purchase in-app.'],
+    ['ap2','NEXT UP: Create the Broodfall app record in App Store Connect — and the IAP itself: non-consumable com.bronsongannon.broodfall.full at $9.99 (the shipped gate expects that exact product id)','Jul 24',
+      'Walk me through creating the Broodfall app record in App Store Connect: reserving the "Broodfall" name, bundle ID com.bronsongannon.broodfall (must match the Xcode project), category Games > Strategy, age rating for a cartoon RTS, the free-with-IAP setup — and creating the IAP product itself: non-consumable, product id com.bronsongannon.broodfall.full, $9.99 (StoreBridge.swift ships expecting exactly that id).'],
+    ['ap9','IAP gate DONE — BFStore entitlement layer + StoreBridge.swift (StoreKit 2), missions 4+ and 3 maps gated, restore UI, dev cheats dead in release builds; test-purchase via mac/Products.storekit in the Run scheme','done',
+      'The IAP gate is built and verified (BFStore in game.js + mac/Broodfall/StoreBridge.swift). Walk me through the one live check left: Run in Xcode with the Products.storekit test config, buy and restore in the app, then how review\'s sandbox purchase will differ once the real IAP exists in App Store Connect.'],
     ['ap3','Mac wrapper DONE — sandboxed WKWebView shell, game verified inside (mac/)','done',
       'The Mac wrapper is built and verified (mac/README.md). Walk me through what\'s left before archiving: app icon asset catalog, bundle ID match with App Store Connect, and the Distribution signing switch.'],
     ['ap4','App icon DONE — archive-ready, from the game\'s crystal sprite (mac/icon/)','done',
@@ -167,8 +167,9 @@ const SHIPPED = [
   'App icon live in the Dock: crystal-sprite squircle composed by script, full asset catalog wired into the build, one-file drop-in upgrade path + Gemini/Fiverr briefs in mac/icon/',
   'THE GAME IS BROODFALL (Jul 23): full rename executed — title screen, Broodfall.app + bundle id, repo github.com/bronsongannon/broodfall, M10 takes the title drop, M20 becomes Heartvein. Model locked: 3 free missions + 1 skirmish map, $9.99 unlock; all 20 missions base-game; DLC round one = playable dino faction, then Broodfall 2',
   'Audit round 2 (Jul 23): 7 game fixes (AI refinery stacking, cold-load voice race, dev-mode save clobber, mute hotkey, truncated-animation cache, ghost-through-cliffs, outro win timer) + ship fixes (dev files stripped from the app bundle, export-compliance key, style guide rebranded). Soaks clean. One CRITICAL left: the IAP gate (ap9)',
+  'IAP GATE SHIPPED (Jul 22) — the last audit CRITICAL: BFStore entitlement layer (StoreKit in the wrapper, web build stays fully unlocked, fails closed until StoreKit answers), missions 4+ and all maps but Crystal Basin gated with console-proof backstops, unlock strip with live price + restore purchases, dev mode / CC.unlockAll dead in release wrapper builds, StoreBridge.swift + Products.storekit test config in the Run scheme. Wrapper builds; every gate, the unlock transition, and error paths verified in a fake-bridge harness',
 ];
-const PRE = { ap1: 1, ap3: 1, ap4: 1, g1: 1, g2: 1, g4: 1, g5: 1, g6: 1, a1: 1, a2: 1, a3: 1, a4: 1, a5: 1, a6: 1, a7: 1, a8: 1, a9: 1, a11: 1 };
+const PRE = { ap1: 1, ap3: 1, ap4: 1, ap9: 1, g1: 1, g2: 1, g4: 1, g5: 1, g6: 1, a1: 1, a2: 1, a3: 1, a4: 1, a5: 1, a6: 1, a7: 1, a8: 1, a9: 1, a11: 1 };
 const KEY = 'cc-ship-checklist-v1';
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
