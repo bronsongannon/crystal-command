@@ -30,11 +30,14 @@ old clip: re-export the script and re-generate just the changed lines
 
 ## Engine notes
 
-- Keep one voice per character across ALL missions. Document voice + settings
-  here once chosen:
-  - ops / Cpt. Vega: _TBD_
-  - sci / Dr. Lin: _TBD_
-  - red / Cdr. Krauss: _TBD_
-- Verify the plan's commercial-use license before shipping (the game is paid).
+- Engine: **ElevenLabs** (decided 2026-07-23). Keep one voice per character
+  across ALL missions:
+  - ops / Cpt. Vega: _hunting for a voice_ — NOTE: her live opener
+    (`ops_d9cb6395.mp3`) is legacy DaVinci; regenerate it in ElevenLabs once
+    her voice is locked so all 24 of her lines match.
+  - sci / Dr. Lin: **Ember** (complete, 11/11 lines)
+  - red / Cdr. Krauss: **Rob** (complete, 9/9 lines)
+- Verify the plan's commercial-use license before shipping (the game is paid —
+  ElevenLabs requires a paid tier for commercial use).
 - MP3 ~64-96kbps mono is plenty for radio-flavored dialogue; Act 1 is ~100
   lines ≈ 10-20MB.
