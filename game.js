@@ -622,6 +622,7 @@ const OPT = {};
     const i = new Image();
     OPT[n] = { img: i, ok: false };
     i.onload = () => { OPT[n].ok = true; };
+    i.onerror = () => { OPT[n].err = true; };   // settled-absent, distinct from still-loading
     i.src = 'assets/sprites/' + n + '.png';
   }
 })();
@@ -661,11 +662,18 @@ function animFrames(type, kind, team, max) {
   const hit = animCache[key];
   if (hit && hit.length) return hit;
   const a = [];
+  let settled = true;
   for (let i = 1; i <= max; i++) {
-    const f = optCW('unit_' + type + '_' + kind + i, team);
-    if (f) a.push(f); else break;
+    const n = 'unit_' + type + '_' + kind + i + (CW[team] || '');
+    const f = opt(n);
+    if (f) { a.push(f); continue; }
+    // stop at the first missing frame — but only memoize if that slot has
+    // SETTLED (unregistered or 404'd). A still-loading slot means the prefix
+    // may grow: return it uncached and re-collect until the files decide.
+    settled = !OPT[n] || !!OPT[n].err;
+    break;
   }
-  if (a.length) animCache[key] = a;
+  if (a.length && settled) animCache[key] = a;
   return a;
 }
 
@@ -2283,7 +2291,8 @@ function separation() {
       a.x -= nx * push; a.y -= ny * push;
       b.x += nx * push; b.y += ny * push;
     }
-    if (!a.fly && !(a.ghostT > 0)) for (const rk of rocks) {
+    if (!a.fly) for (const rk of rocks) {
+      if (a.ghostT > 0 && !rk.cliff) continue;   // ghosts slip pinch rocks — never cliff walls (ramps stay the only way up)
       const dx = a.x - rk.x, dy = a.y - rk.y;
       const min = rk.r + a.r;
       if (Math.abs(dx) > min || Math.abs(dy) > min) continue;
@@ -2579,9 +2588,10 @@ function aiUpdate() {
       aiBuild('power', hq.x, hq.y);   // a browned-out army loses wars — fix the grid first (one at a time)
     } else if (supplyMax(2) - supplyUsed(2) < 5 && supplyMax(2) < SUPPLY_HARD_CAP && t.crystals > BLD.supply.cost + 100) {
       aiBuild('supply', hq.x, hq.y);
-    } else if (!buildings.some(b => b.team === 2 && b.type === 'refinery' && b.built >= 1)
+    } else if (!buildings.some(b => b.team === 2 && b.type === 'refinery')
                && t.crystals > BLD.refinery.cost) {
-      // no refinery = no income at all now — rebuild before anything military
+      // no refinery in ANY state = no income at all now — rebuild before anything
+      // military (built<1 counts: one rebuild at a time, same rule as power)
       const c = nearestCrystalTo(hq.x, hq.y, 900);
       aiBuild('refinery', c ? c.x + 70 : hq.x, c ? c.y + 70 : hq.y);
     } else if (!have('barracks') && t.crystals > BLD.barracks.cost) {
@@ -2881,7 +2891,7 @@ window.addEventListener('keydown', (e) => {
     if (!elHelp.classList.contains('hidden')) { setHelp(false); return; }
     attackMoveMode = false; placing = null; nukeTargeting = null; selection = []; setCursor(); return;
   }
-  if (e.code === 'KeyM') { muted = !muted; btnMute.textContent = muted ? '🔇' : '🔊'; return; }
+  if (e.code === 'KeyM') { muted = !muted; btnMute.textContent = muted ? '🔇' : '🔊'; if (muted) stopVoice(); return; }
   if (e.code === 'KeyP') { togglePause(); return; }
   if (e.code === 'KeyF') { toggleFogMemory(); return; }
   if (e.code === 'Backquote') {   // dev mode: reveal the whole map
@@ -4923,6 +4933,7 @@ const VOICE_EXTS = ['mp3', 'ogg', 'wav'];
 const VOICE_VOL = 0.9;
 const voice = {};        // key -> loaded HTMLAudio
 const voiceTried = {};   // key -> probe already issued
+const voiceFailed = {};  // key -> probe settled with NO file (all exts 404'd)
 function voiceKey(who, text) {
   const s = who + '|' + text;
   let h = 5381;
@@ -4934,7 +4945,7 @@ function loadVoice(who, text) {
   if (voiceTried[key]) return;
   voiceTried[key] = true;
   (function tryExt(i) {
-    if (i >= VOICE_EXTS.length) return;
+    if (i >= VOICE_EXTS.length) { voiceFailed[key] = true; return; }
     const el = new Audio();
     el.preload = 'auto';
     el.oncanplaythrough = () => { if (!voice[key]) voice[key] = el; };
@@ -4993,11 +5004,19 @@ function exportVoiceScript() {
 // dialogue: a queue of speaker lines, revealed typewriter-style on the sim tick.
 // When lines back up (fast players out-build the script), the current line types
 // faster and holds shorter so the commentary catches up instead of lagging.
-let dlgQueue = [], dlgCur = null, dlgStart = 0, dlgUntil = 0;
+let dlgQueue = [], dlgCur = null, dlgStart = 0, dlgUntil = 0, dlgHold = 0;
 const dlgDur = (text) => Math.min(7 * 60, Math.floor((2.2 + text.length * 0.035) * 60));
 function say(who, text) { dlgQueue.push({ who, text }); }
 function dlgUpdate() {
   if (!dlgCur && dlgQueue.length) {
+    // cold-load grace: if this line's clip probe is still in flight (fresh page,
+    // slow network), hold up to 1s so the line starts voiced, not silent.
+    // Unvoiced lines settle to voiceFailed almost instantly, so they don't wait.
+    const peek = dlgQueue[0];
+    loadVoice(peek.who, peek.text);   // no-op if already probed
+    const vk = voiceKey(peek.who, peek.text);
+    if (!voice[vk] && !voiceFailed[vk] && dlgHold < 60) { dlgHold++; return; }
+    dlgHold = 0;
     dlgCur = dlgQueue.shift();
     dlgStart = tick; dlgUntil = tick + dlgDur(dlgCur.text);
     const c = CAST[dlgCur.who];
@@ -5175,8 +5194,16 @@ function missionUpdate() {
     return o && o.done;
   })) {
     ms.outroDone = true;
-    let wait = 90;
-    for (const [who, line] of (mission.outro || [])) { say(who, line); wait += dlgDur(line); }
+    let wait = 150;   // headroom for per-line cold-load holds
+    for (const [who, line] of (mission.outro || [])) {
+      say(who, line);
+      // a voiced line holds the bar for the clip, so the win timer must too —
+      // otherwise MISSION COMPLETE lands mid-sentence (mirrors dlgUpdate)
+      const clip = voice[voiceKey(who, line)];
+      wait += (clip && isFinite(clip.duration) && clip.duration > 0)
+        ? Math.max(dlgDur(line), Math.ceil(clip.duration * 60) + 24)
+        : dlgDur(line);
+    }
     ms.winAt = tick + wait;
   }
   if (ms.outroDone && ms.winAt && tick >= ms.winAt) missionEnd(true);
@@ -5273,7 +5300,7 @@ function openBriefing(idx) {
   const box = document.getElementById('brief-lines');
   box.innerHTML = '';
   clearInterval(briefTimer);
-  let li = 0, ci = 0, span = null, briefClip = null;
+  let li = 0, ci = 0, span = null, briefClip = null, briefHold = 0;
   briefTimer = setInterval(() => {
     if (li >= m.brief.length) {
       if (briefClip && !briefClip.paused) return;
@@ -5282,6 +5309,11 @@ function openBriefing(idx) {
     const [who, text] = m.brief[li];
     if (!span) {
       if (briefClip && !briefClip.paused) return;   // let the previous line finish speaking
+      // cold-load grace: on a fresh page the clip probe may still be in flight —
+      // hold this line up to ~1.5s for it (settled misses skip straight through)
+      const vk = voiceKey(who, text);
+      if (!voice[vk] && !voiceFailed[vk] && ++briefHold < 90) return;
+      briefHold = 0;
       const c = CAST[who];
       const p = document.createElement('p');
       const name = document.createElement('b');
@@ -5333,7 +5365,7 @@ function resetWorld() {
   lastCardSig = '';
   mission = null; ms = null;
   wasLowPower = false; lastAvail = null; dinoRage = 0; wildSeen = false;
-  dlgQueue = []; dlgCur = null;
+  dlgQueue = []; dlgCur = null; dlgHold = 0;
   stopVoice();
   elDialogue.classList.add('hidden');
   elDialogue.classList.remove('talking');
@@ -5401,12 +5433,22 @@ window.addEventListener('keydown', (e) => {
   devChip.style.color = devMode ? '#f0c86a' : '';
   lastAvail = null;   // rebaseline the build menu silently (no unlock-toast burst)
   if (devMode) {
+    // back up real progress before unlocking — dev mode must never eat the save
+    if (localStorage.getItem(CAMPAIGN_KEY + '.bak') === null) {
+      localStorage.setItem(CAMPAIGN_KEY + '.bak', localStorage.getItem(CAMPAIGN_KEY) || '0');
+    }
     localStorage.setItem(CAMPAIGN_KEY, String(MISSIONS.length));   // every mission open
     if (!started) renderMenu();
     if (teams[1]) teams[1].crystals = Math.max(teams[1].crystals, 99999);
     toast('🛠 DEV MODE — free tech, bottomless crystals, campaign unlocked');
   } else {
-    toast('🛠 Dev mode off — tech tree and wallet back to normal');
+    const bak = localStorage.getItem(CAMPAIGN_KEY + '.bak');
+    if (bak !== null) {
+      localStorage.setItem(CAMPAIGN_KEY, bak);
+      localStorage.removeItem(CAMPAIGN_KEY + '.bak');
+      if (!started) renderMenu();
+    }
+    toast('🛠 Dev mode off — tech, wallet, and campaign progress back to normal');
   }
   snd.ready();
 });
