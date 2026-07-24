@@ -47,6 +47,15 @@ file and the widget's task lists in sync.
       (death frames: infantry + dinos only; vehicles keep the fireball, aircraft skip;
       every future dino sheet includes IDLE + DEATH from day one)
 
+## Shipped — M2 playtest round (Jul 23)
+
+- [x] Voice lines never cut off anymore: a queued backlog used to truncate a playing clip
+      (Krauss lost 3s of his M2 line to Lin) — rush now only trims the after-clip hold
+- [x] Stuck-unit escape: units orbiting a building cluster (the "barricaded" convoy
+      harvester at Survey Post Beta) now detect zero progress and ghost out in ~3s
+- [x] Sinkable Supply Depots + Power Plants: Q (or the card button) lowers them flush with
+      the ground — army drives over, all function retained, Q again raises
+
 ## Shipped — playtest round + full code audit (Jul 11–12)
 
 - [x] Mission 1 reworked: exploration first — dinos only retaliate after your patrol is spotted

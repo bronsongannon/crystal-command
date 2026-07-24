@@ -99,6 +99,7 @@ fight) · **Hard** (early pressure, relentless waves, a rich enemy, nukes) ·
 | S | Stop |
 | H | Marines, snipers & artillery hunker down — half damage, hold position (snipers go prone) |
 | Q / W / E / R / D | Train units & research upgrades (select a production building first) |
+| Q (Depot / Power Plant selected) | Lower the structure flush with the ground — units drive over it. Q again raises it |
 | T / B / V / C / G / X / Y, then click | Place a Turret / Barracks / Factory / Supply Depot / Refinery / Airpad / Flak Turret |
 | Arrow keys / screen edge / minimap | Move the camera |
 | Right-click the minimap | Send selected units there |
@@ -153,7 +154,12 @@ neither can the enemy, so their depots are a real target).
 
 - **Supply Depot** (100) — raises your supply cap by 8, unlocks the Barracks,
   **and slowly repairs friendly buildings near it** (a weak, free engineer that
-  never wanders off — the ring shows when you select or place one)
+  never wanders off — the ring shows when you select or place one). Built in
+  the wrong spot? Select it and press `Q` to **lower it into the ground** —
+  it keeps working, but your army drives straight over it
+- Depots and Power Plants can both be lowered (`Q` toggles). A sunk structure
+  keeps its supply, power, and repair field, and can still be attacked — it
+  just stops being a wall in your base
 - **Power Plant** (120, hotkey `O`) — feeds the grid. Military buildings draw
   power (the HQ's reactor covers a small base); go over capacity and you hit
   **⚡ LOW POWER**: production crawls at half speed, turrets and flak fire at

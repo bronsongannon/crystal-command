@@ -107,10 +107,10 @@ const BLD = {
   factory:  { label: 'Factory',      hp: 1000, w: 88, h: 72, supply: 4,  sight: 220, trains: ['raider', 'tank', 'artillery', 'apc'], cost: 200, buildTime: 15 * 60, req: ['barracks'], pow: 4 },
   // Beyond housing: the depot is the base's logistics hub — it slowly patches
   // up nearby friendly buildings (a weak, free engineer that never wanders off).
-  supply:   { label: 'Supply Depot', hp: 500,  w: 56, h: 56, supply: 8,  sight: 180, cost: 100, buildTime: 10 * 60 },
+  supply:   { label: 'Supply Depot', hp: 500,  w: 56, h: 56, supply: 8,  sight: 180, cost: 100, buildTime: 10 * 60, sink: 1 },
   // Cheap and fragile — the classic raid target. The HQ's reactor covers a
   // small base; every plant past that buys 10 more grid capacity.
-  power:    { label: 'Power Plant',  hp: 400,  w: 60, h: 60, supply: 0,  sight: 180, cost: 120, buildTime: 9 * 60, gen: 10, req: ['supply'] },
+  power:    { label: 'Power Plant',  hp: 400,  w: 60, h: 60, supply: 0,  sight: 180, cost: 120, buildTime: 9 * 60, gen: 10, req: ['supply'], sink: 1 },
   refinery: { label: 'Refinery',     hp: 700,  w: 70, h: 70, supply: 0,  sight: 240, cost: 175, buildTime: 12 * 60, req: ['supply'] },
   airpad:   { label: 'Airpad',       hp: 600,  w: 62, h: 62, supply: 2,  sight: 220, trains: ['gunship', 'harrier'], cost: 175, buildTime: 12 * 60, req: ['factory'], pow: 3 },
   // Endgame. Buy warheads here; the defender gets 30 loud seconds to react.
@@ -996,6 +996,7 @@ function makeBuilding(type, team, x, y, constructing) {
     dmg: d.dmg || 0, range: d.range || 0, cooldown: d.cooldown || 0, cool: 0, faceA: 0,
     queue: [], prog: 0, boost: 1,   // boost 2 = rush-paid double production speed (current item only)
     warhead: null,                  // silos only: 'tac' | 'hq' when armed
+    sunk: false,                    // depots/plants only: lowered flush with the ground, units drive over
     built: constructing ? 0 : 1,
     rally: null,
   };
@@ -1842,6 +1843,7 @@ function moveToward(u, tx, ty) {
   const o2 = u.order;
   let sliding = false;
   if (!u.ghostT) for (const b of buildings) {
+    if (b.sunk) continue;   // lowered depots/plants are drive-over ground
     if (Math.abs(lx - b.x) >= b.w / 2 + u.r || Math.abs(ly - b.y) >= b.h / 2 + u.r) continue;
     // if the waypoint is at/inside this building (attack, repair, drop-off), walk straight in
     if (Math.abs(gx - b.x) < b.w / 2 + u.r + 10 && Math.abs(gy - b.y) < b.h / 2 + u.r + 10) break;
@@ -1871,6 +1873,24 @@ function moveToward(u, tx, ty) {
     o2._slideT = (o2._slideT || 0) + 1;
     if (o2._slideT > 45) { u.ghostT = 40; o2._slideT = 0; o2._slideB = null; }
   } else { o2._slideT = 0; o2._slideB = null; }
+  // building-pocket watchdog: on rock-free ground there is no A* path, so the
+  // progress watchdog in updateUnit never runs — and inside a roomy pocket
+  // between buildings the unit gets enough open ticks between wall bumps that
+  // _slideT keeps resetting. Track raw distance-to-goal here instead: no new
+  // best for 3s while trying to move = orbiting a building cluster. Ghost out.
+  // (Playtest, M2: a convoy harvester circled Survey Post Beta's three
+  // buildings forever without either escape ever firing.)
+  if (!u.fly) {
+    // new goal, or a gap in movement (unit stood mining/firing) — start fresh,
+    // else the stale timer would fire a ghost on the first step after any pause
+    if (o2._gx !== tx || o2._gy !== ty || tick - (o2._gTick || -9) > 2) {
+      o2._gx = tx; o2._gy = ty; o2._gBest = Infinity; o2._gT = tick;
+    }
+    o2._gTick = tick;
+    const dg = dist2(u.x, u.y, tx, ty);
+    if (dg < o2._gBest - 400) { o2._gBest = dg; o2._gT = tick; }
+    else if (tick - o2._gT > 180) { u.ghostT = 60; o2._gT = tick; }
+  }
   // vehicles steer, they don't teleport-rotate: cap the hull turn rate so a
   // wall bump reads as a swerve, not a spin (infantry and dinos still snap)
   if (!IS_INF[u.type] && !IS_DINO[u.type]) {
@@ -1906,7 +1926,11 @@ function updateUnit(u) {
   if (!wildSeen && u.team === 3 && (tick + u.id) % 30 === 0 &&
       isVisibleAt(u.x, u.y) && !nearestPlayerBld(u.x, u.y, 480)) wildSeen = true;
   if (u.cool > 0) u.cool--;
-  if (u.ghostT > 0) u.ghostT--;
+  // a ghost never re-solidifies while inside a building footprint — expiring
+  // mid-building lets separation() eject it to the nearest face, which can be
+  // right back into the pocket it was escaping
+  if (u.ghostT > 0 && !(u.ghostT === 1 && !u.fly && buildings.some(b =>
+    Math.abs(u.x - b.x) < b.w / 2 + u.r && Math.abs(u.y - b.y) < b.h / 2 + u.r))) u.ghostT--;
   u.moving = false;
   if (u.recoil) { u.recoil *= 0.78; if (u.recoil < 0.3) u.recoil = 0; }
   // pathing watchdog: while following a path, require steady progress toward
@@ -2304,6 +2328,7 @@ function separation() {
     }
     for (const bl of buildings) {
       if (a.fly || a.ghostT > 0) break;    // flyers hover; ghosting units slip out of pockets
+      if (bl.sunk) continue;               // lowered depots/plants are drive-over ground
       const cxp = clamp(a.x, bl.x - bl.w / 2, bl.x + bl.w / 2);
       const cyp = clamp(a.y, bl.y - bl.h / 2, bl.y + bl.h / 2);
       const dx = a.x - cxp, dy = a.y - cyp;
@@ -2927,6 +2952,11 @@ window.addEventListener('keydown', (e) => {
     if (bm) { startPlacing(bm[0]); return; }
   }
 
+  // lower/raise a selected depot or power plant (no trains, so Q is free)
+  if (e.code === 'KeyQ' && !selection.some(s => s.kind === 'building' && BLD[s.type].trains)) {
+    const sb = selection.find(s => s.kind === 'building' && BLD[s.type].sink && s.built >= 1);
+    if (sb) { toggleSink(sb); return; }
+  }
   // production/research hotkeys on a selected building
   const prodKeys = { KeyQ: 0, KeyW: 1, KeyE: 2, KeyR: 3, KeyD: 4, KeyZ: 5 };
   if (prodKeys[e.code] !== undefined) {
@@ -3078,6 +3108,21 @@ function cardActions(b) {
   return acts;
 }
 
+// lower a depot/plant flush with the ground so units drive over it (SC2-style).
+// Function is fully retained while sunk — supply, power gen, and the depot
+// repair field all keep working; it just stops being a wall. Still attackable.
+function toggleSink(b) {
+  if (!BLD[b.type].sink || b.built < 1 || b.hp <= 0) return;
+  b.sunk = !b.sunk;
+  // raising with units on top is safe: separation() ejects footprint overlaps
+  // to the nearest face on the next tick
+  if (b.team === 1) {
+    toast(b.sunk ? `⬇ ${BLD[b.type].label} lowered — units can drive over it` : `⬆ ${BLD[b.type].label} raised`);
+    snd.select();
+  }
+  lastCardSig = '';
+}
+
 // deploy a spitter from a banked egg — instant, no queue: it's hatching, not manufacturing
 function hatchSpitter(b) {
   const t = teams[b.team];
@@ -3109,7 +3154,7 @@ function cardSig() {
     BUILD_MENU.map(([t]) => (teams[1].crystals >= BLD[t].cost ? 'y' : 'n') + (hasTech(1, t) ? 'u' : 'l')).join('') + '|' +
     Object.values(teams[1].up).join('') + '.' + Math.floor(teams[1].crystals / 25) + '.' + teams[1].eggs +
     '.' + units.reduce((s, u) => s + (u.team === 1 && (u.type === 'spitter' || u.type === 'harrier') ? 1 : 0), 0) +
-    '.' + selection.map(e => (e.warhead || '') + (e.cargo ? e.cargo.length : '')).join('') +
+    '.' + selection.map(e => (e.warhead || '') + (e.cargo ? e.cargo.length : '') + (e.sunk ? 's' : '')).join('') +
     (nukeTargeting ? 'N' : '');
 }
 function refreshCard() {
@@ -3181,6 +3226,11 @@ function refreshCard() {
       : b.type === 'flak' ? 'Anti-air battery. Shreds gunships; ignores everything on the ground.'
       : 'Defensive structure. It shoots on its own.';
     html = `<h3>${BLD[b.type].label}</h3><div class="sub">${desc}</div>`;
+    if (BLD[b.type].sink && b.built >= 1) {
+      html += '<div class="row">' + (b.sunk
+        ? '<button data-act="sink" class="wide">⬆ Raise structure <small>[Q]</small></button>'
+        : '<button data-act="sink" class="wide">⬇ Lower into ground <small>[Q]</small></button>') + '</div>';
+    }
   } else if (selection.length) {
     const counts = {};
     for (const u of selection) counts[u.type] = (counts[u.type] || 0) + 1;
@@ -3285,6 +3335,10 @@ elDock.addEventListener('pointerdown', (e) => {
   } else if (act === 'hatch') {
     const b = selection.find(s => s.kind === 'building' && s.type === 'hq');
     if (b) hatchSpitter(b);
+    lastCardSig = '';
+  } else if (act === 'sink') {
+    const b = selection.find(s => s.kind === 'building' && BLD[s.type].sink && s.built >= 1);
+    if (b) toggleSink(b);
     lastCardSig = '';
   } else if (act.startsWith('crush:')) {
     const cb = selection.find(x => x.kind === 'building' && x.built < 1);
@@ -3793,6 +3847,20 @@ function drawBuilding(b) {
     if (b.hp < b.maxHp) drawHpBar(b.x, y - 10, b.w * 0.8, b.hp, b.maxHp);
     return;
   }
+  // a lowered structure draws as a recessed pit: full-footprint dark plate,
+  // then the body squashed and dimmed inside it (units drive over the top)
+  const sunk = b.sunk && b.built >= 1;
+  if (sunk) {
+    cx.fillStyle = 'rgba(0,0,0,0.35)';
+    rr(cx, x, y, b.w, b.h, 10); cx.fill();
+    cx.strokeStyle = 'rgba(0,0,0,0.45)'; cx.lineWidth = 2;
+    rr(cx, x + 2, y + 2, b.w - 4, b.h - 4, 8); cx.stroke();
+    cx.save();
+    cx.translate(b.x, b.y);
+    cx.scale(0.6, 0.6);
+    cx.translate(-b.x, -b.y);
+    cx.globalAlpha *= 0.85;
+  }
   if (bodiesReady) {
     drawBuildingSprite(b, x, y);
   } else {
@@ -3890,6 +3958,7 @@ function drawBuilding(b) {
   // procedural paths both get them)
   drawBuildingDecor(b);
   if (b.type === 'hq' && b.team === 2 && b.built >= 1) drawRubiconBanner(b);
+  if (sunk) cx.restore();   // selection corners + hp bar stay full-footprint
 
   if (sel) {
     cx.strokeStyle = 'rgba(255,255,255,0.85)';
@@ -5004,7 +5073,7 @@ function exportVoiceScript() {
 // dialogue: a queue of speaker lines, revealed typewriter-style on the sim tick.
 // When lines back up (fast players out-build the script), the current line types
 // faster and holds shorter so the commentary catches up instead of lagging.
-let dlgQueue = [], dlgCur = null, dlgStart = 0, dlgUntil = 0, dlgHold = 0;
+let dlgQueue = [], dlgCur = null, dlgStart = 0, dlgUntil = 0, dlgHold = 0, dlgClipEnd = 0;
 const dlgDur = (text) => Math.min(7 * 60, Math.floor((2.2 + text.length * 0.035) * 60));
 function say(who, text) { dlgQueue.push({ who, text }); }
 function dlgUpdate() {
@@ -5036,8 +5105,10 @@ function dlgUpdate() {
     elDialogue.classList.add('talking');
     // a voiced line holds the bar for the clip's length (metadata is in — the
     // clip only registers on canplaythrough); text pacing stays the floor
+    dlgClipEnd = 0;
     const clip = playVoice(dlgCur.who, dlgCur.text);
     if (clip && isFinite(clip.duration) && clip.duration > 0) {
+      dlgClipEnd = tick + Math.ceil(clip.duration * 60);
       dlgUntil = tick + Math.max(dlgDur(dlgCur.text), Math.ceil(clip.duration * 60) + 24);
     }
   }
@@ -5046,12 +5117,16 @@ function dlgUpdate() {
   const rate = rush ? 2.6 : 1.4;
   const chars = Math.floor((tick - dlgStart) * rate);
   if (chars <= dlgCur.text.length + 3) elDlgText.textContent = dlgCur.text.slice(0, chars);
+  // rush-cut trims the post-line hold, NEVER a playing clip — a voiced line
+  // always finishes speaking before the next one starts (playtest: Krauss got
+  // cut off mid-sentence when Lin's line was queued behind his)
   const until = rush
-    ? Math.min(dlgUntil, dlgStart + Math.ceil(dlgCur.text.length / rate) + 60)
+    ? Math.max(dlgClipEnd + 12, Math.min(dlgUntil, dlgStart + Math.ceil(dlgCur.text.length / rate) + 60))
     : dlgUntil;
   if (tick >= until) {
     dlgCur = null;
-    stopVoice();   // a rush-cut line cuts its clip too — radio discipline, no overlap
+    dlgClipEnd = 0;
+    stopVoice();   // safety stop — the clip has already ended unless the line was skipped
     elDialogue.classList.remove('talking');
     if (!dlgQueue.length) elDialogue.classList.add('hidden');
   }
@@ -5206,7 +5281,11 @@ function missionUpdate() {
     }
     ms.winAt = tick + wait;
   }
-  if (ms.outroDone && ms.winAt && tick >= ms.winAt) missionEnd(true);
+  // winAt is an estimate over the OUTRO lines only — if another trigger's
+  // dialogue was already queued when the last objective completed, the outro
+  // starts late. The drain guard makes it exact: never drop MISSION COMPLETE
+  // while anyone is still talking (missionEnd freezes dlgUpdate mid-line).
+  if (ms.outroDone && ms.winAt && tick >= ms.winAt && !dlgCur && !dlgQueue.length) missionEnd(true);
   refreshObjectives();
 }
 
@@ -5431,7 +5510,7 @@ function resetWorld() {
   lastCardSig = '';
   mission = null; ms = null;
   wasLowPower = false; lastAvail = null; dinoRage = 0; wildSeen = false;
-  dlgQueue = []; dlgCur = null; dlgHold = 0;
+  dlgQueue = []; dlgCur = null; dlgHold = 0; dlgClipEnd = 0;
   stopVoice();
   elDialogue.classList.add('hidden');
   elDialogue.classList.remove('talking');
